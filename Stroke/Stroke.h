@@ -4,15 +4,13 @@
 
 #pragma once
 
-#include <QUuid>
-
 #include <vector>
 
-#include "Brush/BrushSnapshot.h"
+#include "Core/PaintUuid.h"
 #include "Stroke/StrokePoint.h"
 
 struct Stroke {
-    QUuid id;
+    PaintUuid id;
+    PaintUuid brushId;
     std::vector<StrokePoint> points;
-    BrushSnapshot brush;
 };

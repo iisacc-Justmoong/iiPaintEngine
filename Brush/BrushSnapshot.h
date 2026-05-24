@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <QImage>
-#include <QUuid>
+#include "Brush/BrushTip.h"
+#include "Core/PaintUuid.h"
 
 struct BrushSnapshot {
-    QUuid brushId;
-    QImage tipImage;
+    PaintUuid brushId;
+    BrushTip tip;
     float size = 0.0F;
     float opacity = 0.0F;
     float hardness = 0.0F;

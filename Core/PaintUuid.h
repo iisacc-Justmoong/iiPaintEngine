@@ -4,5 +4,9 @@
 
 #pragma once
 
+#include <array>
+#include <cstdint>
+
 struct PaintUuid {
+    std::array<std::uint8_t, 16> bytes{};
 };

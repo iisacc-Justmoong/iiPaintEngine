@@ -59,6 +59,12 @@ set(IIPAINTENGINE_SOURCES
         Document/DocumentSnapshot.h
         Document/DocumentSerializer.cpp
         Document/DocumentSerializer.h
+        Canvas/CanvasState.cpp
+        Canvas/CanvasState.h
+        Canvas/CanvasViewport.cpp
+        Canvas/CanvasViewport.h
+        Canvas/CanvasSession.cpp
+        Canvas/CanvasSession.h
         Layer/Layer.cpp
         Layer/Layer.h
         Layer/LayerStack.cpp
@@ -165,3 +171,6 @@ target_link_libraries(iiPaintEngineTests PRIVATE
 
 add_test(NAME iiPaintEngineBlueprintStructure
         COMMAND iiPaintEngineTests)
+
+add_test(NAME iiPaintEngineDependencyBoundary
+        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/DependencyBoundaryTest.cmake)

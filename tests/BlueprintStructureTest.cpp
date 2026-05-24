@@ -10,6 +10,9 @@
 #include "Brush/BrushShape.h"
 #include "Brush/BrushSnapshot.h"
 #include "Brush/BrushTip.h"
+#include "Canvas/CanvasSession.h"
+#include "Canvas/CanvasState.h"
+#include "Canvas/CanvasViewport.h"
 #include "Color/ColorSpace.h"
 #include "Color/Gradient.h"
 #include "Color/PaintColor.h"
@@ -80,6 +83,10 @@ static_assert(blueprintStruct<DocumentMetadata>);
 static_assert(blueprintStruct<DocumentSnapshot>);
 static_assert(blueprintStruct<DocumentSerializer>);
 
+static_assert(blueprintStruct<CanvasState>);
+static_assert(blueprintStruct<CanvasViewport>);
+static_assert(blueprintStruct<CanvasSession>);
+
 static_assert(blueprintStruct<Layer>);
 static_assert(blueprintStruct<LayerStack>);
 static_assert(blueprintStruct<RasterLayer>);
@@ -135,6 +142,7 @@ static_assert(publiclyInheritsQObject<PaintCanvasItem>);
 int main()
 {
     PaintDocument document{};
+    CanvasSession canvas{};
     LayerStack layers{};
     Stroke stroke{};
     BrushPreset brush{};
@@ -154,6 +162,7 @@ int main()
     }
 
     (void) document;
+    (void) canvas;
     (void) layers;
     (void) stroke;
     (void) brush;

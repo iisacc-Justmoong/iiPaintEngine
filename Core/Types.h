@@ -4,6 +4,5 @@
 
 #pragma once
 
-class Types {
-
+struct Types {
 };
