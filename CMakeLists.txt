@@ -13,7 +13,7 @@ if(APPLE AND NOT Qt6_DIR)
     endif()
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick)
 
 if(APPLE)
     foreach(_qt_target Qt6::Gui WrapOpenGL::WrapOpenGL)
@@ -37,13 +37,52 @@ endif()
 
 set(CMAKE_AUTOMOC ON)
 
-add_library(iiPaintEngine SHARED library.cpp
+set(IIPAINTENGINE_SOURCES
+        library.cpp
+        Core/EngineConfig.cpp
+        Core/EngineConfig.h
+        Core/EngineError.cpp
+        Core/EngineError.h
+        Core/PaintUuid.cpp
+        Core/PaintUuid.h
+        Core/PaintPoint.cpp
+        Core/PaintPoint.h
+        Core/PaintRect.cpp
+        Core/PaintRect.h
+        Core/CoordinateSpace.cpp
+        Core/CoordinateSpace.h
+        Document/PaintDocument.cpp
+        Document/PaintDocument.h
+        Document/DocumentMetadata.cpp
+        Document/DocumentMetadata.h
+        Document/DocumentSnapshot.cpp
+        Document/DocumentSnapshot.h
+        Document/DocumentSerializer.cpp
+        Document/DocumentSerializer.h
+        Layer/Layer.cpp
+        Layer/Layer.h
+        Layer/LayerStack.cpp
+        Layer/LayerStack.h
+        Layer/RasterLayer.cpp
+        Layer/RasterLayer.h
+        Layer/StrokeLayer.cpp
+        Layer/StrokeLayer.h
+        Layer/TextLayer.cpp
+        Layer/TextLayer.h
+        Layer/VectorLayer.cpp
+        Layer/VectorLayer.h
         Brush/BrushPreset.cpp
         Brush/BrushPreset.h
         Brush/BrushDynamics.cpp
         Brush/BrushDynamics.h
         Brush/BrushShape.cpp
         Brush/BrushShape.h
+        Brush/BrushTip.cpp
+        Brush/BrushTip.h
+        Brush/BrushLibrary.cpp
+        Brush/BrushLibrary.h
+        Brush/BrushSnapshot.cpp
+        Brush/BrushSnapshot.h
         Brush/BrushResolve.cpp
         Brush/BrushResolve.h
         Stroke/Rasterizer.cpp
@@ -54,25 +93,75 @@ add_library(iiPaintEngine SHARED library.cpp
         Stroke/StrokePoint.h
         Stroke/Stroke.cpp
         Stroke/Stroke.h
-        Layer/Layer.cpp
-        Layer/Layer.h
-        Canvas/DrawingSurface.cpp
-        Canvas/DrawingSurface.h)
+        Stroke/StrokeInput.cpp
+        Stroke/StrokeInput.h
+        Stroke/StrokeCurve.cpp
+        Stroke/StrokeCurve.h
+        Render/Renderer.cpp
+        Render/Renderer.h
+        Render/RenderContext.cpp
+        Render/RenderContext.h
+        Render/DirtyRegion.cpp
+        Render/DirtyRegion.h
+        Render/Compositor.cpp
+        Render/Compositor.h
+        Render/CpuRenderer.cpp
+        Render/CpuRenderer.h
+        Render/GpuRenderer.cpp
+        Render/GpuRenderer.h
+        History/Command.cpp
+        History/Command.h
+        History/HistoryStack.cpp
+        History/HistoryStack.h
+        History/UndoRedoController.cpp
+        History/UndoRedoController.h
+        History/HistorySnapshot.cpp
+        History/HistorySnapshot.h
+        Input/PointerEvent.cpp
+        Input/PointerEvent.h
+        Input/TabletState.cpp
+        Input/TabletState.h
+        Input/InputNormalizer.cpp
+        Input/InputNormalizer.h
+        Input/InputStrokeBuilder.cpp
+        Input/InputStrokeBuilder.h
+        Color/PaintColor.cpp
+        Color/PaintColor.h
+        Color/Palette.cpp
+        Color/Palette.h
+        Color/ColorSpace.cpp
+        Color/ColorSpace.h
+        Color/Gradient.cpp
+        Color/Gradient.h
+        QtAdapter/PaintCanvasItem.cpp
+        QtAdapter/PaintCanvasItem.h
+        QtAdapter/PaintEngineController.cpp
+        QtAdapter/PaintEngineController.h
+        QtAdapter/DocumentAdapter.cpp
+        QtAdapter/DocumentAdapter.h
+        QtAdapter/LayerListModel.cpp
+        QtAdapter/LayerListModel.h
+        Core/Types.h
+        Core/Geometry.h)
+
+add_library(iiPaintEngine SHARED
+        ${IIPAINTENGINE_SOURCES})
 
 target_include_directories(iiPaintEngine PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(iiPaintEngine PUBLIC
         Qt6::Core
-        Qt6::Gui)
+        Qt6::Gui
+        Qt6::Quick)
 
 enable_testing()
 
 add_executable(iiPaintEngineTests
-        tests/ObjectStorageContractTest.cpp)
+        tests/BlueprintStructureTest.cpp)
 
 target_link_libraries(iiPaintEngineTests PRIVATE
         iiPaintEngine)
 
-add_test(NAME iiPaintEngineObjectStorageContract
+add_test(NAME iiPaintEngineBlueprintStructure
         COMMAND iiPaintEngineTests)

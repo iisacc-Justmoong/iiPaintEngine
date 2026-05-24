@@ -2,4 +2,8 @@
 // Created by Justmoong on 2026 May 24.
 //
 
-#include "Layer.h"
+#pragma once
+
+class Types {
+
+};

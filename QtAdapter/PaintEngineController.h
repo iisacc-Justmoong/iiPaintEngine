@@ -4,5 +4,5 @@
 
 #pragma once
 
-struct Layer {
+struct PaintEngineController {
 };

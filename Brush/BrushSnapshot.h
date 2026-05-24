@@ -7,7 +7,7 @@
 #include <QImage>
 #include <QUuid>
 
-struct BrushPreset {
+struct BrushSnapshot {
     QUuid brushId;
     QImage tipImage;
     float size = 0.0F;

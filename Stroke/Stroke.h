@@ -8,7 +8,7 @@
 
 #include <vector>
 
-#include "Brush/BrushPreset.h"
+#include "Brush/BrushSnapshot.h"
 #include "Stroke/StrokePoint.h"
 
 struct Stroke {
