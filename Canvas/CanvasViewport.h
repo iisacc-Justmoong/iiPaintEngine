@@ -5,8 +5,11 @@
 #pragma once
 
 #include "Core/PaintRect.h"
+#include "Core/Types.h"
 
 struct CanvasViewport {
-    PaintRect visibleRect;
-    double zoom = 1.0;
+    CanvasRect canvasRect;
+    ViewRect viewRect;
+    DevicePixelRect devicePixelRect;
+    Types::Scalar zoom = 1.0;
 };

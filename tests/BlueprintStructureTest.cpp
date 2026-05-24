@@ -74,8 +74,12 @@ constexpr bool blueprintStruct = !publiclyInheritsQObject<T>
 static_assert(blueprintStruct<EngineConfig>);
 static_assert(blueprintStruct<EngineError>);
 static_assert(blueprintStruct<PaintUuid>);
-static_assert(blueprintStruct<PaintPoint>);
-static_assert(blueprintStruct<PaintRect>);
+static_assert(blueprintStruct<CanvasPoint>);
+static_assert(blueprintStruct<ViewPoint>);
+static_assert(blueprintStruct<DevicePixelPoint>);
+static_assert(blueprintStruct<CanvasRect>);
+static_assert(blueprintStruct<ViewRect>);
+static_assert(blueprintStruct<DevicePixelRect>);
 static_assert(blueprintStruct<CoordinateSpace>);
 
 static_assert(blueprintStruct<PaintDocument>);

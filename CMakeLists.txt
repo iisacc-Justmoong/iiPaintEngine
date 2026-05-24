@@ -172,5 +172,14 @@ target_link_libraries(iiPaintEngineTests PRIVATE
 add_test(NAME iiPaintEngineBlueprintStructure
         COMMAND iiPaintEngineTests)
 
+add_executable(iiPaintEngineCoreTests
+        tests/CoreContractTest.cpp)
+
+target_link_libraries(iiPaintEngineCoreTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineCoreContract
+        COMMAND iiPaintEngineCoreTests)
+
 add_test(NAME iiPaintEngineDependencyBoundary
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/DependencyBoundaryTest.cmake)

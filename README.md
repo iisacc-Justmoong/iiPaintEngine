@@ -32,6 +32,21 @@ QtAdapter
 
 `Core`는 최하층이며 어떤 프로젝트 모듈에도 의존하지 않는다. `Layer`, `Stroke`, `Brush`는 서로 직접 알지 않고 `Core` 타입을 통해 최소한의 식별자와 좌표만 공유한다. `QObject`, `QQuickItem`, QML 관련 include는 `QtAdapter`에만 둔다.
 
+## Core 계약
+
+Core는 모든 상위 계층이 공유하는 최하층 타입만 가진다.
+
+- `Types`: `Scalar`, `Pixel`, `Byte` 별칭을 제공한다.
+- `PaintUuid`: 16바이트 순수 C++ UUID 저장소이다.
+- `CoordinateSpace`: `Canvas`, `View`, `DevicePixel` 좌표계를 구분한다.
+- `PaintPoint<Space>` / `PaintRect<Space>`: 좌표계 marker를 템플릿 인자로 받아 서로 다른 좌표계끼리 대입되지 않는다.
+- `CanvasPoint`, `ViewPoint`, `DevicePixelPoint`: 캔버스 좌표, 뷰 좌표, 장치 픽셀 좌표의 명시적 별칭이다.
+- `CanvasRect`, `ViewRect`, `DevicePixelRect`: 좌표계별 사각형 별칭이다.
+- `EngineError`: 에러 코드와 선택적 메시지 포인터만 가진 경량 값 타입이다.
+- `EngineConfig`: 기본 DPI와 device pixel ratio만 가진 최소 설정 값 타입이다.
+
+장치 픽셀 좌표는 `Types::Pixel` 정수 좌표를 사용하고, 캔버스/뷰 좌표는 `Types::Scalar` 실수 좌표를 사용한다.
+
 ## 검증
 
 빌드 디렉터리는 `build/`만 사용한다.
@@ -43,3 +58,4 @@ ctest --test-dir build --output-on-failure
 ```
 
 `iiPaintEngineDependencyBoundary` 테스트는 헤더 include 방향과 Qt 의존 위치를 검사한다.
+`iiPaintEngineCoreContract` 테스트는 Core 값 타입, UUID 크기, 좌표계 분리 계약을 검사한다.

@@ -4,7 +4,17 @@
 
 #pragma once
 
+#include "Core/CoordinateSpace.h"
+
+template <typename Space>
 struct PaintPoint {
-    double x = 0.0;
-    double y = 0.0;
+    using SpaceType = Space;
+    using Scalar = typename CoordinateScalar<Space>::Type;
+
+    Scalar x{};
+    Scalar y{};
 };
+
+using CanvasPoint = PaintPoint<CanvasCoordinateSpace>;
+using ViewPoint = PaintPoint<ViewCoordinateSpace>;
+using DevicePixelPoint = PaintPoint<DevicePixelCoordinateSpace>;

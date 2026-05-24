@@ -4,9 +4,18 @@
 
 #pragma once
 
+#include "Core/PaintPoint.h"
+
+template <typename Space>
 struct PaintRect {
-    double x = 0.0;
-    double y = 0.0;
-    double width = 0.0;
-    double height = 0.0;
+    using SpaceType = Space;
+    using Scalar = typename CoordinateScalar<Space>::Type;
+
+    PaintPoint<Space> origin{};
+    Scalar width{};
+    Scalar height{};
 };
+
+using CanvasRect = PaintRect<CanvasCoordinateSpace>;
+using ViewRect = PaintRect<ViewCoordinateSpace>;
+using DevicePixelRect = PaintRect<DevicePixelCoordinateSpace>;
