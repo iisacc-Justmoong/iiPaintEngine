@@ -4,7 +4,7 @@
 
 ## 모듈 청사진
 
-- Core: `EngineConfig`, `EngineError`, `PaintUuid`, `PaintPoint`, `PaintRect`, `CoordinateSpace`
+- Core: `EngineConfig`, `EngineError`, `PaintUuid`, `PaintPoint`, `PaintRect`, `CoordinateSpace`, `RasterSample`
 - Document: `PaintDocument`, `DocumentMetadata`, `DocumentSnapshot`, `DocumentSerializer`
 - Canvas: `CanvasState`, `CanvasViewport`, `CanvasSession`
 - Layer: `Layer`, `LayerStack`, `RasterLayer`, `StrokeLayer`, `TextLayer`, `VectorLayer`
@@ -42,10 +42,26 @@ Core는 모든 상위 계층이 공유하는 최하층 타입만 가진다.
 - `PaintPoint<Space>` / `PaintRect<Space>`: 좌표계 marker를 템플릿 인자로 받아 서로 다른 좌표계끼리 대입되지 않는다.
 - `CanvasPoint`, `ViewPoint`, `DevicePixelPoint`: 캔버스 좌표, 뷰 좌표, 장치 픽셀 좌표의 명시적 별칭이다.
 - `CanvasRect`, `ViewRect`, `DevicePixelRect`: 좌표계별 사각형 별칭이다.
+- `RasterSample`: 래스터라이저가 만든 장치 픽셀 좌표와 ARGB 색상 한 점이다.
 - `EngineError`: 에러 코드와 선택적 메시지 포인터만 가진 경량 값 타입이다.
 - `EngineConfig`: 기본 DPI와 device pixel ratio만 가진 최소 설정 값 타입이다.
 
 장치 픽셀 좌표는 `Types::Pixel` 정수 좌표를 사용하고, 캔버스/뷰 좌표는 `Types::Scalar` 실수 좌표를 사용한다.
+
+## 첫 파이프라인
+
+현재 엔진의 최소 동작 파이프라인은 아래와 같다.
+
+```text
+StrokeInput
+-> Stabilizer
+-> StrokeCurve
+-> Rasterizer
+-> RasterLayer
+-> PaintDocument
+```
+
+초기 브러시는 고급 브러시 엔진이 아니라 `Rasterizer`의 기본값인 검은색 원형 브러시 하나이다. `Stabilizer`는 입력 점의 양 끝을 보존하고 내부 점만 단순 평균 기반으로 안정화한다. `StrokeCurve`는 안정화된 점 배열을 캔버스 좌표 곡선으로 보유한다. `Rasterizer`는 곡선을 `RasterSample` 배열로 바꾸고, `RasterLayer`는 샘플을 픽셀 버퍼에 칠한다. `PaintDocument`는 그 래스터 레이어를 소유한다.
 
 ## 검증
 
@@ -59,3 +75,4 @@ ctest --test-dir build --output-on-failure
 
 `iiPaintEngineDependencyBoundary` 테스트는 헤더 include 방향과 Qt 의존 위치를 검사한다.
 `iiPaintEngineCoreContract` 테스트는 Core 값 타입, UUID 크기, 좌표계 분리 계약을 검사한다.
+`iiPaintEnginePipelineHeartbeat` 테스트는 최소 입력 획이 래스터 레이어에 그려지고 문서에 보관되는지 검사한다.

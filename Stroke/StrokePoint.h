@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include "Core/PaintPoint.h"
+#include "Core/Types.h"
+
 struct StrokePoint {
-    float x = 0.0F;
-    float y = 0.0F;
-    float pressure = 0.0F;
-    float tiltX = 0.0F;
-    float tiltY = 0.0F;
-    double time = 0.0;
+    CanvasPoint position;
+    Types::Scalar pressure = 1.0;
+    Types::Scalar time = 0.0;
 };

@@ -4,5 +4,10 @@
 
 #pragma once
 
+#include <vector>
+
+#include "Stroke/StrokePoint.h"
+
 struct StrokeInput {
+    std::vector<StrokePoint> points;
 };

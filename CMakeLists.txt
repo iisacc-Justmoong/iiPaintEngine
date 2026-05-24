@@ -49,6 +49,8 @@ set(IIPAINTENGINE_SOURCES
         Core/PaintPoint.h
         Core/PaintRect.cpp
         Core/PaintRect.h
+        Core/RasterSample.cpp
+        Core/RasterSample.h
         Core/CoordinateSpace.cpp
         Core/CoordinateSpace.h
         Document/PaintDocument.cpp
@@ -180,6 +182,15 @@ target_link_libraries(iiPaintEngineCoreTests PRIVATE
 
 add_test(NAME iiPaintEngineCoreContract
         COMMAND iiPaintEngineCoreTests)
+
+add_executable(iiPaintEnginePipelineTests
+        tests/PipelineHeartbeatTest.cpp)
+
+target_link_libraries(iiPaintEnginePipelineTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEnginePipelineHeartbeat
+        COMMAND iiPaintEnginePipelineTests)
 
 add_test(NAME iiPaintEngineDependencyBoundary
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/DependencyBoundaryTest.cmake)

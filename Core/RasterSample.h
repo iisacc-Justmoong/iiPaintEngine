@@ -1,0 +1,14 @@
+//
+// Created by Justmoong on 2026 May 24.
+//
+
+#pragma once
+
+#include <cstdint>
+
+#include "Core/PaintPoint.h"
+
+struct RasterSample {
+    DevicePixelPoint position;
+    std::uint32_t argb = 0x00000000U;
+};

@@ -4,5 +4,13 @@
 
 #pragma once
 
+#include <vector>
+
+#include "Core/PaintPoint.h"
+#include "Stroke/StrokeInput.h"
+
 struct StrokeCurve {
+    std::vector<CanvasPoint> points;
 };
+
+StrokeCurve makeStrokeCurve(const StrokeInput &input);
