@@ -11,7 +11,7 @@ PaintDocument makePaintDocument(const RasterLayer &baseLayer)
     Canvas canvas = makeCanvas(surface);
     Layer layer;
     layer.surface = surface;
-    layer.name = "Base";
+    layer.metadata.name = "Base";
     canvas.layers.layers.push_back(layer);
     document.canvases.push_back(canvas);
     return document;

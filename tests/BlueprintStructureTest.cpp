@@ -39,6 +39,7 @@
 #include "Input/TabletState.h"
 #include "Layer/DrawingSurface.h"
 #include "Layer/Layer.h"
+#include "Layer/LayerMetadata.h"
 #include "Layer/LayerStack.h"
 #include "Layer/RasterLayer.h"
 #include "Layer/StrokeLayer.h"
@@ -93,6 +94,8 @@ static_assert(blueprintStruct<CoordinateSpace>);
 
 static_assert(blueprintStruct<PaintDocument>);
 static_assert(blueprintStruct<DocumentMetadata>);
+static_assert(blueprintStruct<DocumentAsset>);
+static_assert(blueprintStruct<DocumentArchive>);
 static_assert(blueprintStruct<DocumentSnapshot>);
 static_assert(blueprintStruct<DocumentSerializer>);
 
@@ -103,6 +106,7 @@ static_assert(blueprintStruct<CanvasViewport>);
 static_assert(blueprintStruct<CanvasSession>);
 
 static_assert(blueprintStruct<Layer>);
+static_assert(blueprintStruct<LayerMetadata>);
 static_assert(blueprintStruct<LayerStack>);
 static_assert(blueprintStruct<DrawingSurface>);
 static_assert(blueprintStruct<RasterLayer>);

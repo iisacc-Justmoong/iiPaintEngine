@@ -3,6 +3,7 @@
 #include "Canvas/Canvas.h"
 #include "Document/PaintDocument.h"
 #include "Layer/DrawingSurface.h"
+#include "Layer/LayerMetadata.h"
 #include "Layer/RasterLayer.h"
 
 namespace {
@@ -41,7 +42,31 @@ int main()
         return 1;
     }
 
-    if (drawingSurfacePixelAt(canvas.layers.layers.front().surface, {2, 1}) != 0xFF112233U) {
+    const Layer &baseLayer = canvas.layers.layers.front();
+    if (drawingSurfacePixelAt(baseLayer.surface, {2, 1}) != 0xFF112233U
+            || baseLayer.metadata.name != "Base"
+            || !baseLayer.metadata.visible
+            || baseLayer.metadata.opacity != 1.0
+            || baseLayer.metadata.blendMode != RasterBlendMode::SourceOver) {
+        return 1;
+    }
+
+    LayerMetadata overlayMetadata{};
+    overlayMetadata.id.bytes[0] = 7;
+    overlayMetadata.name = "Overlay";
+    overlayMetadata.visible = false;
+    overlayMetadata.opacity = 0.5;
+    overlayMetadata.blendMode = RasterBlendMode::SourceOver;
+
+    Layer overlayLayer{};
+    overlayLayer.metadata = overlayMetadata;
+    Canvas layeredCanvas = makeCanvas(makeDrawingSurface(8, 6));
+    layeredCanvas.layers.layers.push_back(overlayLayer);
+    if (layeredCanvas.layers.layers.front().metadata.id.bytes[0] != 7
+            || layeredCanvas.layers.layers.front().metadata.name != "Overlay"
+            || layeredCanvas.layers.layers.front().metadata.visible
+            || layeredCanvas.layers.layers.front().metadata.opacity != 0.5
+            || layeredCanvas.layers.layers.front().metadata.blendMode != RasterBlendMode::SourceOver) {
         return 1;
     }
 

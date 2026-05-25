@@ -9,7 +9,8 @@ aggregate 초기화를 지원하는 단순 `struct` 청사진으로 둔다. 엔�
   `RasterBlendMode`
 - Document: `PaintDocument`, `DocumentMetadata`, `DocumentSnapshot`, `DocumentSerializer`
 - Canvas: `Canvas`, `CanvasMetadata`, `CanvasState`, `CanvasViewport`, `CanvasSession`
-- Layer: `DrawingSurface`, `Layer`, `LayerStack`, `RasterLayer`, `StrokeCompositeBuffer`, `PremultipliedPixel`,
+- Layer: `DrawingSurface`, `Layer`, `LayerMetadata`, `LayerStack`, `RasterLayer`, `StrokeCompositeBuffer`,
+  `PremultipliedPixel`,
   `StrokeLayer`, `TextLayer`, `VectorLayer`
 - Stroke: `Stroke`, `StrokePoint`, `StrokeInput`, `Stabilizer`, `StrokeCurve`, `StrokeResampler`, `Rasterizer`,
   `BrushDab`, `StrokePath`, `BrushState`, `StrokeCommand`, `StrokeRepository`, `LiveStrokeFrame`, `LiveStrokeBuffer`
@@ -87,11 +88,21 @@ Mouse PointerEvent
 
 상위 문서 구조는 `PaintDocument -> Canvas -> LayerStack -> Layer -> DrawingSurface`이다. `Canvas`는 사용자가 바라보는 작업 공간이고,
 `DrawingSurface`는 width, height, pixel format, color space, DPI, backing store, dirty region, texture handle 같은 실제 렌더
-가능한 물리 표면이다. `DrawingSurface`는 레이어 목록을 갖지 않는다. 레이어 편집 구조는 `LayerStack`과 `Layer`가 맡고, stroke 원본 및 command 보존은
-`StrokeRepository`가 맡는다.
+가능한 물리 표면이다. `DrawingSurface`는 레이어 목록을 갖지 않는다. 레이어 편집 구조는 `LayerStack`과 `Layer`가 맡고, 레이어 공통 정보는
+`LayerMetadata`가 맡는다. stroke 원본 및 command 보존은 `StrokeRepository`가 맡는다.
 
-메타데이터는 문서 단위와 캔버스 단위로 나눈다. `DocumentMetadata`는 제목, 작성자, 저장 경로, 버전, document id 같은 문서 전체 정보를 담고, `CanvasMetadata`는 배경색,
-단위, 의도한 export 크기, DPI, 색공간, thumbnail 같은 캔버스 표현 정보를 담는다.
+메타데이터는 문서, 캔버스, 레이어 단위로 나눈다. `DocumentMetadata`는 제목, 작성자, 저장 경로, 버전, document id 같은 문서 전체 정보를 담고,
+`CanvasMetadata`는 배경색, 단위, 의도한 export 크기, DPI, 색공간, thumbnail 같은 캔버스 표현 정보를 담는다. `LayerMetadata`는 layer id,
+name, visible, opacity, blend mode 같은 레이어 편집 공통 정보를 담는다.
+
+`DocumentArchive`는 저장 포맷의 값 계약이다. `PaintDocument` 본문, brush source snapshot, color space profile, 외부 asset, history
+stack을 한 묶음으로
+보관한다. `serializeDocumentArchive`/`deserializeDocumentArchive`는 이 archive를 key/value payload로 왕복시켜 레이어 표면, layer
+metadata, stroke command,
+brush state, brush source mask, ICC profile bytes, asset bytes, history command가 파일 컨테이너 구현 전에 먼저 보존되는지 고정한다.
+모듈 경계에서는 `PaintDocument` 자체가 여전히 `Canvas`만 소유하고, `DocumentSerializer`만 저장 포맷 경계로서 `Brush`, `Color`, `History`의
+persistent value를
+읽을 수 있다.
 
 초기 브러시는 `Rasterizer`의 기본값인 검은색 원형 브러시를 사용한다. 브러시 알파 이미지가 지정되면 `Rasterizer`는 먼저 `StrokeCurve`의 벡터 구간을 spacing/density
 간격으로 순회하여 `BrushDab` 명령 시퀀스를 만든다. 각 dab은 position, scale, rotation, alpha, color, blendMode를 가진 작은 브러시 투영 명령이다. 그 다음 dab
@@ -206,7 +217,10 @@ ctest --test-dir build --output-on-failure
 `iiPaintEngineCoreContract` 테스트는 Core 값 타입, UUID 크기, 좌표계 분리 계약을 검사한다.
 `iiPaintEnginePipelineHeartbeat` 테스트는 최소 입력 획이 래스터 레이어에 그려지고 문서에 보관되는지 검사한다.
 `iiPaintEngineCanvasDocumentStructure` 테스트는 `Document -> Canvas -> LayerStack -> Layer -> DrawingSurface` 소유 구조,
-`DocumentMetadata`/`CanvasMetadata` 분리, DrawingSurface의 물리 표면 책임을 검사한다.
+`DocumentMetadata`/`CanvasMetadata`/`LayerMetadata` 분리, DrawingSurface의 물리 표면 책임을 검사한다.
+`iiPaintEngineDocumentSerializerContract` 테스트는 `DocumentArchive`가 레이어, brush source, stroke command, color space
+profile, asset, history
+command를 문자열 payload로 저장하고 다시 열 수 있는지 검사한다.
 `iiPaintEngineCanvasQmlApi` 테스트는 `registerIipeQmlTypes()`로 `iipe.Canvas`를 등록하고 QML에서 viewport, brush, live preview,
 clear API를 하나의 객체로 사용할 수 있는지 검사한다.
 `iiPaintEnginePointerStrokeFlow` 테스트는 마우스 포인터만 스트로크를 완성하고, 벡터 스트로크 위에 브러시 알파 이미지가 flow/spacing에 따라 투영되는지 검사한다.

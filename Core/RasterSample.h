@@ -7,10 +7,7 @@
 #include <cstdint>
 
 #include "Core/PaintPoint.h"
-
-enum class RasterBlendMode {
-    SourceOver,
-};
+#include "Core/RasterBlendMode.h"
 
 struct RasterSample {
     DevicePixelPoint position;

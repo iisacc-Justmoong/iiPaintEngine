@@ -51,6 +51,7 @@ set(IIPAINTENGINE_SOURCES
         Core/PaintRect.h
         Core/RasterSample.cpp
         Core/RasterSample.h
+        Core/RasterBlendMode.h
         Core/CoordinateSpace.cpp
         Core/CoordinateSpace.h
         Document/PaintDocument.cpp
@@ -73,6 +74,8 @@ set(IIPAINTENGINE_SOURCES
         Canvas/CanvasSession.h
         Layer/Layer.cpp
         Layer/Layer.h
+        Layer/LayerMetadata.cpp
+        Layer/LayerMetadata.h
         Layer/DrawingSurface.cpp
         Layer/DrawingSurface.h
         Layer/LayerStack.cpp
@@ -219,6 +222,15 @@ target_link_libraries(iiPaintEngineCanvasDocumentStructureTests PRIVATE
 
 add_test(NAME iiPaintEngineCanvasDocumentStructure
         COMMAND iiPaintEngineCanvasDocumentStructureTests)
+
+add_executable(iiPaintEngineDocumentSerializerContractTests
+        tests/DocumentSerializerContractTest.cpp)
+
+target_link_libraries(iiPaintEngineDocumentSerializerContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineDocumentSerializerContract
+        COMMAND iiPaintEngineDocumentSerializerContractTests)
 
 add_executable(iiPaintEngineCanvasQmlApiTests
         tests/CanvasQmlApiTest.cpp)

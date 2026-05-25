@@ -4,13 +4,10 @@
 
 #pragma once
 
-#include <string>
-
 #include "Layer/DrawingSurface.h"
+#include "Layer/LayerMetadata.h"
 
 struct Layer {
     DrawingSurface surface;
-    std::string name;
-    bool visible = true;
-    double opacity = 1.0;
+    LayerMetadata metadata;
 };
