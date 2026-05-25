@@ -13,7 +13,7 @@ if(APPLE AND NOT Qt6_DIR)
     endif()
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick)
 
 if(APPLE)
     foreach(_qt_target Qt6::Gui WrapOpenGL::WrapOpenGL)
@@ -157,6 +157,10 @@ set(IIPAINTENGINE_SOURCES
         Color/Gradient.h
         QtAdapter/PaintCanvasItem.cpp
         QtAdapter/PaintCanvasItem.h
+        QtAdapter/CanvasEventWork.cpp
+        QtAdapter/CanvasEventWork.h
+        QtAdapter/IipeQmlTypes.cpp
+        QtAdapter/IipeQmlTypes.h
         QtAdapter/PaintEngineController.cpp
         QtAdapter/PaintEngineController.h
         QtAdapter/DocumentAdapter.cpp
@@ -175,6 +179,7 @@ target_include_directories(iiPaintEngine PUBLIC
 target_link_libraries(iiPaintEngine PUBLIC
         Qt6::Core
         Qt6::Gui
+        Qt6::Qml
         Qt6::Quick)
 
 enable_testing()
@@ -214,6 +219,16 @@ target_link_libraries(iiPaintEngineCanvasDocumentStructureTests PRIVATE
 
 add_test(NAME iiPaintEngineCanvasDocumentStructure
         COMMAND iiPaintEngineCanvasDocumentStructureTests)
+
+add_executable(iiPaintEngineCanvasQmlApiTests
+        tests/CanvasQmlApiTest.cpp)
+
+target_link_libraries(iiPaintEngineCanvasQmlApiTests PRIVATE
+        iiPaintEngine
+        Qt6::Qml)
+
+add_test(NAME iiPaintEngineCanvasQmlApi
+        COMMAND iiPaintEngineCanvasQmlApiTests)
 
 add_executable(iiPaintEnginePointerStrokeFlowTests
         tests/PointerStrokeFlowTest.cpp)
@@ -295,6 +310,15 @@ target_link_libraries(iiPaintEngineCoordinateDirtyRegionTests PRIVATE
 
 add_test(NAME iiPaintEngineCoordinateDirtyRegion
         COMMAND iiPaintEngineCoordinateDirtyRegionTests)
+
+add_executable(iiPaintEngineCanvasEventThreadingTests
+        tests/CanvasEventThreadingTest.cpp)
+
+target_link_libraries(iiPaintEngineCanvasEventThreadingTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineCanvasEventThreading
+        COMMAND iiPaintEngineCanvasEventThreadingTests)
 
 add_test(NAME iiPaintEngineDependencyBoundary
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/DependencyBoundaryTest.cmake)
