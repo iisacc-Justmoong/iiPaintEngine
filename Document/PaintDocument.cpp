@@ -7,6 +7,12 @@
 PaintDocument makePaintDocument(const RasterLayer &baseLayer)
 {
     PaintDocument document;
-    document.rasterLayers.push_back(baseLayer);
+    const DrawingSurface surface = drawingSurfaceFromRasterLayer(baseLayer);
+    Canvas canvas = makeCanvas(surface);
+    Layer layer;
+    layer.surface = surface;
+    layer.name = "Base";
+    canvas.layers.layers.push_back(layer);
+    document.canvases.push_back(canvas);
     return document;
 }

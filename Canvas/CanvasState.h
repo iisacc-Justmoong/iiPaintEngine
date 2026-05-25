@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "Document/PaintDocument.h"
+#include "Canvas/Canvas.h"
 
 struct CanvasState {
-    PaintDocument document;
+    Canvas canvas;
 };

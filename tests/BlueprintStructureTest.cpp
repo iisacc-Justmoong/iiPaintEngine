@@ -10,6 +10,8 @@
 #include "Brush/BrushShape.h"
 #include "Brush/BrushSnapshot.h"
 #include "Brush/BrushTip.h"
+#include "Canvas/Canvas.h"
+#include "Canvas/CanvasMetadata.h"
 #include "Canvas/CanvasSession.h"
 #include "Canvas/CanvasState.h"
 #include "Canvas/CanvasViewport.h"
@@ -35,6 +37,7 @@
 #include "Input/InputStrokeBuilder.h"
 #include "Input/PointerEvent.h"
 #include "Input/TabletState.h"
+#include "Layer/DrawingSurface.h"
 #include "Layer/Layer.h"
 #include "Layer/LayerStack.h"
 #include "Layer/RasterLayer.h"
@@ -59,6 +62,7 @@
 #include "Stroke/StrokeCurve.h"
 #include "Stroke/StrokeInput.h"
 #include "Stroke/StrokePoint.h"
+#include "Stroke/StrokeRepository.h"
 #include "Stroke/StrokeResampler.h"
 
 namespace {
@@ -92,12 +96,15 @@ static_assert(blueprintStruct<DocumentMetadata>);
 static_assert(blueprintStruct<DocumentSnapshot>);
 static_assert(blueprintStruct<DocumentSerializer>);
 
+static_assert(blueprintStruct<Canvas>);
+static_assert(blueprintStruct<CanvasMetadata>);
 static_assert(blueprintStruct<CanvasState>);
 static_assert(blueprintStruct<CanvasViewport>);
 static_assert(blueprintStruct<CanvasSession>);
 
 static_assert(blueprintStruct<Layer>);
 static_assert(blueprintStruct<LayerStack>);
+static_assert(blueprintStruct<DrawingSurface>);
 static_assert(blueprintStruct<RasterLayer>);
 static_assert(blueprintStruct<PremultipliedPixel>);
 static_assert(blueprintStruct<StrokeCompositeBuffer>);
@@ -116,6 +123,7 @@ static_assert(blueprintStruct<BrushState>);
 static_assert(blueprintStruct<StrokeCommand>);
 static_assert(blueprintStruct<LiveStrokeFrame>);
 static_assert(blueprintStruct<LiveStrokeBuffer>);
+static_assert(blueprintStruct<StrokeRepository>);
 static_assert(blueprintStruct<StrokeResampler>);
 static_assert(blueprintStruct<Rasterizer>);
 
@@ -162,8 +170,11 @@ static_assert(publiclyInheritsQObject<PaintCanvasItem>);
 int main()
 {
     PaintDocument document{};
+    Canvas canvasValue{};
     CanvasSession canvas{};
+    DrawingSurface surface{};
     LayerStack layers{};
+    StrokeRepository strokeRepository{};
     Stroke stroke{};
     BrushPreset brush{};
     RenderContext renderContext{};
@@ -182,8 +193,11 @@ int main()
     }
 
     (void) document;
+    (void) canvasValue;
     (void) canvas;
+    (void) surface;
     (void) layers;
+    (void) strokeRepository;
     (void) stroke;
     (void) brush;
     (void) renderContext;

@@ -6,10 +6,12 @@
 
 #include <vector>
 
-#include "Layer/RasterLayer.h"
+#include "Canvas/Canvas.h"
+#include "Document/DocumentMetadata.h"
 
 struct PaintDocument {
-    std::vector<RasterLayer> rasterLayers;
+    DocumentMetadata metadata;
+    std::vector<Canvas> canvases;
 };
 
 PaintDocument makePaintDocument(const RasterLayer &baseLayer);

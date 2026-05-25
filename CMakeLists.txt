@@ -61,6 +61,10 @@ set(IIPAINTENGINE_SOURCES
         Document/DocumentSnapshot.h
         Document/DocumentSerializer.cpp
         Document/DocumentSerializer.h
+        Canvas/Canvas.cpp
+        Canvas/Canvas.h
+        Canvas/CanvasMetadata.cpp
+        Canvas/CanvasMetadata.h
         Canvas/CanvasState.cpp
         Canvas/CanvasState.h
         Canvas/CanvasViewport.cpp
@@ -69,6 +73,8 @@ set(IIPAINTENGINE_SOURCES
         Canvas/CanvasSession.h
         Layer/Layer.cpp
         Layer/Layer.h
+        Layer/DrawingSurface.cpp
+        Layer/DrawingSurface.h
         Layer/LayerStack.cpp
         Layer/LayerStack.h
         Layer/RasterLayer.cpp
@@ -105,6 +111,8 @@ set(IIPAINTENGINE_SOURCES
         Stroke/Stroke.h
         Stroke/StrokeCommand.cpp
         Stroke/StrokeCommand.h
+        Stroke/StrokeRepository.cpp
+        Stroke/StrokeRepository.h
         Stroke/StrokeInput.cpp
         Stroke/StrokeInput.h
         Stroke/StrokeResampler.cpp
@@ -197,6 +205,15 @@ target_link_libraries(iiPaintEnginePipelineTests PRIVATE
 
 add_test(NAME iiPaintEnginePipelineHeartbeat
         COMMAND iiPaintEnginePipelineTests)
+
+add_executable(iiPaintEngineCanvasDocumentStructureTests
+        tests/CanvasDocumentStructureTest.cpp)
+
+target_link_libraries(iiPaintEngineCanvasDocumentStructureTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineCanvasDocumentStructure
+        COMMAND iiPaintEngineCanvasDocumentStructureTests)
 
 add_executable(iiPaintEnginePointerStrokeFlowTests
         tests/PointerStrokeFlowTest.cpp)

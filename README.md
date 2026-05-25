@@ -6,9 +6,9 @@
 
 - Core: `EngineConfig`, `EngineError`, `PaintUuid`, `PaintPoint`, `PaintRect`, `CoordinateSpace`, `RasterSample`, `RasterBlendMode`
 - Document: `PaintDocument`, `DocumentMetadata`, `DocumentSnapshot`, `DocumentSerializer`
-- Canvas: `CanvasState`, `CanvasViewport`, `CanvasSession`
-- Layer: `Layer`, `LayerStack`, `RasterLayer`, `StrokeCompositeBuffer`, `PremultipliedPixel`, `StrokeLayer`, `TextLayer`, `VectorLayer`
-- Stroke: `Stroke`, `StrokePoint`, `StrokeInput`, `Stabilizer`, `StrokeCurve`, `StrokeResampler`, `Rasterizer`, `BrushDab`, `StrokePath`, `BrushState`, `StrokeCommand`, `LiveStrokeFrame`, `LiveStrokeBuffer`
+- Canvas: `Canvas`, `CanvasMetadata`, `CanvasState`, `CanvasViewport`, `CanvasSession`
+- Layer: `DrawingSurface`, `Layer`, `LayerStack`, `RasterLayer`, `StrokeCompositeBuffer`, `PremultipliedPixel`, `StrokeLayer`, `TextLayer`, `VectorLayer`
+- Stroke: `Stroke`, `StrokePoint`, `StrokeInput`, `Stabilizer`, `StrokeCurve`, `StrokeResampler`, `Rasterizer`, `BrushDab`, `StrokePath`, `BrushState`, `StrokeCommand`, `StrokeRepository`, `LiveStrokeFrame`, `LiveStrokeBuffer`
 - Brush: `BrushPreset`, `BrushDynamics`, `BrushDynamicsInput`, `BrushDynamicsResult`, `BrushShape`, `BrushTip`, `BrushLibrary`, `BrushSnapshot`, `BrushResolve`
 - Render: `Renderer`, `RenderContext`, `DirtyRegion`, `Compositor`, `CpuRenderer`, `GpuRenderer`
 - History: `Command`, `HistoryStack`, `UndoRedoController`, `HistorySnapshot`
@@ -24,13 +24,16 @@
 
 ```text
 QtAdapter
--> Canvas / Input
--> Document
--> Layer / Stroke / Brush / Render / History / Color
+-> Document / Canvas / Input
+Document
+-> Canvas
+Canvas
+-> Layer / Stroke
+Layer / Stroke / Brush / Render / History / Color
 -> Core
 ```
 
-`Core`는 최하층이며 어떤 프로젝트 모듈에도 의존하지 않는다. `Layer`, `Brush`, `Render`, `History`, `Color`는 `Core` 타입을 통해 최소한의 식별자와 좌표만 공유한다. `Stroke`는 브러시 파라미터를 dab 명령으로 해석하기 위해 `BrushDynamics` 값 타입만 읽을 수 있다. `QObject`, `QQuickItem`, QML 관련 include는 `QtAdapter`에만 둔다.
+`Core`는 최하층이며 어떤 프로젝트 모듈에도 의존하지 않는다. `Layer`, `Brush`, `Render`, `History`, `Color`는 `Core` 타입을 통해 최소한의 식별자와 좌표만 공유한다. `Stroke`는 브러시 파라미터를 dab 명령으로 해석하기 위해 `BrushDynamics` 값 타입만 읽을 수 있다. `Canvas`는 `LayerStack`과 `StrokeRepository`를 묶는 작업 공간이며, `Document`는 하나 이상의 `Canvas`와 문서 메타데이터를 소유한다. `QObject`, `QQuickItem`, QML 관련 include는 `QtAdapter`에만 둔다.
 
 `Input`은 포인터 이벤트를 `StrokeInput` 값으로 바꾸기 위해 `Stroke`의 순수 값 타입만 사용할 수 있다. `Input`은 Qt, QML, 브러시, 래스터 레이어를 알 수 없으며, 장치별 이벤트 해석과 스트로크 단위의 벡터 입력 구성까지만 맡는다.
 
@@ -66,8 +69,15 @@ Mouse PointerEvent
 -> RasterSample
 -> StrokeCompositeBuffer
 -> RasterLayer
+-> DrawingSurface
+-> LayerStack
+-> Canvas
 -> PaintDocument
 ```
+
+상위 문서 구조는 `PaintDocument -> Canvas -> LayerStack -> Layer -> DrawingSurface`이다. `Canvas`는 사용자가 바라보는 작업 공간이고, `DrawingSurface`는 width, height, pixel format, color space, DPI, backing store, dirty region, texture handle 같은 실제 렌더 가능한 물리 표면이다. `DrawingSurface`는 레이어 목록을 갖지 않는다. 레이어 편집 구조는 `LayerStack`과 `Layer`가 맡고, stroke 원본 및 command 보존은 `StrokeRepository`가 맡는다.
+
+메타데이터는 문서 단위와 캔버스 단위로 나눈다. `DocumentMetadata`는 제목, 작성자, 저장 경로, 버전, document id 같은 문서 전체 정보를 담고, `CanvasMetadata`는 배경색, 단위, 의도한 export 크기, DPI, 색공간, thumbnail 같은 캔버스 표현 정보를 담는다.
 
 초기 브러시는 `Rasterizer`의 기본값인 검은색 원형 브러시를 사용한다. 브러시 알파 이미지가 지정되면 `Rasterizer`는 먼저 `StrokeCurve`의 벡터 구간을 spacing/density 간격으로 순회하여 `BrushDab` 명령 시퀀스를 만든다. 각 dab은 position, scale, rotation, alpha, color, blendMode를 가진 작은 브러시 투영 명령이다. 그 다음 dab 위치에 브러시 알파 이미지를 변환하여 `RasterSample`로 투영한다.
 
@@ -91,7 +101,7 @@ stroke 시작과 끝은 `warmupDistance`, `taperDistance`로 dab alpha를 감쇠
 
 `flow`는 opacity가 아니다. `flow`는 각 dab이 단위 거리마다 더하는 안료량이고, `opacity`는 한 스트로크가 도달할 수 있는 최대 농도이다. `StrokeCompositeBuffer`는 한 stroke 내부의 dab들을 premultiplied alpha로 source-over 누적하되 `RasterSample::opacityCap`을 넘지 않도록 제한한다. stroke가 끝나면 local buffer 전체가 `RasterLayer`에 source-over로 합성된다. 따라서 낮은 flow는 같은 stroke 안에서 여러 dab이 겹칠수록 천천히 진해지고, 낮은 opacity는 최종 농도를 제한한다.
 
-`Stabilizer`는 입력 점의 양 끝을 보존하고 내부 점만 단순 평균 기반으로 안정화한다. `StrokeCurve`는 안정화된 샘플 배열을 캔버스 좌표 곡선으로 보유한다. `RasterLayer`는 샘플을 픽셀 버퍼에 칠하고, `PaintDocument`는 그 래스터 레이어를 소유한다.
+`Stabilizer`는 입력 점의 양 끝을 보존하고 내부 점만 단순 평균 기반으로 안정화한다. `StrokeCurve`는 안정화된 샘플 배열을 document 좌표 곡선으로 보유한다. `RasterLayer`는 stroke 합성용 임시 픽셀 버퍼이고, 문서 구조에 저장될 때는 `Layer`의 `DrawingSurface`로 들어간다.
 
 `LiveStrokeBuffer`는 pointer move 중의 즉시 표시용 파생 버퍼이다. `LiveStrokeFrame`은 raw input을 그대로 복사하고, 표시용 `displayedInput`은 smoothing을 적용하되 마지막 입력 tip은 raw 위치와 시간을 그대로 유지한다. `PaintCanvasItem`은 committed `RasterLayer`와 live `RasterLayer`를 분리해서 그린다. move 중에는 live layer만 계속 다시 그리며, release 시 live layer를 지우고 같은 raw stroke를 `StrokeCommand`로 만들어 committed layer에 합성한다.
 
@@ -112,6 +122,7 @@ ctest --test-dir build --output-on-failure
 `iiPaintEngineDependencyBoundary` 테스트는 헤더 include 방향과 Qt 의존 위치를 검사한다.
 `iiPaintEngineCoreContract` 테스트는 Core 값 타입, UUID 크기, 좌표계 분리 계약을 검사한다.
 `iiPaintEnginePipelineHeartbeat` 테스트는 최소 입력 획이 래스터 레이어에 그려지고 문서에 보관되는지 검사한다.
+`iiPaintEngineCanvasDocumentStructure` 테스트는 `Document -> Canvas -> LayerStack -> Layer -> DrawingSurface` 소유 구조, `DocumentMetadata`/`CanvasMetadata` 분리, DrawingSurface의 물리 표면 책임을 검사한다.
 `iiPaintEnginePointerStrokeFlow` 테스트는 마우스 포인터만 스트로크를 완성하고, 벡터 스트로크 위에 브러시 알파 이미지가 flow/spacing에 따라 투영되는지 검사한다.
 `iiPaintEngineHybridPaintingModel` 테스트는 샘플 velocity/tilt 보존, dab 배치, 브러시 투영, flow 누적과 opacity 상한 분리를 검사한다.
 `iiPaintEngineStrokePhysicalContract` 테스트는 raw/rendered stroke 분리, 누적 arc length 기반 spacing, deterministic seed, warm-up/taper, stroke dirty bounds를 검사한다.

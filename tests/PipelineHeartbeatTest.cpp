@@ -1,6 +1,7 @@
 #include <cstdint>
 
 #include "Document/PaintDocument.h"
+#include "Layer/DrawingSurface.h"
 #include "Layer/RasterLayer.h"
 #include "Stroke/Rasterizer.h"
 #include "Stroke/Stabilizer.h"
@@ -50,11 +51,12 @@ int main()
     }
 
     PaintDocument document = makePaintDocument(layer);
-    if (document.rasterLayers.size() != 1) {
+    if (document.canvases.size() != 1
+            || document.canvases.front().layers.layers.size() != 1) {
         return 1;
     }
 
-    if (rasterLayerPixelAt(document.rasterLayers.front(), {5, 5}) != black) {
+    if (drawingSurfacePixelAt(document.canvases.front().layers.layers.front().surface, {5, 5}) != black) {
         return 1;
     }
 
