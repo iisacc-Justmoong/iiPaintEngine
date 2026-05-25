@@ -51,12 +51,15 @@
 #include "Render/GpuRenderer.h"
 #include "Render/RenderContext.h"
 #include "Render/Renderer.h"
+#include "Stroke/LiveStroke.h"
 #include "Stroke/Rasterizer.h"
 #include "Stroke/Stabilizer.h"
 #include "Stroke/Stroke.h"
+#include "Stroke/StrokeCommand.h"
 #include "Stroke/StrokeCurve.h"
 #include "Stroke/StrokeInput.h"
 #include "Stroke/StrokePoint.h"
+#include "Stroke/StrokeResampler.h"
 
 namespace {
 
@@ -74,9 +77,11 @@ constexpr bool blueprintStruct = !publiclyInheritsQObject<T>
 static_assert(blueprintStruct<EngineConfig>);
 static_assert(blueprintStruct<EngineError>);
 static_assert(blueprintStruct<PaintUuid>);
+static_assert(blueprintStruct<DocumentPoint>);
 static_assert(blueprintStruct<CanvasPoint>);
 static_assert(blueprintStruct<ViewPoint>);
 static_assert(blueprintStruct<DevicePixelPoint>);
+static_assert(blueprintStruct<DocumentRect>);
 static_assert(blueprintStruct<CanvasRect>);
 static_assert(blueprintStruct<ViewRect>);
 static_assert(blueprintStruct<DevicePixelRect>);
@@ -94,6 +99,8 @@ static_assert(blueprintStruct<CanvasSession>);
 static_assert(blueprintStruct<Layer>);
 static_assert(blueprintStruct<LayerStack>);
 static_assert(blueprintStruct<RasterLayer>);
+static_assert(blueprintStruct<PremultipliedPixel>);
+static_assert(blueprintStruct<StrokeCompositeBuffer>);
 static_assert(blueprintStruct<StrokeLayer>);
 static_assert(blueprintStruct<TextLayer>);
 static_assert(blueprintStruct<VectorLayer>);
@@ -104,10 +111,18 @@ static_assert(blueprintStruct<StrokeInput>);
 static_assert(blueprintStruct<Stabilizer>);
 static_assert(blueprintStruct<StrokeCurve>);
 static_assert(blueprintStruct<BrushDab>);
+static_assert(blueprintStruct<StrokePath>);
+static_assert(blueprintStruct<BrushState>);
+static_assert(blueprintStruct<StrokeCommand>);
+static_assert(blueprintStruct<LiveStrokeFrame>);
+static_assert(blueprintStruct<LiveStrokeBuffer>);
+static_assert(blueprintStruct<StrokeResampler>);
 static_assert(blueprintStruct<Rasterizer>);
 
 static_assert(blueprintStruct<BrushPreset>);
 static_assert(blueprintStruct<BrushDynamics>);
+static_assert(blueprintStruct<BrushDynamicsInput>);
+static_assert(blueprintStruct<BrushDynamicsResult>);
 static_assert(blueprintStruct<BrushShape>);
 static_assert(blueprintStruct<BrushTip>);
 static_assert(blueprintStruct<BrushLibrary>);

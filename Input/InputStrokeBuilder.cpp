@@ -21,12 +21,13 @@ bool isPrimaryPress(const PointerEvent &event)
 StrokePoint makeMouseStrokePoint(const PointerEvent &event)
 {
     return StrokePoint{
-            event.canvasPosition,
+            event.documentPosition,
             1.0,
             event.time,
             0.0,
             event.tiltX,
             event.tiltY,
+            event.primaryButtonDown ? 1U : 0U,
     };
 }
 
@@ -86,6 +87,15 @@ InputStrokeBuildResult appendPointerEvent(InputStrokeBuilder &builder, const Poi
     }
 
     return result;
+}
+
+StrokeInput activeStrokeInput(const InputStrokeBuilder &builder)
+{
+    StrokeInput input;
+    if (builder.active) {
+        input.points = builder.points;
+    }
+    return input;
 }
 
 void resetInputStrokeBuilder(InputStrokeBuilder &builder)

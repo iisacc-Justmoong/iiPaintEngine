@@ -15,6 +15,7 @@ struct PaintPoint {
     Scalar y{};
 };
 
-using CanvasPoint = PaintPoint<CanvasCoordinateSpace>;
+using DocumentPoint = PaintPoint<DocumentCoordinateSpace>;
+using CanvasPoint = DocumentPoint;
 using ViewPoint = PaintPoint<ViewCoordinateSpace>;
 using DevicePixelPoint = PaintPoint<DevicePixelCoordinateSpace>;

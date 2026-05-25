@@ -19,6 +19,17 @@ std::uint8_t alphaOf(std::uint32_t argb)
     return static_cast<std::uint8_t>((argb >> 24U) & 0xFFU);
 }
 
+const RasterSample *sampleAt(const std::vector<RasterSample> &samples, DevicePixelPoint position)
+{
+    for (const RasterSample &sample : samples) {
+        if (sample.position.x == position.x && sample.position.y == position.y) {
+            return &sample;
+        }
+    }
+
+    return nullptr;
+}
+
 } // namespace
 
 int main()
@@ -70,11 +81,22 @@ int main()
     }
 
     const std::vector<RasterSample> samples = projectBrushDabs(dabs, rasterizer);
-    if (samples.size() != dabs.size()) {
+    if (samples.empty()) {
         return 1;
     }
 
-    if (alphaOf(samples.front().argb) != 26 || samples.front().opacityCap != 77) {
+    BrushDab fullMaskDab{};
+    fullMaskDab.position = {10.0, 10.0};
+    fullMaskDab.scale = 1.0;
+    fullMaskDab.alpha = rasterizer.flow;
+    fullMaskDab.opacityCapScale = 1.0;
+    fullMaskDab.colorArgb = rasterizer.argb;
+
+    const std::vector<RasterSample> fullMaskSamples = projectBrushDabs({fullMaskDab}, rasterizer);
+    const RasterSample *centerSample = sampleAt(fullMaskSamples, {10, 10});
+    if (centerSample == nullptr
+            || alphaOf(centerSample->argb) != 26
+            || centerSample->opacityCap != 77) {
         return 1;
     }
 

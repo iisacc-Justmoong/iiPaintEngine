@@ -16,6 +16,7 @@ struct PaintRect {
     Scalar height{};
 };
 
-using CanvasRect = PaintRect<CanvasCoordinateSpace>;
+using DocumentRect = PaintRect<DocumentCoordinateSpace>;
+using CanvasRect = DocumentRect;
 using ViewRect = PaintRect<ViewCoordinateSpace>;
 using DevicePixelRect = PaintRect<DevicePixelCoordinateSpace>;

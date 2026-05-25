@@ -14,12 +14,13 @@ function(allowed_modules_for source_module out_var)
     if(source_module STREQUAL "Core")
         set(allowed "")
     elseif(source_module STREQUAL "Layer"
-            OR source_module STREQUAL "Stroke"
             OR source_module STREQUAL "Brush"
             OR source_module STREQUAL "Render"
             OR source_module STREQUAL "History"
             OR source_module STREQUAL "Color")
         set(allowed Core)
+    elseif(source_module STREQUAL "Stroke")
+        set(allowed Core Brush)
     elseif(source_module STREQUAL "Document")
         set(allowed Core Layer Stroke Brush Render History Color)
     elseif(source_module STREQUAL "Canvas")

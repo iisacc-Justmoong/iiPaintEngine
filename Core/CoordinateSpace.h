@@ -7,9 +7,14 @@
 #include "Core/Types.h"
 
 enum class CoordinateSpaceKind {
+    Document,
     Canvas,
     View,
     DevicePixel,
+};
+
+struct DocumentCoordinateSpace {
+    static constexpr CoordinateSpaceKind kind = CoordinateSpaceKind::Document;
 };
 
 struct CanvasCoordinateSpace {

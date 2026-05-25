@@ -7,15 +7,53 @@
 #include <QImage>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QRect>
 
 #include <algorithm>
+#include <cstddef>
 #include <cmath>
 
 #include "Layer/RasterLayer.h"
+#include "Render/DirtyRegion.h"
+#include "Stroke/LiveStroke.h"
 #include "Stroke/Rasterizer.h"
-#include "Stroke/StrokeCurve.h"
 
 namespace {
+
+void drawRasterLayer(QPainter *painter, const RasterLayer &layer)
+{
+    if (layer.width <= 0 || layer.height <= 0 || layer.pixels.empty()) {
+        return;
+    }
+
+    const QImage image(reinterpret_cast<const uchar *>(layer.pixels.data()),
+                       layer.width,
+                       layer.height,
+                       static_cast<qsizetype>(layer.width) * 4,
+                       QImage::Format_ARGB32);
+    painter->drawImage(QPointF{0.0, 0.0}, image);
+}
+
+void clearRasterLayer(RasterLayer &layer)
+{
+    std::fill(layer.pixels.begin(), layer.pixels.end(), 0x00000000U);
+}
+
+void clearRasterLayerRect(RasterLayer &layer, DevicePixelRect dirtyBounds)
+{
+    const DevicePixelRect layerRect{{0, 0}, layer.width, layer.height};
+    const DevicePixelRect clipped = intersectDevicePixelRects(layerRect, dirtyBounds);
+    if (isEmpty(clipped)) {
+        return;
+    }
+
+    for (Types::Pixel y = clipped.origin.y; y < clipped.origin.y + clipped.height; ++y) {
+        const std::size_t rowStart = static_cast<std::size_t>(y) * static_cast<std::size_t>(layer.width);
+        for (Types::Pixel x = clipped.origin.x; x < clipped.origin.x + clipped.width; ++x) {
+            layer.pixels[rowStart + static_cast<std::size_t>(x)] = 0x00000000U;
+        }
+    }
+}
 
 Types::Pixel itemPixelSize(qreal value)
 {
@@ -39,21 +77,9 @@ PointerButton pointerButtonFromMouseButton(Qt::MouseButton button)
     return PointerButton::None;
 }
 
-PointerEvent makePointerEvent(QMouseEvent *event, PointerEventPhase phase)
+QRect qRectFromDeviceRect(DevicePixelRect rect)
 {
-    const QPointF position = event->position();
-    const bool primaryDown = event->buttons().testFlag(Qt::LeftButton)
-            || (phase == PointerEventPhase::Press && event->button() == Qt::LeftButton);
-
-    return PointerEvent{
-            PointerDeviceKind::Mouse,
-            phase,
-            {position.x(), position.y()},
-            1.0,
-            static_cast<Types::Scalar>(event->timestamp()),
-            pointerButtonFromMouseButton(event->button()),
-            primaryDown,
-    };
+    return QRect(rect.origin.x, rect.origin.y, rect.width, rect.height);
 }
 
 } // namespace
@@ -70,23 +96,29 @@ PaintCanvasItem::PaintCanvasItem(QQuickItem *parent)
 void PaintCanvasItem::paint(QPainter *painter)
 {
     ensureRasterLayerSize();
-    if (m_rasterLayer.width <= 0 || m_rasterLayer.height <= 0 || m_rasterLayer.pixels.empty()) {
-        return;
+    drawRasterLayer(painter, m_rasterLayer);
+    if (m_liveStrokeBuffer.active) {
+        drawRasterLayer(painter, m_liveRasterLayer);
     }
-
-    const QImage image(reinterpret_cast<const uchar *>(m_rasterLayer.pixels.data()),
-                       m_rasterLayer.width,
-                       m_rasterLayer.height,
-                       static_cast<qsizetype>(m_rasterLayer.width) * 4,
-                       QImage::Format_ARGB32);
-    painter->drawImage(QPointF{0.0, 0.0}, image);
 }
 
 void PaintCanvasItem::clear()
 {
     ensureRasterLayerSize();
-    std::fill(m_rasterLayer.pixels.begin(), m_rasterLayer.pixels.end(), 0x00000000U);
+    clearRasterLayer(m_rasterLayer);
+    clearLiveStrokePreview();
     resetInputStrokeBuilder(m_strokeBuilder);
+    update();
+}
+
+void PaintCanvasItem::setDocumentViewport(qreal documentX, qreal documentY, qreal zoom)
+{
+    ensureRasterLayerSize();
+    clearLiveStrokePreview();
+    resetInputStrokeBuilder(m_strokeBuilder);
+    m_documentOrigin = {static_cast<Types::Scalar>(documentX), static_cast<Types::Scalar>(documentY)};
+    m_zoom = std::max<Types::Scalar>(0.01, static_cast<Types::Scalar>(zoom));
+    updateViewportGeometry();
     update();
 }
 
@@ -122,27 +154,137 @@ void PaintCanvasItem::ensureRasterLayerSize()
 {
     const Types::Pixel nextWidth = itemPixelSize(width());
     const Types::Pixel nextHeight = itemPixelSize(height());
-    if (m_rasterLayer.width == nextWidth && m_rasterLayer.height == nextHeight) {
-        return;
+    if (m_rasterLayer.width != nextWidth || m_rasterLayer.height != nextHeight) {
+        m_rasterLayer = makeRasterLayer(nextWidth, nextHeight);
     }
 
-    m_rasterLayer = makeRasterLayer(nextWidth, nextHeight);
+    if (m_liveRasterLayer.width != nextWidth || m_liveRasterLayer.height != nextHeight) {
+        m_liveRasterLayer = makeRasterLayer(nextWidth, nextHeight);
+    }
+
+    updateViewportGeometry();
+}
+
+void PaintCanvasItem::updateViewportGeometry()
+{
+    const Types::Scalar viewWidth = static_cast<Types::Scalar>(std::max<Types::Pixel>(0, m_rasterLayer.width));
+    const Types::Scalar viewHeight = static_cast<Types::Scalar>(std::max<Types::Pixel>(0, m_rasterLayer.height));
+    const Types::Scalar zoom = std::max<Types::Scalar>(0.01, m_zoom);
+    m_viewport.documentRect = {
+            m_documentOrigin,
+            viewWidth / zoom,
+            viewHeight / zoom,
+    };
+    m_viewport.viewRect = {{0.0, 0.0}, viewWidth, viewHeight};
+    m_viewport.devicePixelRect = {{0, 0}, m_rasterLayer.width, m_rasterLayer.height};
+    m_viewport.zoom = zoom;
+    m_viewport.devicePixelRatio = 1.0;
 }
 
 void PaintCanvasItem::handleMousePointerEvent(QMouseEvent *event, PointerEventPhase phase)
 {
     ensureRasterLayerSize();
-    const InputStrokeBuildResult result = appendPointerEvent(m_strokeBuilder, makePointerEvent(event, phase));
+    const InputStrokeBuildResult result = appendPointerEvent(m_strokeBuilder, makeDocumentPointerEvent(event, phase));
     if (result.strokeCompleted) {
+        clearLiveStrokePreview();
         commitStroke(result.stroke);
+        ++m_nextStrokeSeed;
+    } else if (m_strokeBuilder.active) {
+        updateLiveStrokePreview();
     }
+}
+
+PointerEvent PaintCanvasItem::makeDocumentPointerEvent(QMouseEvent *event, PointerEventPhase phase) const
+{
+    const QPointF position = event->position();
+    const bool primaryDown = event->buttons().testFlag(Qt::LeftButton)
+            || (phase == PointerEventPhase::Press && event->button() == Qt::LeftButton);
+    const DocumentPoint documentPosition = documentPointFromViewPoint(
+            m_viewport,
+            ViewPoint{position.x(), position.y()});
+
+    return PointerEvent{
+            PointerDeviceKind::Mouse,
+            phase,
+            documentPosition,
+            1.0,
+            static_cast<Types::Scalar>(event->timestamp()),
+            pointerButtonFromMouseButton(event->button()),
+            primaryDown,
+    };
+}
+
+RasterProjection PaintCanvasItem::currentRasterProjection() const
+{
+    return RasterProjection{
+            m_viewport.documentRect.origin,
+            m_viewport.devicePixelRect.origin,
+            m_viewport.zoom * m_viewport.devicePixelRatio,
+    };
+}
+
+DevicePixelRect PaintCanvasItem::layerBounds() const
+{
+    return DevicePixelRect{{0, 0}, m_rasterLayer.width, m_rasterLayer.height};
+}
+
+void PaintCanvasItem::requestTextureUpdate(DevicePixelRect dirtyBounds)
+{
+    const DevicePixelRect clipped = intersectDevicePixelRects(layerBounds(), dirtyBounds);
+    if (isEmpty(clipped)) {
+        return;
+    }
+
+    update(qRectFromDeviceRect(clipped));
+}
+
+void PaintCanvasItem::updateLiveStrokePreview()
+{
+    const DevicePixelRect previousDirtyBounds = m_liveStrokeDeviceDirtyBounds;
+    clearRasterLayerRect(m_liveRasterLayer, previousDirtyBounds);
+
+    updateLiveStrokeBuffer(m_liveStrokeBuffer,
+                           activeStrokeInput(m_strokeBuilder),
+                           currentBrushState(),
+                           m_stabilizer);
+    m_liveStrokeDeviceDirtyBounds = {};
+    if (m_liveStrokeBuffer.active) {
+        const BrushState brush = currentBrushState();
+        const RasterProjection projection = currentRasterProjection();
+        const DirtyRegion dirtyRegion = makeDirtyRegion(deviceBoundsForBrushDabs(m_liveStrokeBuffer.frame.dabs,
+                                                                                 brush.rasterizer,
+                                                                                 projection));
+        m_liveStrokeDeviceDirtyBounds = dirtyRegion.bounds;
+        paintRasterSamples(m_liveRasterLayer,
+                           projectBrushDabs(m_liveStrokeBuffer.frame.dabs, brush.rasterizer, projection));
+    }
+
+    requestTextureUpdate(uniteDevicePixelRects(previousDirtyBounds, m_liveStrokeDeviceDirtyBounds));
+}
+
+void PaintCanvasItem::clearLiveStrokePreview()
+{
+    const DevicePixelRect previousDirtyBounds = m_liveStrokeDeviceDirtyBounds;
+    clearLiveStrokeBuffer(m_liveStrokeBuffer);
+    clearRasterLayerRect(m_liveRasterLayer, previousDirtyBounds);
+    m_liveStrokeDeviceDirtyBounds = {};
+    requestTextureUpdate(previousDirtyBounds);
 }
 
 void PaintCanvasItem::commitStroke(const StrokeInput &stroke)
 {
-    const StrokeInput stabilized = stabilizeStrokeInput(stroke, m_stabilizer);
-    const StrokeCurve curve = makeStrokeCurve(stabilized);
-    const std::vector<RasterSample> samples = rasterizeStrokeCurve(curve, m_rasterizer);
+    const StrokeCommand command = makeStrokeCommand(stroke, currentBrushState(), m_stabilizer);
+    const RasterProjection projection = currentRasterProjection();
+    const std::vector<RasterSample> samples = projectBrushDabs(command.dabs,
+                                                               command.brush.rasterizer,
+                                                               projection);
     paintRasterSamples(m_rasterLayer, samples);
-    update();
+    requestTextureUpdate(makeDirtyRegion(deviceBoundsForBrushDabs(command.dabs,
+                                                                  command.brush.rasterizer,
+                                                                  projection)).bounds);
+}
+
+BrushState PaintCanvasItem::currentBrushState() const
+{
+    return BrushState{m_rasterizer, BrushDynamics{}, StrokeResampler{}, m_nextStrokeSeed};
 }

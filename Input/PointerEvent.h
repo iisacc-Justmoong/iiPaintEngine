@@ -30,7 +30,7 @@ enum class PointerButton {
 struct PointerEvent {
     PointerDeviceKind device = PointerDeviceKind::Mouse;
     PointerEventPhase phase = PointerEventPhase::Move;
-    CanvasPoint canvasPosition{};
+    DocumentPoint documentPosition{};
     Types::Scalar pressure = 1.0;
     Types::Scalar time = 0.0;
     PointerButton button = PointerButton::None;

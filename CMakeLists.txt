@@ -95,14 +95,20 @@ set(IIPAINTENGINE_SOURCES
         Brush/BrushResolve.h
         Stroke/Rasterizer.cpp
         Stroke/Rasterizer.h
+        Stroke/LiveStroke.cpp
+        Stroke/LiveStroke.h
         Stroke/Stabilizer.cpp
         Stroke/Stabilizer.h
         Stroke/StrokePoint.cpp
         Stroke/StrokePoint.h
         Stroke/Stroke.cpp
         Stroke/Stroke.h
+        Stroke/StrokeCommand.cpp
+        Stroke/StrokeCommand.h
         Stroke/StrokeInput.cpp
         Stroke/StrokeInput.h
+        Stroke/StrokeResampler.cpp
+        Stroke/StrokeResampler.h
         Stroke/StrokeCurve.cpp
         Stroke/StrokeCurve.h
         Render/Renderer.cpp
@@ -209,6 +215,69 @@ target_link_libraries(iiPaintEngineHybridPaintingModelTests PRIVATE
 
 add_test(NAME iiPaintEngineHybridPaintingModel
         COMMAND iiPaintEngineHybridPaintingModelTests)
+
+add_executable(iiPaintEngineStrokePhysicalContractTests
+        tests/StrokePhysicalContractTest.cpp)
+
+target_link_libraries(iiPaintEngineStrokePhysicalContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineStrokePhysicalContract
+        COMMAND iiPaintEngineStrokePhysicalContractTests)
+
+add_executable(iiPaintEngineLiveStrokeRenderingTests
+        tests/LiveStrokeRenderingTest.cpp)
+
+target_link_libraries(iiPaintEngineLiveStrokeRenderingTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineLiveStrokeRendering
+        COMMAND iiPaintEngineLiveStrokeRenderingTests)
+
+add_executable(iiPaintEngineBrushDynamicsMappingTests
+        tests/BrushDynamicsMappingTest.cpp)
+
+target_link_libraries(iiPaintEngineBrushDynamicsMappingTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineBrushDynamicsMapping
+        COMMAND iiPaintEngineBrushDynamicsMappingTests)
+
+add_executable(iiPaintEngineStrokeResamplerTests
+        tests/StrokeResamplerTest.cpp)
+
+target_link_libraries(iiPaintEngineStrokeResamplerTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineStrokeResampler
+        COMMAND iiPaintEngineStrokeResamplerTests)
+
+add_executable(iiPaintEngineStrokeCompositingTests
+        tests/StrokeCompositingTest.cpp)
+
+target_link_libraries(iiPaintEngineStrokeCompositingTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineStrokeCompositing
+        COMMAND iiPaintEngineStrokeCompositingTests)
+
+add_executable(iiPaintEngineBrushMaskSamplingTests
+        tests/BrushMaskSamplingTest.cpp)
+
+target_link_libraries(iiPaintEngineBrushMaskSamplingTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineBrushMaskSampling
+        COMMAND iiPaintEngineBrushMaskSamplingTests)
+
+add_executable(iiPaintEngineCoordinateDirtyRegionTests
+        tests/CoordinateDirtyRegionTest.cpp)
+
+target_link_libraries(iiPaintEngineCoordinateDirtyRegionTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineCoordinateDirtyRegion
+        COMMAND iiPaintEngineCoordinateDirtyRegionTests)
 
 add_test(NAME iiPaintEngineDependencyBoundary
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/DependencyBoundaryTest.cmake)

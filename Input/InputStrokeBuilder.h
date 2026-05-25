@@ -21,4 +21,6 @@ struct InputStrokeBuilder {
 
 InputStrokeBuildResult appendPointerEvent(InputStrokeBuilder &builder, const PointerEvent &event);
 
+StrokeInput activeStrokeInput(const InputStrokeBuilder &builder);
+
 void resetInputStrokeBuilder(InputStrokeBuilder &builder);
