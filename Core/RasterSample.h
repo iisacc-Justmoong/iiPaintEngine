@@ -11,4 +11,5 @@
 struct RasterSample {
     DevicePixelPoint position;
     std::uint32_t argb = 0x00000000U;
+    std::uint8_t opacityCap = 0xFFU;
 };

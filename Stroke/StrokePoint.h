@@ -11,4 +11,7 @@ struct StrokePoint {
     CanvasPoint position;
     Types::Scalar pressure = 1.0;
     Types::Scalar time = 0.0;
+    Types::Scalar velocity = 0.0;
+    Types::Scalar tiltX = 0.0;
+    Types::Scalar tiltY = 0.0;
 };

@@ -10,7 +10,7 @@
 #include "Stroke/StrokeInput.h"
 
 struct StrokeCurve {
-    std::vector<CanvasPoint> points;
+    std::vector<StrokePoint> samples;
 };
 
 StrokeCurve makeStrokeCurve(const StrokeInput &input);

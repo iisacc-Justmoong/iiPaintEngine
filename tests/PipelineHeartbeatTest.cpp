@@ -31,7 +31,7 @@ int main()
     }
 
     StrokeCurve curve = makeStrokeCurve(stabilized);
-    if (curve.points.size() != stabilized.points.size()) {
+    if (curve.samples.size() != stabilized.points.size()) {
         return 1;
     }
 

@@ -192,5 +192,23 @@ target_link_libraries(iiPaintEnginePipelineTests PRIVATE
 add_test(NAME iiPaintEnginePipelineHeartbeat
         COMMAND iiPaintEnginePipelineTests)
 
+add_executable(iiPaintEnginePointerStrokeFlowTests
+        tests/PointerStrokeFlowTest.cpp)
+
+target_link_libraries(iiPaintEnginePointerStrokeFlowTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEnginePointerStrokeFlow
+        COMMAND iiPaintEnginePointerStrokeFlowTests)
+
+add_executable(iiPaintEngineHybridPaintingModelTests
+        tests/HybridPaintingModelTest.cpp)
+
+target_link_libraries(iiPaintEngineHybridPaintingModelTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineHybridPaintingModel
+        COMMAND iiPaintEngineHybridPaintingModelTests)
+
 add_test(NAME iiPaintEngineDependencyBoundary
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/DependencyBoundaryTest.cmake)

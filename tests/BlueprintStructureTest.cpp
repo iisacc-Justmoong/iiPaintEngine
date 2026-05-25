@@ -103,6 +103,7 @@ static_assert(blueprintStruct<StrokePoint>);
 static_assert(blueprintStruct<StrokeInput>);
 static_assert(blueprintStruct<Stabilizer>);
 static_assert(blueprintStruct<StrokeCurve>);
+static_assert(blueprintStruct<BrushDab>);
 static_assert(blueprintStruct<Rasterizer>);
 
 static_assert(blueprintStruct<BrushPreset>);

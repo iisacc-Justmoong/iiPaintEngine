@@ -9,6 +9,16 @@
 
 namespace {
 
+std::uint8_t alphaOf(std::uint32_t argb)
+{
+    return static_cast<std::uint8_t>((argb >> 24U) & 0xFFU);
+}
+
+std::uint32_t withAlpha(std::uint32_t argb, std::uint8_t alpha)
+{
+    return (argb & 0x00FFFFFFU) | ((alpha & 0xFFU) << 24U);
+}
+
 bool contains(const RasterLayer &layer, DevicePixelPoint position)
 {
     return position.x >= 0
@@ -39,7 +49,15 @@ void paintRasterSamples(RasterLayer &layer, const std::vector<RasterSample> &sam
 {
     for (const RasterSample &sample : samples) {
         if (contains(layer, sample.position)) {
-            layer.pixels[pixelIndex(layer, sample.position)] = sample.argb;
+            const std::size_t index = pixelIndex(layer, sample.position);
+            const std::uint8_t existingAlpha = alphaOf(layer.pixels[index]);
+            const std::uint8_t sampleAlpha = alphaOf(sample.argb);
+            const std::uint8_t targetAlpha = existingAlpha >= sample.opacityCap
+                    ? existingAlpha
+                    : static_cast<std::uint8_t>(std::min<int>(
+                            sample.opacityCap,
+                            static_cast<int>(existingAlpha) + static_cast<int>(sampleAlpha)));
+            layer.pixels[index] = withAlpha(sample.argb, targetAlpha);
         }
     }
 }
