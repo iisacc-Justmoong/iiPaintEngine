@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "Core/RasterSample.h"
+#include "Layer/RasterLayer.h"
 #include "Stroke/LiveStroke.h"
 #include "Stroke/Rasterizer.h"
 #include "Stroke/Stabilizer.h"
@@ -17,6 +18,7 @@ struct CanvasLiveStrokeWorkRequest {
     BrushState brush;
     Stabilizer stabilizer;
     RasterProjection projection;
+    RasterLayer sourceLayer;
 };
 
 struct CanvasLiveStrokeWorkResult {
@@ -30,6 +32,7 @@ struct CanvasCommitStrokeWorkRequest {
     BrushState brush;
     Stabilizer stabilizer;
     RasterProjection projection;
+    RasterLayer sourceLayer;
 };
 
 struct CanvasCommitStrokeWorkResult {

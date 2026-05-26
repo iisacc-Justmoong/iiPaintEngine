@@ -6,6 +6,37 @@
 
 #include "Core/Types.h"
 
+enum class BrushDynamicsEasing {
+    Linear,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+};
+
+enum class BrushDynamicsCombineMode {
+    Multiply,
+    Add,
+};
+
+struct BrushDynamicsResponseCurve {
+    bool enabled = false;
+    Types::Scalar min = 1.0;
+    Types::Scalar center = 1.0;
+    Types::Scalar max = 1.0;
+    Types::Scalar jitter = 0.0;
+    BrushDynamicsEasing easing = BrushDynamicsEasing::Linear;
+};
+
+struct BrushDynamicsPropertyResponse {
+    bool enabled = false;
+    Types::Scalar neutral = 1.0;
+    BrushDynamicsCombineMode combineMode = BrushDynamicsCombineMode::Multiply;
+    BrushDynamicsResponseCurve pressure;
+    BrushDynamicsResponseCurve velocity;
+    BrushDynamicsResponseCurve tilt;
+    BrushDynamicsResponseCurve random;
+};
+
 struct BrushDynamics {
     bool pressureInputEnabled = true;
     bool velocityInputEnabled = true;
@@ -31,6 +62,16 @@ struct BrushDynamics {
     bool tiltToTextureDirection = false;
     Types::Scalar rotationJitter = 0.0;
     Types::Scalar grainJitter = 0.0;
+    BrushDynamicsPropertyResponse sizeResponse;
+    BrushDynamicsPropertyResponse flowResponse;
+    BrushDynamicsPropertyResponse opacityResponse;
+    BrushDynamicsPropertyResponse spacingResponse;
+    BrushDynamicsPropertyResponse scatterResponse;
+    BrushDynamicsPropertyResponse rotationResponse{false, 0.0, BrushDynamicsCombineMode::Add};
+    BrushDynamicsPropertyResponse textureDepthResponse;
+    BrushDynamicsPropertyResponse wetnessResponse;
+    BrushDynamicsPropertyResponse dryOutResponse;
+    BrushDynamicsPropertyResponse bristleSpreadResponse;
 };
 
 struct BrushDynamicsInput {
@@ -48,13 +89,19 @@ struct BrushDynamicsResult {
     Types::Scalar flowScale = 1.0;
     Types::Scalar hardnessScale = 1.0;
     Types::Scalar spacingScale = 1.0;
+    Types::Scalar scatterScale = 1.0;
     bool rotationFromTilt = false;
     Types::Scalar rotationRadians = 0.0;
+    Types::Scalar rotationOffsetRadians = 0.0;
     Types::Scalar rotationJitterRadians = 0.0;
     Types::Scalar ellipseScaleX = 1.0;
     Types::Scalar ellipseScaleY = 1.0;
     bool textureDirectionFromTilt = false;
     Types::Scalar textureDirectionRadians = 0.0;
+    Types::Scalar textureDepthScale = 1.0;
+    Types::Scalar wetnessScale = 1.0;
+    Types::Scalar dryOutScale = 1.0;
+    Types::Scalar bristleSpreadScale = 1.0;
     Types::Scalar grain = 0.0;
 };
 

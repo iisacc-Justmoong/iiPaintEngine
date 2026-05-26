@@ -18,6 +18,8 @@ struct LiveStrokeFrame {
     std::vector<DabCommand> dabs;
     std::vector<DocumentRect> dabDirtyBounds;
     DocumentRect documentDirtyBounds{};
+    DocumentPoint cursorPreviewPosition{};
+    bool cursorPreviewPositionValid = false;
     std::vector<RasterSample> samples;
     DevicePixelRect dirtyBounds{};
 };

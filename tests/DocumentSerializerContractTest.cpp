@@ -106,25 +106,80 @@ int main()
     brush.rasterizer.flowEnabled = false;
     brush.rasterizer.opacityEnabled = false;
     brush.rasterizer.hardnessEnabled = false;
+    brush.rasterizer.taperMinimum = 0.1;
+    brush.rasterizer.endTaperShape = StrokeTaperShape::SmoothStep;
     brush.dynamics.pressureToSize = 0.5;
     brush.dynamics.pressureToFlowEnabled = false;
     brush.dynamics.velocityToDryOutEnabled = false;
     brush.dynamics.tiltToEllipseEnabled = false;
     brush.dynamics.randomInputEnabled = false;
+    brush.dynamics.sizeResponse.enabled = true;
+    brush.dynamics.sizeResponse.pressure.enabled = true;
+    brush.dynamics.sizeResponse.pressure.min = 0.25;
+    brush.dynamics.sizeResponse.pressure.center = 0.5;
+    brush.dynamics.sizeResponse.pressure.max = 1.0;
+    brush.dynamics.scatterResponse.enabled = true;
+    brush.dynamics.scatterResponse.pressure.enabled = true;
+    brush.dynamics.scatterResponse.pressure.min = 0.2;
+    brush.dynamics.scatterResponse.pressure.center = 0.6;
+    brush.dynamics.scatterResponse.pressure.max = 1.0;
+    brush.dynamics.rotationResponse.enabled = true;
+    brush.dynamics.rotationResponse.pressure.enabled = true;
+    brush.dynamics.rotationResponse.pressure.min = -0.1;
+    brush.dynamics.rotationResponse.pressure.center = 0.0;
+    brush.dynamics.rotationResponse.pressure.max = 0.1;
+    brush.dynamics.textureDepthResponse.enabled = true;
+    brush.dynamics.textureDepthResponse.pressure.enabled = true;
+    brush.dynamics.textureDepthResponse.pressure.min = 0.5;
+    brush.dynamics.textureDepthResponse.pressure.center = 1.0;
+    brush.dynamics.textureDepthResponse.pressure.max = 1.5;
+    brush.dynamics.wetnessResponse.enabled = true;
+    brush.dynamics.wetnessResponse.pressure.enabled = true;
+    brush.dynamics.wetnessResponse.pressure.min = 0.4;
+    brush.dynamics.wetnessResponse.pressure.center = 0.7;
+    brush.dynamics.wetnessResponse.pressure.max = 1.0;
+    brush.dynamics.bristleSpreadResponse.enabled = true;
+    brush.dynamics.bristleSpreadResponse.pressure.enabled = true;
+    brush.dynamics.bristleSpreadResponse.pressure.min = 0.5;
+    brush.dynamics.bristleSpreadResponse.pressure.center = 1.0;
+    brush.dynamics.bristleSpreadResponse.pressure.max = 1.25;
     brush.resampler.sampleSpacing = 0.25;
     brush.material.texture.enabled = true;
+    brush.material.texture.space = BrushTextureSpace::Document;
     brush.material.texture.width = 2;
     brush.material.texture.height = 1;
     brush.material.texture.alpha = {128, 255};
     brush.material.texture.grainStrength = 0.5;
+    brush.material.texture.strength = 0.75;
+    brush.material.texture.scaleJitter = 0.2;
+    brush.material.texture.rotationJitter = 0.3;
+    brush.material.texture.assetCache.enabled = true;
+    brush.material.texture.assetCache.assetId = uuidWithFirstByte(8);
+    brush.material.texture.assetCache.cacheKey = "document-texture-cache";
+    brush.material.texture.assetCache.revision = 2;
+    brush.material.texture.assetCache.width = 2;
+    brush.material.texture.assetCache.height = 1;
+    brush.material.texture.assetCache.alpha = {255, 64};
+    brush.material.paperGrain.enabled = true;
+    brush.material.paperGrain.space = BrushTextureSpace::Paper;
+    brush.material.paperGrain.width = 2;
+    brush.material.paperGrain.height = 1;
+    brush.material.paperGrain.alpha = {32, 255};
+    brush.material.paperGrain.strength = 0.8;
     brush.material.dualBrush.enabled = true;
+    brush.material.dualBrush.compositeMode = DualBrushCompositeMode::Difference;
     brush.material.dualBrush.scale = 0.7;
+    brush.material.dualBrush.opacity = 0.6;
+    brush.material.dualBrush.scaleJitter = 0.1;
+    brush.material.dualBrush.rotationJitter = 0.2;
     brush.material.scatter.enabled = true;
     brush.material.scatter.radius = 1.0;
     brush.material.scatter.count = 2;
     brush.material.simulation.enabled = true;
     brush.material.simulation.model = BrushSimulationModel::Smudge;
     brush.material.simulation.smudgeStrength = 0.4;
+    brush.material.simulation.pickup = 0.3;
+    brush.material.simulation.deposit = 0.7;
     brush.material.bristle.enabled = true;
     brush.material.bristle.shape = BristleShape::Fan;
     brush.material.bristle.count = 9;
@@ -139,6 +194,7 @@ int main()
     brushSource.tip.width = 2;
     brushSource.tip.height = 2;
     brushSource.tip.mask = {std::byte{0x00}, std::byte{0x7F}, std::byte{0xCC}, std::byte{0xFF}};
+    brushSource.dynamics = brush.dynamics;
     brushSource.material = brush.material;
     brushSource.material.simulation.model = BrushSimulationModel::Mixer;
 
@@ -213,18 +269,39 @@ int main()
             || reopenedStroke.brush.rasterizer.flowEnabled
             || reopenedStroke.brush.rasterizer.opacityEnabled
             || reopenedStroke.brush.rasterizer.hardnessEnabled
+            || reopenedStroke.brush.rasterizer.taperMinimum != 0.1
+            || reopenedStroke.brush.rasterizer.endTaperShape != StrokeTaperShape::SmoothStep
             || reopenedStroke.brush.dynamics.pressureToSize != 0.5
             || reopenedStroke.brush.dynamics.pressureToFlowEnabled
             || reopenedStroke.brush.dynamics.velocityToDryOutEnabled
             || reopenedStroke.brush.dynamics.tiltToEllipseEnabled
             || reopenedStroke.brush.dynamics.randomInputEnabled
+            || !reopenedStroke.brush.dynamics.sizeResponse.enabled
+            || reopenedStroke.brush.dynamics.sizeResponse.pressure.min != 0.25
+            || !reopenedStroke.brush.dynamics.scatterResponse.pressure.enabled
+            || reopenedStroke.brush.dynamics.rotationResponse.pressure.max != 0.1
+            || reopenedStroke.brush.dynamics.textureDepthResponse.pressure.max != 1.5
+            || reopenedStroke.brush.dynamics.wetnessResponse.pressure.min != 0.4
+            || reopenedStroke.brush.dynamics.bristleSpreadResponse.pressure.max != 1.25
             || reopenedStroke.brush.resampler.sampleSpacing != 0.25
             || !reopenedStroke.brush.material.texture.enabled
+            || reopenedStroke.brush.material.texture.space != BrushTextureSpace::Document
             || !byteVectorEquals(reopenedStroke.brush.material.texture.alpha, {0x80, 0xFF})
+            || reopenedStroke.brush.material.texture.strength != 0.75
+            || reopenedStroke.brush.material.texture.assetCache.assetId.bytes[0] != 8
+            || reopenedStroke.brush.material.texture.assetCache.cacheKey != "document-texture-cache"
+            || !byteVectorEquals(reopenedStroke.brush.material.texture.assetCache.alpha, {0xFF, 0x40})
+            || !reopenedStroke.brush.material.paperGrain.enabled
+            || reopenedStroke.brush.material.paperGrain.space != BrushTextureSpace::Paper
+            || !byteVectorEquals(reopenedStroke.brush.material.paperGrain.alpha, {0x20, 0xFF})
             || !reopenedStroke.brush.material.dualBrush.enabled
+            || reopenedStroke.brush.material.dualBrush.compositeMode != DualBrushCompositeMode::Difference
+            || reopenedStroke.brush.material.dualBrush.opacity != 0.6
             || reopenedStroke.brush.material.scatter.count != 2
             || !reopenedStroke.brush.material.simulation.enabled
             || reopenedStroke.brush.material.simulation.model != BrushSimulationModel::Smudge
+            || reopenedStroke.brush.material.simulation.pickup != 0.3
+            || reopenedStroke.brush.material.simulation.deposit != 0.7
             || !reopenedStroke.brush.material.bristle.enabled
             || reopenedStroke.brush.material.bristle.shape != BristleShape::Fan
             || reopenedStroke.brush.material.bristle.count != 9
@@ -232,6 +309,12 @@ int main()
             || reopenedStroke.path.rawInput.points.front().rotationRadians != 0.35
             || reopenedStroke.dabs.empty()
             || reopenedStroke.dabs.front().textureAlpha <= 0.0
+            || reopenedStroke.dabs.front().textureDepthScale <= 0.0
+            || reopenedStroke.dabs.front().textureScale <= 0.0
+            || reopenedStroke.dabs.front().wetnessScale <= 0.0
+            || reopenedStroke.dabs.front().bristleSpreadScale <= 0.0
+            || reopenedStroke.dabs.front().scatterScale <= 0.0
+            || reopenedStroke.dabs.back().strokeDistance <= 0.0
             || reopenedStroke.dabs.front().hardnessScale != 1.0
             || !reopenedStroke.dabs.front().dualBrush) {
         return 1;
@@ -241,6 +324,11 @@ int main()
             || reopened.brushSources.front().brushId.bytes[0] != 3
             || reopened.brushSources.front().name != "Archive Brush"
             || !byteVectorEquals(reopened.brushSources.front().tip.mask, {0x00, 0x7F, 0xCC, 0xFF})
+            || !reopened.brushSources.front().dynamics.sizeResponse.pressure.enabled
+            || reopened.brushSources.front().dynamics.textureDepthResponse.pressure.max != 1.5
+            || reopened.brushSources.front().material.texture.space != BrushTextureSpace::Document
+            || !reopened.brushSources.front().material.paperGrain.enabled
+            || reopened.brushSources.front().material.dualBrush.compositeMode != DualBrushCompositeMode::Difference
             || !reopened.brushSources.front().material.simulation.enabled
             || reopened.brushSources.front().material.simulation.model != BrushSimulationModel::Mixer
             || !reopened.brushSources.front().material.bristle.enabled

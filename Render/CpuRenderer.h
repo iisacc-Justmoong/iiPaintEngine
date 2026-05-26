@@ -9,6 +9,7 @@
 
 struct CpuRenderer {
     bool available = true;
+    bool simdAvailable = false;
 };
 
 RenderResult renderLayerStackCpu(const CpuRenderer &renderer,

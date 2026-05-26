@@ -7,12 +7,16 @@
 #include "Layer/LayerStack.h"
 #include "Render/CpuRenderer.h"
 #include "Render/GpuRenderer.h"
+#include "Render/RenderCache.h"
 #include "Render/RenderContext.h"
 
 struct Renderer {
     RenderContext context;
     CpuRenderer cpu;
     GpuRenderer gpu;
+    RenderTileCache tileCache;
+    BrushStampAtlas brushStampAtlas;
+    StrokeReplayCache strokeReplayCache;
 };
 
 RenderResult renderLayerStack(const Renderer &renderer,

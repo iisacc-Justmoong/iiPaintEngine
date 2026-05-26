@@ -5,6 +5,7 @@
 #include "CpuRenderer.h"
 
 #include "Render/Compositor.h"
+#include "Render/RenderCache.h"
 
 RenderResult renderLayerStackCpu(const CpuRenderer &renderer,
                                  const RenderContext &context,
@@ -15,6 +16,7 @@ RenderResult renderLayerStackCpu(const CpuRenderer &renderer,
     RenderResult result;
     result.backend = RenderBackend::Cpu;
     result.colorSpace = context.targetColorSpace;
+    result.executionPlan = resolveRenderExecutionPlan(context, renderer, GpuRenderer{});
 
     if (!renderer.available) {
         result.error = {EngineErrorCode::InvalidState, "CPU renderer is not available"};

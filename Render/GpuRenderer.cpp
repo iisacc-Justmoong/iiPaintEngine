@@ -5,6 +5,7 @@
 #include "GpuRenderer.h"
 
 #include "Render/Compositor.h"
+#include "Render/RenderCache.h"
 
 RenderResult renderLayerStackGpu(const GpuRenderer &renderer,
                                  const CpuRenderer &cpuFallback,
@@ -16,6 +17,7 @@ RenderResult renderLayerStackGpu(const GpuRenderer &renderer,
     RenderResult result;
     result.backend = RenderBackend::Gpu;
     result.colorSpace = context.targetColorSpace;
+    result.executionPlan = resolveRenderExecutionPlan(context, cpuFallback, renderer);
 
     if (!renderColorSpacesMatch(context.sourceColorSpace, context.targetColorSpace)) {
         result.error = {EngineErrorCode::UnsupportedColorTransform, "Color transform is not implemented"};
@@ -30,6 +32,7 @@ RenderResult renderLayerStackGpu(const GpuRenderer &renderer,
 
         result = renderLayerStackCpu(cpuFallback, context, layers, width, height);
         result.usedCpuFallback = result.error.code == EngineErrorCode::None;
+        result.executionPlan = resolveRenderExecutionPlan(context, cpuFallback, renderer);
         return result;
     }
 

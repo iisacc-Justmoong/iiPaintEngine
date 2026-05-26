@@ -15,6 +15,13 @@
 struct BrushDynamics;
 struct BrushMaterial;
 
+enum class StrokeTaperShape {
+    Linear,
+    EaseIn,
+    EaseOut,
+    SmoothStep,
+};
+
 struct BrushDab {
     DocumentPoint position;
     Types::Scalar scale = 1.0;
@@ -27,6 +34,16 @@ struct BrushDab {
     Types::Scalar textureDirectionRadians = 0.0;
     Types::Scalar grain = 0.0;
     Types::Scalar textureAlpha = 1.0;
+    Types::Scalar textureDepthScale = 1.0;
+    Types::Scalar textureScale = 1.0;
+    Types::Scalar textureRotationRadians = 0.0;
+    Types::Scalar wetnessScale = 1.0;
+    Types::Scalar dryOutScale = 1.0;
+    Types::Scalar bristleSpreadScale = 1.0;
+    Types::Scalar scatterScale = 1.0;
+    Types::Scalar dualBrushScale = 1.0;
+    Types::Scalar dualBrushRotationRadians = 0.0;
+    Types::Scalar strokeDistance = 0.0;
     bool dualBrush = false;
     std::uint32_t colorArgb = 0xFF000000U;
     RasterBlendMode blendMode = RasterBlendMode::SourceOver;
@@ -39,6 +56,15 @@ struct RasterProjection {
     DocumentPoint documentOrigin{};
     DevicePixelPoint deviceOrigin{};
     Types::Scalar scale = 1.0;
+};
+
+struct RasterSourceSampler {
+    using SampleArgb = std::uint32_t (*)(const void *context, DevicePixelPoint position);
+
+    const void *context = nullptr;
+    SampleArgb sampleArgb = nullptr;
+    Types::Pixel width = 0;
+    Types::Pixel height = 0;
 };
 
 struct Rasterizer {
@@ -62,6 +88,9 @@ struct Rasterizer {
     Types::Scalar velocitySpacing = 0.0;
     Types::Scalar warmupDistance = 0.0;
     Types::Scalar taperDistance = 0.0;
+    Types::Scalar taperMinimum = 0.25;
+    StrokeTaperShape warmupTaperShape = StrokeTaperShape::Linear;
+    StrokeTaperShape endTaperShape = StrokeTaperShape::Linear;
     Types::Scalar rotationJitter = 0.0;
 };
 
@@ -87,6 +116,17 @@ std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs, co
 std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs,
                                            const Rasterizer &rasterizer,
                                            const RasterProjection &projection);
+
+std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs,
+                                           const Rasterizer &rasterizer,
+                                           const RasterProjection &projection,
+                                           const BrushMaterial &material);
+
+std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs,
+                                           const Rasterizer &rasterizer,
+                                           const RasterProjection &projection,
+                                           const RasterSourceSampler &sourceSampler,
+                                           const BrushMaterial &material);
 
 std::vector<RasterSample> rasterizeStrokeCurve(const StrokeCurve &curve, const Rasterizer &rasterizer);
 

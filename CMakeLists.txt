@@ -145,6 +145,8 @@ set(IIPAINTENGINE_SOURCES
         Render/RenderContext.h
         Render/DirtyRegion.cpp
         Render/DirtyRegion.h
+        Render/RenderCache.cpp
+        Render/RenderCache.h
         Render/Compositor.cpp
         Render/Compositor.h
         Render/CpuRenderer.cpp
@@ -392,6 +394,15 @@ target_link_libraries(iiPaintEngineStrokePhysicalContractTests PRIVATE
 add_test(NAME iiPaintEngineStrokePhysicalContract
         COMMAND iiPaintEngineStrokePhysicalContractTests)
 
+add_executable(iiPaintEngineStabilizerAdvancedContractTests
+        tests/StabilizerAdvancedContractTest.cpp)
+
+target_link_libraries(iiPaintEngineStabilizerAdvancedContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineStabilizerAdvancedContract
+        COMMAND iiPaintEngineStabilizerAdvancedContractTests)
+
 add_executable(iiPaintEngineLiveStrokeRenderingTests
         tests/LiveStrokeRenderingTest.cpp)
 
@@ -410,6 +421,15 @@ target_link_libraries(iiPaintEngineBrushDynamicsMappingTests PRIVATE
 add_test(NAME iiPaintEngineBrushDynamicsMapping
         COMMAND iiPaintEngineBrushDynamicsMappingTests)
 
+add_executable(iiPaintEngineBrushDynamicsResponseCurveContractTests
+        tests/BrushDynamicsResponseCurveContractTest.cpp)
+
+target_link_libraries(iiPaintEngineBrushDynamicsResponseCurveContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineBrushDynamicsResponseCurveContract
+        COMMAND iiPaintEngineBrushDynamicsResponseCurveContractTests)
+
 add_executable(iiPaintEngineBrushFeatureToggleContractTests
         tests/BrushFeatureToggleContractTest.cpp)
 
@@ -427,6 +447,24 @@ target_link_libraries(iiPaintEngineBrushExpressionContractTests PRIVATE
 
 add_test(NAME iiPaintEngineBrushExpressionContract
         COMMAND iiPaintEngineBrushExpressionContractTests)
+
+add_executable(iiPaintEngineBrushTextureLayerContractTests
+        tests/BrushTextureLayerContractTest.cpp)
+
+target_link_libraries(iiPaintEngineBrushTextureLayerContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineBrushTextureLayerContract
+        COMMAND iiPaintEngineBrushTextureLayerContractTests)
+
+add_executable(iiPaintEngineWetBrushSimulationContractTests
+        tests/WetBrushSimulationContractTest.cpp)
+
+target_link_libraries(iiPaintEngineWetBrushSimulationContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineWetBrushSimulationContract
+        COMMAND iiPaintEngineWetBrushSimulationContractTests)
 
 add_executable(iiPaintEngineHistoryUndoRedoContractTests
         tests/HistoryUndoRedoContractTest.cpp)
@@ -481,6 +519,15 @@ target_link_libraries(iiPaintEngineRendererProjectionContractTests PRIVATE
 
 add_test(NAME iiPaintEngineRendererProjectionContract
         COMMAND iiPaintEngineRendererProjectionContractTests)
+
+add_executable(iiPaintEngineRenderCacheBackendContractTests
+        tests/RenderCacheBackendContractTest.cpp)
+
+target_link_libraries(iiPaintEngineRenderCacheBackendContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineRenderCacheBackendContract
+        COMMAND iiPaintEngineRenderCacheBackendContractTests)
 
 add_executable(iiPaintEngineColorManagementContractTests
         tests/ColorManagementContractTest.cpp)

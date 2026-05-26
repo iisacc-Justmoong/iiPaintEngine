@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "Brush/BrushDynamics.h"
 #include "Brush/BrushMaterial.h"
 #include "Brush/BrushTip.h"
 #include "Core/PaintUuid.h"
@@ -19,5 +20,6 @@ struct BrushPreset {
     float hardness = 0.0F;
     float flow = 0.0F;
     float density = 0.0F;
+    BrushDynamics dynamics;
     BrushMaterial material;
 };

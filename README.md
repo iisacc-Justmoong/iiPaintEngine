@@ -120,6 +120,11 @@ mask, clipping-to-below, group child composition을 포함한다. adjustment lay
 `Renderer`는 `RenderContext`를 기준으로 CPU/GPU backend를 선택해 전체 layer stack을 target `RasterLayer`로 투영한다. CPU backend는 실제
 `Compositor`를 호출한다. GPU backend는 아직 장치 구현이 없으면 `allowCpuFallback` 계약에 따라 CPU로 내려가며, fallback이 금지되어 있으면 `InvalidState`를
 반환한다.
+`RenderExecutionPlan`은 scalar CPU, SIMD CPU, GPU compute 경로와 target buffer format을 분리해 기록한다. `RenderTileCache`는 dirty
+region을 tile rect로 나눠 partial invalidation을 수행하고, `BrushStampAtlas`는 브러시 stamp alpha를 format/revision별로 캐시한다.
+`StrokeReplayCache`는 대형 캔버스에서 stroke id, brush revision, stroke revision, tile 좌표, buffer format 단위의 dab projection 결과를
+재사용하기 위한 값 계약이다. `RenderContext`의 tile cache, brush atlas, stroke replay, SIMD/GPU, linear compositing 플래그는 아직 장치별
+구현이 얇아도 상위 엔진이 어떤 backend 계획을 요구했는지 잃지 않게 한다.
 색공간은 현재 source/target `ColorSpace`가 같은 경우에만 통과시키고, 다른 primaries/transfer/component
 encoding/ICC/name/linear/HDR/chromaticity 조합은
 `UnsupportedColorTransform`으로 실패시켜 암묵 변환을 금지한다.
@@ -179,8 +184,8 @@ scale은 pressure, rotation은 tilt 또는 곡선 접선, 간격은 spacing/dens
 `PaintCanvasItem`은 QML mouse 위치를 먼저 document 좌표로 변환한 뒤 `InputStrokeBuilder`에 넘긴다. 렌더링은 `RasterProjection`을 통해
 `projectBrushDabs` 호출 시점에만 viewport transform을 적용한다. 따라서 pan/zoom이 바뀌어도 raw stroke와 dab command는 그대로 두고 다시 투영할 수 있다.
 
-`BrushDynamics`는 pressure, velocity, tilt, deterministic random 값을 dab 파라미터로 해석한다. pressure는 size, flow, opacity cap에
-매핑된다. 압력이 높을수록 해당 값은 100%에 가까워지고, 압력이 낮을수록 0%에 가까워진다. pressure는 spacing이나 hardness에는 매핑되지 않는다.
+`BrushDynamics`는 pressure, velocity, tilt, deterministic random 값을 dab 파라미터로 해석한다. 기존 호환 필드에서는 pressure가 size,
+flow, opacity cap에 매핑된다. 압력이 높을수록 해당 값은 100%에 가까워지고, 압력이 낮을수록 0%에 가까워진다. pressure는 hardness에는 매핑되지 않는다.
 velocity는 spacing, opacity, dry-out에 매핑된다. tilt는 rotation, ellipse scale, texture direction에 매핑된다.
 각 입력 계열은 공개 bool 스위치로 켜고 끌 수 있다. `pressureInputEnabled`, `velocityInputEnabled`, `tiltInputEnabled`,
 `randomInputEnabled`가
@@ -192,6 +197,14 @@ false이면 해당 입력값은 neutral 값으로 해석된다. 개별 매핑도
 `pressureToSize`, `pressureToFlow`, `pressureToOpacity` 값이 1.0이면 pressure 0.0은 0%, pressure 1.0은 100%로 해석된다.
 `BrushState::randomSeed`는 rotation jitter와 grain 값을 재현 가능하게 만든다. `PaintCanvasItem`의 기본 brush dynamics는 pressure를 size,
 flow, opacity에 1.0 비율로 연결한다. hardness는 필압 인자가 아니라 `Rasterizer::hardness`와 `hardnessEnabled`로만 제어한다.
+
+고급 dynamics는 `BrushDynamicsPropertyResponse`와 `BrushDynamicsResponseCurve`로 속성별 response curve를 가진다. size, flow,
+opacity,
+spacing, scatter, rotation offset, texture depth, wetness, dry-out, bristle spread가 각각 pressure/velocity/tilt/random
+curve를 독립적으로
+가질 수 있다. 각 curve는 normalized input 0%, 50%, 100% 지점의 `min`, `center`, `max`, `easing`, deterministic `jitter`를 저장한다.
+한 속성에 여러 input curve가 켜지면 multiply 또는 add combine mode로 cross-input mapping을 만든다. 이 값들은 `BrushPresetSerializer`,
+`DocumentSerializer`, `BrushSnapshot`, `StrokeCommand`의 dab payload에 저장되어 다시 열 수 있다.
 입력 pressure curve 자체는 `PressureInput::curveMinimum`, `curveCenter`, `curveMaximum` 세 점으로 조절한다. 기본값 0.0, 0.5, 1.0은
 기존 선형 정규화를 그대로 유지한다. min/center/max는 normalized pen pressure 0%, 50%, 100% 지점의 output을 뜻하며, center를 올리면 낮은
 필압도 더 높은 output으로 빨리 올라가고 center를 낮추면 더 늦게 올라간다.
@@ -201,11 +214,19 @@ flow, opacity에 1.0 비율로 연결한다. hardness는 필압 인자가 아니
 해당 stroke 인자는 저장되어 있어도 dab 생성 또는 brush mask 투영의 입력값으로 쓰지 않고 neutral 기본값으로 해석한다. flow와 opacity는 1.0, hardness는 1.0,
 spacing은 `brushSize`가 있으면 `brushSize * 1.0`, 없으면 절대 간격 1.0을 사용한다.
 
-`BrushMaterial`은 회화적 표현층의 저장 가능한 계약이다. texture/grain alpha, dual brush, scatter, wet paint/smudge/mixer 모델, bristle
-shape/count를 한 값으로 묶고, `BrushPresetSerializer`는 이 preset을 독립 payload로 왕복시킨다. texture, dual brush, scatter,
-simulation, bristle은 모두 공개 `enabled` 스위치를 가진다. 현재 렌더 경로는 활성화된 texture alpha와 grain, dual brush scale, scatter
-position, wet/smudge/mix flow 감쇠를 deterministic dab 명령으로 반영한다. 실제 유체 시뮬레이션, 안료 혼합, bristle 물리 해석은 아직 엔진 모델로
-승격되지 않은 다음 단계이다.
+`BrushMaterial`은 회화적 표현층의 저장 가능한 계약이다. texture/grain alpha, paper grain, dual brush, scatter, wet paint/smudge/mixer 모델,
+bristle shape/count를 한 값으로 묶고, `BrushPresetSerializer`는 이 preset을 독립 payload로 왕복시킨다. texture, paper grain, dual brush,
+scatter, simulation, bristle은 모두 공개 `enabled` 스위치를 가진다. texture는 tip, stroke-follow, document, paper coordinate space를
+선택할 수 있고
+asset cache의 alpha mask를 사용할 수 있다. paper grain은 document/paper 기준으로 brush mask를 줄이며, dual brush는
+multiply/add/subtract/difference
+alpha composition을 제공한다. scale/rotation jitter는 deterministic dab 값으로 저장된다. 현재 렌더 경로는 활성화된 texture alpha와 grain,
+dual brush composition, scatter position, wet/smudge/mix flow 감쇠를 deterministic dab 명령으로 반영한다. wet projection 경로는 source
+canvas sampler를 받아 dab 위치와 stroke 방향 뒤쪽의
+캔버스 픽셀을 샘플링하고, `smudgeStrength`, `pickup`, `deposit`, `mixStrength`, `wetness`로 끌고 온 색과 브러시 안료를 섞는다. Qt adapter는 현재
+`RasterLayer`를 이 sampler로 감싸 넘기며, Stroke 모듈은 레이어 타입에 직접 의존하지 않는다. `BristleSimulation`의
+shape/count/length/stiffness는 dab의 접촉 ellipse를 방향성 있게 늘리거나 눌러 flat/fan bristle 접촉 형상을 만든다. 아직 실제 유체 압력장이나 개별 bristle
+입자 시뮬레이션은 아니며, 캔버스 샘플링 기반의 첫 물성 브러시 계약이다.
 
 raw input과 rendered stroke는 분리한다. `StrokeCommand`는 `StrokePath::rawInput`에 사용자가 입력한 원본 사건열을 그대로 보존하고,
 `StrokePath::renderedInput`과 `StrokePath::renderedCurve`에 smoothing/interpolation 이후의 파생 데이터를 둔다. 브러시 알고리즘, 해상도, export
@@ -221,19 +242,26 @@ dab 배치는 입력 이벤트 개수가 아니라 누적 arc length를 기준�
 `BrushState::randomSeed`는 jitter와 texture 계열 브러시가 같은 stroke를 항상 같은 결과로 재생하도록 저장된다. 현재는 rotation jitter가 deterministic
 seed를 사용한다.
 
-stroke 시작과 끝은 `warmupDistance`, `taperDistance`로 dab alpha를 감쇠할 수 있다. 이 값은 raw sample을 바꾸지 않고 dab command 생성 단계에서만 적용된다.
+stroke 시작과 끝은 `warmupDistance`, `taperDistance`로 dab alpha를 감쇠할 수 있다. `taperMinimum`과
+`warmupTaperShape`/`endTaperShape`는 linear, ease-in, ease-out, smooth-step 형태로 dab alpha shape를 제어한다. 이 값은 raw
+sample을 바꾸지 않고 dab command 생성 단계에서만 적용된다.
 
 `flow`는 opacity가 아니다. `flow`는 각 dab이 단위 거리마다 더하는 안료량이고, `opacity`는 한 스트로크가 도달할 수 있는 최대 농도이다. `StrokeCompositeBuffer`는 한
 stroke 내부의 dab들을 premultiplied alpha로 source-over 누적하되 `RasterSample::opacityCap`을 넘지 않도록 제한한다. stroke가 끝나면 local buffer
 전체가 `RasterLayer`에 source-over로 합성된다. 따라서 낮은 flow는 같은 stroke 안에서 여러 dab이 겹칠수록 천천히 진해지고, 낮은 opacity는 최종 농도를 제한한다.
 
-`Stabilizer`는 입력 점의 양 끝을 보존하고 내부 점만 단순 평균 기반으로 안정화한다. `StrokeCurve`는 안정화된 샘플 배열을 document 좌표 곡선으로 보유한다. `RasterLayer`는
-stroke 합성용 임시 픽셀 버퍼이고, 문서 구조에 저장될 때는 `Layer`의 `DrawingSurface`로 들어간다.
+`Stabilizer`는 기본적으로 입력 점의 양 끝을 보존하고 내부 점만 moving average 기반으로 안정화한다. 고급 모드에서는 `StabilizerMode::Line`으로
+line smoothing을 적용할 수 있고, `cuspPreservationEnabled`/`cuspAngleRadians`로 날카로운 꺾임을 raw 위치에 남긴다.
+`predictionEnabled`, `predictionHorizon`, `latencyCompensation`은 마지막 입력점을 최근 속도 방향으로 예측해 지연을 보정하며,
+`adaptiveResamplingEnabled`와 min/max spacing, velocity scale은 빠른 구간을 더 조밀한 rendered input으로 만든다. `StrokeCurve`는 안정화된 샘플
+배열을 document 좌표 곡선으로 보유한다. `RasterLayer`는 stroke 합성용 임시 픽셀 버퍼이고, 문서 구조에 저장될 때는 `Layer`의
+`DrawingSurface`로 들어간다.
 
 `LiveStrokeBuffer`는 pointer move 중의 즉시 표시용 파생 버퍼이다. `LiveStrokeFrame`은 raw input을 그대로 복사하고, 표시용 `displayedInput`은
-smoothing을 적용하되 마지막 입력 tip은 raw 위치와 시간을 그대로 유지한다. `PaintCanvasItem`은 committed `RasterLayer`와 live `RasterLayer`를 분리해서
-그린다. move 중에는 live layer만 계속 다시 그리며, release 시 live layer를 지우고 같은 raw stroke를 `StrokeCommand`로 만들어 committed layer에
-합성한다.
+smoothing을 적용하되 기본 모드에서는 마지막 입력 tip을 raw 위치와 시간에 둔다. `Stabilizer::previewDabsMatchCursor`가 true이면 예측/보정된 마지막
+dab 위치를 `cursorPreviewPosition`으로 노출해 cursor preview와 실제 dab preview가 같은 좌표를 보게 한다. `PaintCanvasItem`은 committed
+`RasterLayer`와 live `RasterLayer`를 분리해서 그린다. move 중에는 live layer만 계속 다시 그리며, release 시 live layer를 지우고 같은 raw
+stroke를 `StrokeCommand`로 만들어 committed layer에 합성한다.
 
 각 dab은 document dirty bounds를 계산할 수 있고, `StrokeCommand`와 `LiveStrokeFrame`은 dab별 dirty bounds와 stroke 전체 document dirty
 bounds를 함께 가진다. 렌더링 경계에서는 같은 dab bounds를 viewport projection으로 device dirty rect 목록으로 바꾸고 `DirtyRegion`이 전체 bounds를 만든다.
@@ -265,8 +293,9 @@ fallback을
 변환해 같은 `PressureInput` 및 pressure dynamics 경로를 태운다. 해당 pressure point가 항상 1.0으로만 들어오는 플랫폼에서는 Qt mouse fallback만으로 필압을
 복원하지 못한다.
 
-`Stabilizer::smoothing`은 stroke 안정화 강도이며 0.0~1.0으로 clamp된다. `PaintCanvasItem::stabilizerStrength`는 이 값을 QML에서 직접 바꾸는
-사용자 설정용 API이다.
+`Stabilizer::smoothing`은 stroke 안정화 강도이며 0.0~1.0으로 clamp된다. line smoothing, cusp 보존, prediction, latency compensation,
+adaptive resampling, dab preview 일치 플래그는 C++ 값 타입 공개 API로 제공된다. `PaintCanvasItem::stabilizerStrength`는 기본 smoothing 값을
+QML에서 직접 바꾸는 사용자 설정용 API이다.
 
 캔버스 이벤트의 무거운 계산은 `CanvasEventWork` 값 타입 job으로 분리한다. worker thread는 raw input, brush state, stabilizer, raster projection
 snapshot만 받아 `LiveStrokeFrame`, `StrokeCommand`, `RasterSample`, dirty bounds를 계산한다. `PaintCanvasItem`의 `RasterLayer`,
@@ -377,16 +406,25 @@ rotation, touch gesture event surface, pressure graph curve와 입력 기능별 
 `iiPaintEngineHybridPaintingModel` 테스트는 샘플 velocity/tilt 보존, dab 배치, 브러시 투영, flow 누적과 opacity 상한 분리를 검사한다.
 `iiPaintEngineStrokePhysicalContract` 테스트는 raw/rendered stroke 분리, 누적 arc length 기반 spacing, deterministic seed,
 warm-up/taper, stroke dirty bounds를 검사한다.
+`iiPaintEngineStabilizerAdvancedContract` 테스트는 line smoothing, cusp 보존, prediction/latency compensation, adaptive
+resampling, cursor preview와 dab preview의 일치, taper shape 제어를 검사한다.
 `iiPaintEngineLiveStrokeRendering` 테스트는 pointer move 중 live buffer가 즉시 샘플을 만들고, 현재 tip을 raw 위치에 유지하며, release 뒤
 committed layer로 넘어가는지 검사한다.
 `iiPaintEngineBrushDynamicsMapping` 테스트는 pressure/velocity/tilt/random seed가 dab size, flow, opacity cap,
 spacing, ellipse, texture direction, grain에 반영되는지 검사하며, pressure가 spacing 위치를 바꾸지 않는 계약도 함께 고정한다.
+`iiPaintEngineBrushDynamicsResponseCurveContract` 테스트는 속성별 response curve의 min/center/max, easing, deterministic jitter,
+pressure/velocity/tilt/random cross-input mapping, scatter/rotation/texture depth/wetness/dry-out/bristle spread 적용,
+brush preset 왕복을 검사한다.
 `iiPaintEngineBrushFeatureToggleContract` 테스트는 BrushDynamics와 Rasterizer의 공개 bool 스위치가 false일 때 pressure, velocity,
 tilt,
 random, 개별 매핑, flow, opacity, hardness, spacing이 dab 생성 및 brush mask 투영 인자로 쓰이지 않는지 검사하며, pressure가 hardness 공개
 매핑을 갖지 않는 계약도 고정한다.
 `iiPaintEngineBrushExpressionContract` 테스트는 texture/grain, dual brush, scatter, wet/smudge/mixer, bristle 값 계약과 공개
 enabled 스위치, preset serialization, deterministic scatter 재현성을 검사한다.
+`iiPaintEngineBrushTextureLayerContract` 테스트는 document/tip/stroke-follow/paper texture sampling, paper grain, dual brush
+alpha composition, scale/rotation jitter, texture asset cache preset 왕복을 검사한다.
+`iiPaintEngineWetBrushSimulationContract` 테스트는 source layer 픽셀을 샘플링해 smudge가 이전 캔버스 색을 끌고 오고,
+pickup/deposit/mix가 브러시 안료와 캔버스 색을 섞으며, bristle shape/count/length/stiffness가 방향성 있는 접촉 ellipse를 만드는지 검사한다.
 `iiPaintEngineHistoryUndoRedoContract` 테스트는 `Command`의 before/after patch payload, dirty bounds, sequence 부여, redo
 branch clearing,
 undo/redo stack 이동, history snapshot을 검사한다.
@@ -403,6 +441,10 @@ composition, adjustment/alpha-lock 메타데이터 계약을 검사한다.
 `iiPaintEngineRendererProjectionContract` 테스트는 `Renderer`가 CPU/GPU backend 선택, CPU fallback, layer stack projection, 색공간
 호환성 오류를 처리하는지
 검사한다.
+`iiPaintEngineRenderCacheBackendContract` 테스트는 dirty region의 tile 분할, tile cache partial invalidation, brush stamp
+atlas eviction, stroke replay cache key/revision/dirty invalidation, SIMD/GPU 실행 계획, 16-bit/float/HDR/wide gamut/ICC 기반
+buffer
+format과 linear compositing 선택을 검사한다.
 `iiPaintEngineColorManagementContract` 테스트는 sRGB 8-bit, Display P3 linear float HDR, ICC profile, wide gamut/HDR 판별,
 `PaintColor` HDR 값 보존과
 SDR clamp 계약을 검사한다.

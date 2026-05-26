@@ -1153,6 +1153,7 @@ CanvasLiveStrokeWorkRequest PaintCanvasItem::currentLiveStrokeWorkRequest() cons
             currentBrushState(),
             m_stabilizer,
             currentRasterProjection(),
+            m_rasterLayer,
     };
 }
 
@@ -1163,6 +1164,7 @@ CanvasCommitStrokeWorkRequest PaintCanvasItem::currentCommitStrokeWorkRequest(co
             currentBrushState(),
             m_stabilizer,
             currentRasterProjection(),
+            m_rasterLayer,
     };
 }
 

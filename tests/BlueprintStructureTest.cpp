@@ -56,6 +56,7 @@
 #include "Render/CpuRenderer.h"
 #include "Render/DirtyRegion.h"
 #include "Render/GpuRenderer.h"
+#include "Render/RenderCache.h"
 #include "Render/RenderContext.h"
 #include "Render/Renderer.h"
 #include "Selection/Selection.h"
@@ -141,6 +142,7 @@ static_assert(blueprintStruct<StrokeResampler>);
 static_assert(blueprintStruct<Rasterizer>);
 
 static_assert(blueprintStruct<BrushPreset>);
+static_assert(blueprintStruct<BrushTextureAssetCache>);
 static_assert(blueprintStruct<BrushTexture>);
 static_assert(blueprintStruct<DualBrush>);
 static_assert(blueprintStruct<BrushScatter>);
@@ -148,6 +150,8 @@ static_assert(blueprintStruct<BrushSimulation>);
 static_assert(blueprintStruct<BristleSimulation>);
 static_assert(blueprintStruct<BrushMaterial>);
 static_assert(blueprintStruct<BrushPresetSerializer>);
+static_assert(blueprintStruct<BrushDynamicsResponseCurve>);
+static_assert(blueprintStruct<BrushDynamicsPropertyResponse>);
 static_assert(blueprintStruct<BrushDynamics>);
 static_assert(blueprintStruct<BrushDynamicsInput>);
 static_assert(blueprintStruct<BrushDynamicsResult>);
@@ -159,7 +163,17 @@ static_assert(blueprintStruct<BrushResolve>);
 
 static_assert(blueprintStruct<Renderer>);
 static_assert(blueprintStruct<RenderContext>);
+static_assert(blueprintStruct<RenderExecutionPlan>);
 static_assert(blueprintStruct<DirtyRegion>);
+static_assert(blueprintStruct<RenderTileKey>);
+static_assert(blueprintStruct<RenderTile>);
+static_assert(blueprintStruct<RenderTileCache>);
+static_assert(blueprintStruct<BrushStampAtlasKey>);
+static_assert(blueprintStruct<BrushStampAtlasEntry>);
+static_assert(blueprintStruct<BrushStampAtlas>);
+static_assert(blueprintStruct<StrokeReplayCacheKey>);
+static_assert(blueprintStruct<StrokeReplayCacheEntry>);
+static_assert(blueprintStruct<StrokeReplayCache>);
 static_assert(blueprintStruct<Compositor>);
 static_assert(blueprintStruct<CpuRenderer>);
 static_assert(blueprintStruct<GpuRenderer>);

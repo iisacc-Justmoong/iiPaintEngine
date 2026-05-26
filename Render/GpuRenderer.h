@@ -12,6 +12,8 @@
 
 struct GpuRenderer {
     bool available = false;
+    bool computeAvailable = false;
+    bool brushStampAtlasSupported = false;
     std::uint64_t deviceHandle = 0;
 };
 

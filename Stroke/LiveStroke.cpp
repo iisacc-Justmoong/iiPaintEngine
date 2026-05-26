@@ -47,7 +47,7 @@ LiveStrokeFrame makeLiveStrokeFrame(const StrokeInput &rawInput,
     }
 
     frame.displayedInput = stabilizeStrokeInput(rawInput, stabilizer);
-    if (!frame.displayedInput.points.empty()) {
+    if (!frame.displayedInput.points.empty() && !stabilizer.previewDabsMatchCursor) {
         frame.displayedInput.points.back() = rawInput.points.back();
     }
     frame.displayedInput = resampleStrokeInput(frame.displayedInput, brush.resampler);
@@ -59,6 +59,13 @@ LiveStrokeFrame makeLiveStrokeFrame(const StrokeInput &rawInput,
                                 brush.randomSeed);
     frame.dabDirtyBounds = documentBoundsForEachBrushDab(frame.dabs, brush.rasterizer);
     frame.documentDirtyBounds = documentBoundsForBrushDabs(frame.dabs, brush.rasterizer);
+    if (stabilizer.previewDabsMatchCursor && !frame.dabs.empty()) {
+        frame.cursorPreviewPosition = frame.dabs.back().position;
+        frame.cursorPreviewPositionValid = true;
+    } else if (!frame.displayedInput.points.empty()) {
+        frame.cursorPreviewPosition = frame.displayedInput.points.back().position;
+        frame.cursorPreviewPositionValid = true;
+    }
     frame.samples = projectBrushDabs(frame.dabs, brush.rasterizer);
     frame.dirtyBounds = dirtyBoundsForSamples(frame.samples);
     return frame;
