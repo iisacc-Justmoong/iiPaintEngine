@@ -658,7 +658,7 @@ void PaintCanvasItem::emitLiveStrokeActiveChangedIfNeeded(bool previousActive)
 
 BrushState PaintCanvasItem::currentBrushState() const
 {
-    return BrushState{m_rasterizer, BrushDynamics{}, StrokeResampler{}, m_nextStrokeSeed};
+    return BrushState{m_rasterizer, BrushDynamics{}, StrokeResampler{}, BrushMaterial{}, m_nextStrokeSeed};
 }
 
 CanvasLiveStrokeWorkRequest PaintCanvasItem::currentLiveStrokeWorkRequest() const

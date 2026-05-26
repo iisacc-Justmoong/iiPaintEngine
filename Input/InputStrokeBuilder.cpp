@@ -11,29 +11,63 @@ bool isMouseEvent(const PointerEvent &event)
     return event.device == PointerDeviceKind::Mouse;
 }
 
+bool isTabletEvent(const PointerEvent &event)
+{
+    return event.device == PointerDeviceKind::Tablet;
+}
+
+bool isStrokeEvent(const PointerEvent &event)
+{
+    return isMouseEvent(event) || isTabletEvent(event);
+}
+
 bool isPrimaryPress(const PointerEvent &event)
 {
     return event.phase == PointerEventPhase::Press
-            && event.button == PointerButton::Primary
+            && (event.button == PointerButton::Primary || event.button == PointerButton::Eraser)
             && event.primaryButtonDown;
 }
 
-StrokePoint makeMouseStrokePoint(const PointerEvent &event)
+std::uint32_t deviceStateFromEvent(const PointerEvent &event)
+{
+    if (event.deviceState != 0) {
+        return event.deviceState;
+    }
+
+    std::uint32_t state = 0;
+    if (event.primaryButtonDown) {
+        state |= PointerDeviceStatePrimaryButton;
+    }
+    if (event.barrelButtonDown) {
+        state |= PointerDeviceStateBarrelButton;
+    }
+    if (event.eraserActive) {
+        state |= PointerDeviceStateEraser;
+    }
+    if (event.hovering) {
+        state |= PointerDeviceStateHover;
+    }
+    return state;
+}
+
+StrokePoint makeStrokePoint(const PointerEvent &event)
 {
     return StrokePoint{
             event.documentPosition,
-            1.0,
+            isMouseEvent(event) ? 1.0 : event.pressure,
             event.time,
             0.0,
             event.tiltX,
             event.tiltY,
-            event.primaryButtonDown ? 1U : 0U,
+            deviceStateFromEvent(event),
+            0.0,
+            event.rotationRadians,
     };
 }
 
 void appendDistinctPoint(InputStrokeBuilder &builder, const PointerEvent &event)
 {
-    const StrokePoint point = makeMouseStrokePoint(event);
+    const StrokePoint point = makeStrokePoint(event);
     if (!builder.points.empty()) {
         const StrokePoint &last = builder.points.back();
         if (last.position.x == point.position.x
@@ -52,7 +86,7 @@ InputStrokeBuildResult appendPointerEvent(InputStrokeBuilder &builder, const Poi
 {
     InputStrokeBuildResult result;
 
-    if (!isMouseEvent(event)) {
+    if (!isStrokeEvent(event) || event.hovering) {
         return result;
     }
 

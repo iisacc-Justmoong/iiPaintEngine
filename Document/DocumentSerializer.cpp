@@ -4,6 +4,7 @@
 
 #include "DocumentSerializer.h"
 
+#include <algorithm>
 #include <array>
 #include <iomanip>
 #include <limits>
@@ -361,6 +362,9 @@ void writeLayerMetadata(std::ostringstream &output,
     writeLine(output, prefix + ".visible", boolText(metadata.visible));
     writeLine(output, prefix + ".opacity", numberText(metadata.opacity));
     writeLine(output, prefix + ".blendMode", numberText(static_cast<int>(metadata.blendMode)));
+    writeLine(output, prefix + ".kind", numberText(static_cast<int>(metadata.kind)));
+    writeLine(output, prefix + ".clipsToBelow", boolText(metadata.clipsToBelow));
+    writeLine(output, prefix + ".alphaLock", boolText(metadata.alphaLock));
 }
 
 LayerMetadata readLayerMetadata(const std::map<std::string, std::string> &values,
@@ -372,7 +376,31 @@ LayerMetadata readLayerMetadata(const std::map<std::string, std::string> &values
     metadata.visible = readBool(values, prefix + ".visible", true);
     metadata.opacity = readNumber<Types::Scalar>(values, prefix + ".opacity", 1.0);
     metadata.blendMode = static_cast<RasterBlendMode>(readNumber<int>(values, prefix + ".blendMode"));
+    metadata.kind = static_cast<LayerKind>(readNumber<int>(values, prefix + ".kind"));
+    metadata.clipsToBelow = readBool(values, prefix + ".clipsToBelow");
+    metadata.alphaLock = readBool(values, prefix + ".alphaLock");
     return metadata;
+}
+
+void writeLayerMask(std::ostringstream &output,
+                    const std::string &prefix,
+                    const LayerMask &mask)
+{
+    writeLine(output, prefix + ".enabled", boolText(mask.enabled));
+    writeLine(output, prefix + ".width", numberText(mask.width));
+    writeLine(output, prefix + ".height", numberText(mask.height));
+    writeLine(output, prefix + ".alpha", byteVectorText(mask.alpha));
+}
+
+LayerMask readLayerMask(const std::map<std::string, std::string> &values,
+                        const std::string &prefix)
+{
+    LayerMask mask;
+    mask.enabled = readBool(values, prefix + ".enabled");
+    mask.width = readNumber<Types::Pixel>(values, prefix + ".width");
+    mask.height = readNumber<Types::Pixel>(values, prefix + ".height");
+    mask.alpha = readTypesByteVector(values, prefix + ".alpha");
+    return mask;
 }
 
 void writeSurface(std::ostringstream &output,
@@ -418,6 +446,34 @@ DrawingSurface readSurface(const std::map<std::string, std::string> &values,
     return surface;
 }
 
+void writeLayer(std::ostringstream &output,
+                const std::string &prefix,
+                const Layer &layer)
+{
+    writeSurface(output, prefix + ".surface", layer.surface);
+    writeLayerMetadata(output, prefix + ".metadata", layer.metadata);
+    writeLayerMask(output, prefix + ".mask", layer.mask);
+    writeLine(output, prefix + ".children.count", numberText(layer.children.size()));
+    for (std::size_t index = 0; index < layer.children.size(); ++index) {
+        writeLayer(output, prefix + ".children." + numberText(index), layer.children[index]);
+    }
+}
+
+Layer readLayer(const std::map<std::string, std::string> &values,
+                const std::string &prefix)
+{
+    Layer layer;
+    layer.surface = readSurface(values, prefix + ".surface");
+    layer.metadata = readLayerMetadata(values, prefix + ".metadata");
+    layer.mask = readLayerMask(values, prefix + ".mask");
+    const std::size_t childCount = readNumber<std::size_t>(values, prefix + ".children.count");
+    layer.children.reserve(childCount);
+    for (std::size_t index = 0; index < childCount; ++index) {
+        layer.children.push_back(readLayer(values, prefix + ".children." + numberText(index)));
+    }
+    return layer;
+}
+
 void writeStrokePoint(std::ostringstream &output,
                       const std::string &prefix,
                       const StrokePoint &point)
@@ -430,6 +486,7 @@ void writeStrokePoint(std::ostringstream &output,
     writeLine(output, prefix + ".tiltY", numberText(point.tiltY));
     writeLine(output, prefix + ".deviceState", numberText(point.deviceState));
     writeLine(output, prefix + ".arcLength", numberText(point.arcLength));
+    writeLine(output, prefix + ".rotationRadians", numberText(point.rotationRadians));
 }
 
 StrokePoint readStrokePoint(const std::map<std::string, std::string> &values,
@@ -444,6 +501,7 @@ StrokePoint readStrokePoint(const std::map<std::string, std::string> &values,
     point.tiltY = readNumber<Types::Scalar>(values, prefix + ".tiltY");
     point.deviceState = readNumber<std::uint32_t>(values, prefix + ".deviceState");
     point.arcLength = readNumber<Types::Scalar>(values, prefix + ".arcLength");
+    point.rotationRadians = readNumber<Types::Scalar>(values, prefix + ".rotationRadians");
     return point;
 }
 
@@ -590,6 +648,66 @@ StrokeResampler readStrokeResampler(const std::map<std::string, std::string> &va
     return resampler;
 }
 
+void writeBrushMaterial(std::ostringstream &output,
+                        const std::string &prefix,
+                        const BrushMaterial &material)
+{
+    writeLine(output, prefix + ".texture.enabled", boolText(material.texture.enabled));
+    writeLine(output, prefix + ".texture.width", numberText(material.texture.width));
+    writeLine(output, prefix + ".texture.height", numberText(material.texture.height));
+    writeLine(output, prefix + ".texture.alpha", byteVectorText(material.texture.alpha));
+    writeLine(output, prefix + ".texture.grainStrength", numberText(material.texture.grainStrength));
+    writeLine(output, prefix + ".texture.scale", numberText(material.texture.scale));
+    writeLine(output, prefix + ".dualBrush.enabled", boolText(material.dualBrush.enabled));
+    writeLine(output, prefix + ".dualBrush.scale", numberText(material.dualBrush.scale));
+    writeLine(output, prefix + ".dualBrush.spacingRatio", numberText(material.dualBrush.spacingRatio));
+    writeLine(output, prefix + ".dualBrush.alpha", byteVectorText(material.dualBrush.alpha));
+    writeLine(output, prefix + ".dualBrush.width", numberText(material.dualBrush.width));
+    writeLine(output, prefix + ".dualBrush.height", numberText(material.dualBrush.height));
+    writeLine(output, prefix + ".scatter.enabled", boolText(material.scatter.enabled));
+    writeLine(output, prefix + ".scatter.radius", numberText(material.scatter.radius));
+    writeLine(output, prefix + ".scatter.count", numberText(material.scatter.count));
+    writeLine(output, prefix + ".simulation.model", numberText(static_cast<int>(material.simulation.model)));
+    writeLine(output, prefix + ".simulation.wetness", numberText(material.simulation.wetness));
+    writeLine(output, prefix + ".simulation.smudgeStrength", numberText(material.simulation.smudgeStrength));
+    writeLine(output, prefix + ".simulation.mixStrength", numberText(material.simulation.mixStrength));
+    writeLine(output, prefix + ".bristle.shape", numberText(static_cast<int>(material.bristle.shape)));
+    writeLine(output, prefix + ".bristle.count", numberText(material.bristle.count));
+    writeLine(output, prefix + ".bristle.length", numberText(material.bristle.length));
+    writeLine(output, prefix + ".bristle.stiffness", numberText(material.bristle.stiffness));
+}
+
+BrushMaterial readBrushMaterial(const std::map<std::string, std::string> &values,
+                                const std::string &prefix)
+{
+    BrushMaterial material;
+    material.texture.enabled = readBool(values, prefix + ".texture.enabled");
+    material.texture.width = readNumber<Types::Pixel>(values, prefix + ".texture.width");
+    material.texture.height = readNumber<Types::Pixel>(values, prefix + ".texture.height");
+    material.texture.alpha = readTypesByteVector(values, prefix + ".texture.alpha");
+    material.texture.grainStrength = readNumber<Types::Scalar>(values, prefix + ".texture.grainStrength");
+    material.texture.scale = readNumber<Types::Scalar>(values, prefix + ".texture.scale", 1.0);
+    material.dualBrush.enabled = readBool(values, prefix + ".dualBrush.enabled");
+    material.dualBrush.scale = readNumber<Types::Scalar>(values, prefix + ".dualBrush.scale", 1.0);
+    material.dualBrush.spacingRatio = readNumber<Types::Scalar>(values, prefix + ".dualBrush.spacingRatio", 1.0);
+    material.dualBrush.alpha = readTypesByteVector(values, prefix + ".dualBrush.alpha");
+    material.dualBrush.width = readNumber<Types::Pixel>(values, prefix + ".dualBrush.width");
+    material.dualBrush.height = readNumber<Types::Pixel>(values, prefix + ".dualBrush.height");
+    material.scatter.enabled = readBool(values, prefix + ".scatter.enabled");
+    material.scatter.radius = readNumber<Types::Scalar>(values, prefix + ".scatter.radius");
+    material.scatter.count = readNumber<std::uint32_t>(values, prefix + ".scatter.count", 1);
+    material.simulation.model = static_cast<BrushSimulationModel>(
+            readNumber<int>(values, prefix + ".simulation.model"));
+    material.simulation.wetness = readNumber<Types::Scalar>(values, prefix + ".simulation.wetness");
+    material.simulation.smudgeStrength = readNumber<Types::Scalar>(values, prefix + ".simulation.smudgeStrength");
+    material.simulation.mixStrength = readNumber<Types::Scalar>(values, prefix + ".simulation.mixStrength");
+    material.bristle.shape = static_cast<BristleShape>(readNumber<int>(values, prefix + ".bristle.shape"));
+    material.bristle.count = readNumber<std::uint32_t>(values, prefix + ".bristle.count");
+    material.bristle.length = readNumber<Types::Scalar>(values, prefix + ".bristle.length");
+    material.bristle.stiffness = readNumber<Types::Scalar>(values, prefix + ".bristle.stiffness", 1.0);
+    return material;
+}
+
 void writeBrushState(std::ostringstream &output,
                      const std::string &prefix,
                      const BrushState &brush)
@@ -597,6 +715,7 @@ void writeBrushState(std::ostringstream &output,
     writeRasterizer(output, prefix + ".rasterizer", brush.rasterizer);
     writeBrushDynamics(output, prefix + ".dynamics", brush.dynamics);
     writeStrokeResampler(output, prefix + ".resampler", brush.resampler);
+    writeBrushMaterial(output, prefix + ".material", brush.material);
     writeLine(output, prefix + ".randomSeed", numberText(brush.randomSeed));
 }
 
@@ -607,6 +726,7 @@ BrushState readBrushState(const std::map<std::string, std::string> &values,
     brush.rasterizer = readRasterizer(values, prefix + ".rasterizer");
     brush.dynamics = readBrushDynamics(values, prefix + ".dynamics");
     brush.resampler = readStrokeResampler(values, prefix + ".resampler");
+    brush.material = readBrushMaterial(values, prefix + ".material");
     brush.randomSeed = readNumber<std::uint32_t>(values, prefix + ".randomSeed");
     return brush;
 }
@@ -624,6 +744,8 @@ void writeBrushDab(std::ostringstream &output,
     writeLine(output, prefix + ".ellipseScaleY", numberText(dab.ellipseScaleY));
     writeLine(output, prefix + ".textureDirectionRadians", numberText(dab.textureDirectionRadians));
     writeLine(output, prefix + ".grain", numberText(dab.grain));
+    writeLine(output, prefix + ".textureAlpha", numberText(dab.textureAlpha));
+    writeLine(output, prefix + ".dualBrush", boolText(dab.dualBrush));
     writeLine(output, prefix + ".colorArgb", numberText(dab.colorArgb));
     writeLine(output, prefix + ".blendMode", numberText(static_cast<int>(dab.blendMode)));
     writeLine(output, prefix + ".sequenceIndex", numberText(dab.sequenceIndex));
@@ -642,6 +764,8 @@ BrushDab readBrushDab(const std::map<std::string, std::string> &values,
     dab.ellipseScaleY = readNumber<Types::Scalar>(values, prefix + ".ellipseScaleY", 1.0);
     dab.textureDirectionRadians = readNumber<Types::Scalar>(values, prefix + ".textureDirectionRadians");
     dab.grain = readNumber<Types::Scalar>(values, prefix + ".grain");
+    dab.textureAlpha = readNumber<Types::Scalar>(values, prefix + ".textureAlpha", 1.0);
+    dab.dualBrush = readBool(values, prefix + ".dualBrush");
     dab.colorArgb = readNumber<std::uint32_t>(values, prefix + ".colorArgb", 0xFF000000U);
     dab.blendMode = static_cast<RasterBlendMode>(readNumber<int>(values, prefix + ".blendMode"));
     dab.sequenceIndex = readNumber<std::uint32_t>(values, prefix + ".sequenceIndex");
@@ -699,6 +823,7 @@ void writeBrushSnapshot(std::ostringstream &output,
                         const BrushSnapshot &brush)
 {
     writeLine(output, prefix + ".brushId", uuidText(brush.brushId));
+    writeLine(output, prefix + ".name", stringText(brush.name));
     writeLine(output, prefix + ".tip.width", numberText(brush.tip.width));
     writeLine(output, prefix + ".tip.height", numberText(brush.tip.height));
     writeLine(output, prefix + ".tip.mask", byteVectorText(brush.tip.mask));
@@ -707,6 +832,7 @@ void writeBrushSnapshot(std::ostringstream &output,
     writeLine(output, prefix + ".hardness", numberText(brush.hardness));
     writeLine(output, prefix + ".flow", numberText(brush.flow));
     writeLine(output, prefix + ".density", numberText(brush.density));
+    writeBrushMaterial(output, prefix + ".material", brush.material);
 }
 
 BrushSnapshot readBrushSnapshot(const std::map<std::string, std::string> &values,
@@ -714,6 +840,7 @@ BrushSnapshot readBrushSnapshot(const std::map<std::string, std::string> &values
 {
     BrushSnapshot brush;
     brush.brushId = readUuid(values, prefix + ".brushId");
+    brush.name = readString(values, prefix + ".name");
     brush.tip.width = readNumber<int>(values, prefix + ".tip.width");
     brush.tip.height = readNumber<int>(values, prefix + ".tip.height");
     brush.tip.mask = readByteVector(values, prefix + ".tip.mask");
@@ -722,6 +849,7 @@ BrushSnapshot readBrushSnapshot(const std::map<std::string, std::string> &values
     brush.hardness = readNumber<float>(values, prefix + ".hardness");
     brush.flow = readNumber<float>(values, prefix + ".flow");
     brush.density = readNumber<float>(values, prefix + ".density");
+    brush.material = readBrushMaterial(values, prefix + ".material");
     return brush;
 }
 
@@ -732,6 +860,30 @@ void writeCommand(std::ostringstream &output,
     writeLine(output, prefix + ".sequence", numberText(command.sequence));
     writeLine(output, prefix + ".label", stringText(command.label));
     writeLine(output, prefix + ".targetId", uuidText(command.targetId));
+    writeLine(output, prefix + ".kind", numberText(static_cast<int>(command.kind)));
+    writeLine(output, prefix + ".scope", numberText(static_cast<int>(command.scope)));
+    writeLine(output, prefix + ".transactionId", uuidText(command.transactionId));
+    writeLine(output, prefix + ".timestamp", numberText(command.timestamp));
+    writeLine(output, prefix + ".coalescingKey", stringText(command.coalescingKey));
+    writeLine(output, prefix + ".reversible", boolText(command.reversible));
+    writeLine(output, prefix + ".committed", boolText(command.committed));
+    writeLine(output, prefix + ".dirtyBounds", rectText(command.dirtyBounds));
+    writeLine(output, prefix + ".patches.count", numberText(command.patches.size()));
+    for (std::size_t index = 0; index < command.patches.size(); ++index) {
+        const std::string patchPrefix = prefix + ".patches." + numberText(index);
+        const CommandPatch &patch = command.patches[index];
+        writeLine(output, patchPrefix + ".targetId", uuidText(patch.targetId));
+        writeLine(output, patchPrefix + ".scope", numberText(static_cast<int>(patch.scope)));
+        writeLine(output, patchPrefix + ".before.storage", numberText(static_cast<int>(patch.beforeState.storage)));
+        writeLine(output, patchPrefix + ".before.mimeType", stringText(patch.beforeState.mimeType));
+        writeLine(output, patchPrefix + ".before.assetId", uuidText(patch.beforeState.assetId));
+        writeLine(output, patchPrefix + ".before.bytes", byteVectorText(patch.beforeState.bytes));
+        writeLine(output, patchPrefix + ".after.storage", numberText(static_cast<int>(patch.afterState.storage)));
+        writeLine(output, patchPrefix + ".after.mimeType", stringText(patch.afterState.mimeType));
+        writeLine(output, patchPrefix + ".after.assetId", uuidText(patch.afterState.assetId));
+        writeLine(output, patchPrefix + ".after.bytes", byteVectorText(patch.afterState.bytes));
+        writeLine(output, patchPrefix + ".dirtyBounds", rectText(patch.dirtyBounds));
+    }
 }
 
 Command readCommand(const std::map<std::string, std::string> &values,
@@ -741,6 +893,34 @@ Command readCommand(const std::map<std::string, std::string> &values,
     command.sequence = readNumber<std::uint64_t>(values, prefix + ".sequence");
     command.label = readString(values, prefix + ".label");
     command.targetId = readUuid(values, prefix + ".targetId");
+    command.kind = static_cast<CommandKind>(readNumber<int>(values, prefix + ".kind"));
+    command.scope = static_cast<CommandScope>(readNumber<int>(values, prefix + ".scope"));
+    command.transactionId = readUuid(values, prefix + ".transactionId");
+    command.timestamp = readNumber<Types::Scalar>(values, prefix + ".timestamp");
+    command.coalescingKey = readString(values, prefix + ".coalescingKey");
+    command.reversible = readBool(values, prefix + ".reversible", true);
+    command.committed = readBool(values, prefix + ".committed", true);
+    command.dirtyBounds = readRect<DocumentRect>(values, prefix + ".dirtyBounds");
+    const std::size_t patchCount = readNumber<std::size_t>(values, prefix + ".patches.count");
+    command.patches.reserve(patchCount);
+    for (std::size_t index = 0; index < patchCount; ++index) {
+        const std::string patchPrefix = prefix + ".patches." + numberText(index);
+        CommandPatch patch;
+        patch.targetId = readUuid(values, patchPrefix + ".targetId");
+        patch.scope = static_cast<CommandScope>(readNumber<int>(values, patchPrefix + ".scope"));
+        patch.beforeState.storage = static_cast<CommandPayloadStorage>(
+                readNumber<int>(values, patchPrefix + ".before.storage"));
+        patch.beforeState.mimeType = readString(values, patchPrefix + ".before.mimeType");
+        patch.beforeState.assetId = readUuid(values, patchPrefix + ".before.assetId");
+        patch.beforeState.bytes = readByteVector(values, patchPrefix + ".before.bytes");
+        patch.afterState.storage = static_cast<CommandPayloadStorage>(
+                readNumber<int>(values, patchPrefix + ".after.storage"));
+        patch.afterState.mimeType = readString(values, patchPrefix + ".after.mimeType");
+        patch.afterState.assetId = readUuid(values, patchPrefix + ".after.assetId");
+        patch.afterState.bytes = readByteVector(values, patchPrefix + ".after.bytes");
+        patch.dirtyBounds = readRect<DocumentRect>(values, patchPrefix + ".dirtyBounds");
+        command.patches.push_back(patch);
+    }
     return command;
 }
 
@@ -749,6 +929,8 @@ void writeHistory(std::ostringstream &output,
                   const HistoryStack &history)
 {
     writeLine(output, prefix + ".cursor", numberText(history.cursor));
+    writeLine(output, prefix + ".nextSequence", numberText(history.nextSequence));
+    writeLine(output, prefix + ".maxUndoCommands", numberText(history.maxUndoCommands));
     writeLine(output, prefix + ".undo.count", numberText(history.undoCommands.size()));
     for (std::size_t index = 0; index < history.undoCommands.size(); ++index) {
         writeCommand(output, prefix + ".undo." + numberText(index), history.undoCommands[index]);
@@ -764,15 +946,25 @@ HistoryStack readHistory(const std::map<std::string, std::string> &values,
 {
     HistoryStack history;
     history.cursor = readNumber<std::size_t>(values, prefix + ".cursor");
+    history.nextSequence = readNumber<std::uint64_t>(values, prefix + ".nextSequence", 1);
+    history.maxUndoCommands = readNumber<std::size_t>(values, prefix + ".maxUndoCommands");
+    std::uint64_t maxSequence = 0;
     const std::size_t undoCount = readNumber<std::size_t>(values, prefix + ".undo.count");
     history.undoCommands.reserve(undoCount);
     for (std::size_t index = 0; index < undoCount; ++index) {
-        history.undoCommands.push_back(readCommand(values, prefix + ".undo." + numberText(index)));
+        Command command = readCommand(values, prefix + ".undo." + numberText(index));
+        maxSequence = std::max(maxSequence, command.sequence);
+        history.undoCommands.push_back(command);
     }
     const std::size_t redoCount = readNumber<std::size_t>(values, prefix + ".redo.count");
     history.redoCommands.reserve(redoCount);
     for (std::size_t index = 0; index < redoCount; ++index) {
-        history.redoCommands.push_back(readCommand(values, prefix + ".redo." + numberText(index)));
+        Command command = readCommand(values, prefix + ".redo." + numberText(index));
+        maxSequence = std::max(maxSequence, command.sequence);
+        history.redoCommands.push_back(command);
+    }
+    if (history.nextSequence <= maxSequence) {
+        history.nextSequence = maxSequence + 1;
     }
     return history;
 }
@@ -782,8 +974,19 @@ void writeColorSpace(std::ostringstream &output,
                      const ColorSpace &colorSpace)
 {
     writeLine(output, prefix + ".name", stringText(colorSpace.name));
+    writeLine(output, prefix + ".primaries", numberText(static_cast<int>(colorSpace.primaries)));
+    writeLine(output, prefix + ".transferFunction", numberText(static_cast<int>(colorSpace.transferFunction)));
+    writeLine(output, prefix + ".componentEncoding", numberText(static_cast<int>(colorSpace.componentEncoding)));
     writeLine(output, prefix + ".iccProfile", byteVectorText(colorSpace.iccProfile));
     writeLine(output, prefix + ".linear", boolText(colorSpace.linear));
+    writeLine(output, prefix + ".hdr", boolText(colorSpace.hdr));
+    writeLine(output, prefix + ".minComponentValue", numberText(colorSpace.minComponentValue));
+    writeLine(output, prefix + ".maxComponentValue", numberText(colorSpace.maxComponentValue));
+    writeLine(output, prefix + ".referenceWhiteNits", numberText(colorSpace.referenceWhiteNits));
+    writeLine(output, prefix + ".redPrimary", pointText(colorSpace.redPrimary));
+    writeLine(output, prefix + ".greenPrimary", pointText(colorSpace.greenPrimary));
+    writeLine(output, prefix + ".bluePrimary", pointText(colorSpace.bluePrimary));
+    writeLine(output, prefix + ".whitePoint", pointText(colorSpace.whitePoint));
 }
 
 ColorSpace readColorSpace(const std::map<std::string, std::string> &values,
@@ -791,8 +994,19 @@ ColorSpace readColorSpace(const std::map<std::string, std::string> &values,
 {
     ColorSpace colorSpace;
     colorSpace.name = readString(values, prefix + ".name", "sRGB");
+    colorSpace.primaries = static_cast<ColorPrimaries>(readNumber<int>(values, prefix + ".primaries"));
+    colorSpace.transferFunction = static_cast<ColorTransferFunction>(readNumber<int>(values, prefix + ".transferFunction"));
+    colorSpace.componentEncoding = static_cast<ColorComponentEncoding>(readNumber<int>(values, prefix + ".componentEncoding"));
     colorSpace.iccProfile = readByteVector(values, prefix + ".iccProfile");
     colorSpace.linear = readBool(values, prefix + ".linear");
+    colorSpace.hdr = readBool(values, prefix + ".hdr");
+    colorSpace.minComponentValue = readNumber<Types::Scalar>(values, prefix + ".minComponentValue");
+    colorSpace.maxComponentValue = readNumber<Types::Scalar>(values, prefix + ".maxComponentValue", 1.0);
+    colorSpace.referenceWhiteNits = readNumber<Types::Scalar>(values, prefix + ".referenceWhiteNits", 80.0);
+    colorSpace.redPrimary = readPoint<ColorChromaticity>(values, prefix + ".redPrimary");
+    colorSpace.greenPrimary = readPoint<ColorChromaticity>(values, prefix + ".greenPrimary");
+    colorSpace.bluePrimary = readPoint<ColorChromaticity>(values, prefix + ".bluePrimary");
+    colorSpace.whitePoint = readPoint<ColorChromaticity>(values, prefix + ".whitePoint");
     return colorSpace;
 }
 
@@ -843,8 +1057,7 @@ std::string serializeDocumentArchive(const DocumentArchive &archive)
         writeLine(output, canvasPrefix + ".layers.count", numberText(canvas.layers.layers.size()));
         for (std::size_t layerIndex = 0; layerIndex < canvas.layers.layers.size(); ++layerIndex) {
             const std::string layerPrefix = canvasPrefix + ".layers." + numberText(layerIndex);
-            writeSurface(output, layerPrefix + ".surface", canvas.layers.layers[layerIndex].surface);
-            writeLayerMetadata(output, layerPrefix + ".metadata", canvas.layers.layers[layerIndex].metadata);
+            writeLayer(output, layerPrefix, canvas.layers.layers[layerIndex]);
         }
         writeLine(output, canvasPrefix + ".layers.activeLayerIndex", numberText(canvas.layers.activeLayerIndex));
 
@@ -896,10 +1109,7 @@ DocumentArchive deserializeDocumentArchive(const std::string &payload)
         canvas.layers.layers.reserve(layerCount);
         for (std::size_t layerIndex = 0; layerIndex < layerCount; ++layerIndex) {
             const std::string layerPrefix = canvasPrefix + ".layers." + numberText(layerIndex);
-            Layer layer;
-            layer.surface = readSurface(values, layerPrefix + ".surface");
-            layer.metadata = readLayerMetadata(values, layerPrefix + ".metadata");
-            canvas.layers.layers.push_back(layer);
+            canvas.layers.layers.push_back(readLayer(values, layerPrefix));
         }
         canvas.layers.activeLayerIndex = readNumber<std::size_t>(values, canvasPrefix + ".layers.activeLayerIndex");
 

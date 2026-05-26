@@ -78,6 +78,7 @@ StrokePoint interpolateStrokePoint(const StrokeInput &input,
     sample.tiltX = linearScalar(start.tiltX, end.tiltX, t);
     sample.tiltY = linearScalar(start.tiltY, end.tiltY, t);
     sample.deviceState = t < 1.0 ? start.deviceState : end.deviceState;
+    sample.rotationRadians = linearScalar(start.rotationRadians, end.rotationRadians, t);
     return sample;
 }
 

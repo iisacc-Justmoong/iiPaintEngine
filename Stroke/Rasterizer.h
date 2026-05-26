@@ -13,6 +13,7 @@
 #include "Stroke/StrokeCurve.h"
 
 struct BrushDynamics;
+struct BrushMaterial;
 
 struct BrushDab {
     DocumentPoint position;
@@ -24,6 +25,8 @@ struct BrushDab {
     Types::Scalar ellipseScaleY = 1.0;
     Types::Scalar textureDirectionRadians = 0.0;
     Types::Scalar grain = 0.0;
+    Types::Scalar textureAlpha = 1.0;
+    bool dualBrush = false;
     std::uint32_t colorArgb = 0xFF000000U;
     RasterBlendMode blendMode = RasterBlendMode::SourceOver;
     std::uint32_t sequenceIndex = 0;
@@ -66,6 +69,12 @@ std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
 std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
                                      const Rasterizer &rasterizer,
                                      const BrushDynamics &dynamics,
+                                     std::uint32_t randomSeed);
+
+std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
+                                     const Rasterizer &rasterizer,
+                                     const BrushDynamics &dynamics,
+                                     const BrushMaterial &material,
                                      std::uint32_t randomSeed);
 
 std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs, const Rasterizer &rasterizer);

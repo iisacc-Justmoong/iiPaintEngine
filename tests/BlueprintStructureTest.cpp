@@ -5,7 +5,9 @@
 
 #include "Brush/BrushDynamics.h"
 #include "Brush/BrushLibrary.h"
+#include "Brush/BrushMaterial.h"
 #include "Brush/BrushPreset.h"
+#include "Brush/BrushPresetSerializer.h"
 #include "Brush/BrushResolve.h"
 #include "Brush/BrushShape.h"
 #include "Brush/BrushSnapshot.h"
@@ -55,6 +57,7 @@
 #include "Render/GpuRenderer.h"
 #include "Render/RenderContext.h"
 #include "Render/Renderer.h"
+#include "Selection/Selection.h"
 #include "Stroke/LiveStroke.h"
 #include "Stroke/Rasterizer.h"
 #include "Stroke/Stabilizer.h"
@@ -65,6 +68,10 @@
 #include "Stroke/StrokePoint.h"
 #include "Stroke/StrokeRepository.h"
 #include "Stroke/StrokeResampler.h"
+#include "Filter/FilterPipeline.h"
+#include "Tool/RasterEditTool.h"
+#include "Tool/ToolStateMachine.h"
+#include "Transform/Transform.h"
 
 namespace {
 
@@ -107,6 +114,7 @@ static_assert(blueprintStruct<CanvasSession>);
 
 static_assert(blueprintStruct<Layer>);
 static_assert(blueprintStruct<LayerMetadata>);
+static_assert(blueprintStruct<LayerMask>);
 static_assert(blueprintStruct<LayerStack>);
 static_assert(blueprintStruct<DrawingSurface>);
 static_assert(blueprintStruct<RasterLayer>);
@@ -132,6 +140,13 @@ static_assert(blueprintStruct<StrokeResampler>);
 static_assert(blueprintStruct<Rasterizer>);
 
 static_assert(blueprintStruct<BrushPreset>);
+static_assert(blueprintStruct<BrushTexture>);
+static_assert(blueprintStruct<DualBrush>);
+static_assert(blueprintStruct<BrushScatter>);
+static_assert(blueprintStruct<BrushSimulation>);
+static_assert(blueprintStruct<BristleSimulation>);
+static_assert(blueprintStruct<BrushMaterial>);
+static_assert(blueprintStruct<BrushPresetSerializer>);
 static_assert(blueprintStruct<BrushDynamics>);
 static_assert(blueprintStruct<BrushDynamicsInput>);
 static_assert(blueprintStruct<BrushDynamicsResult>);
@@ -149,19 +164,37 @@ static_assert(blueprintStruct<CpuRenderer>);
 static_assert(blueprintStruct<GpuRenderer>);
 
 static_assert(blueprintStruct<Command>);
+static_assert(blueprintStruct<CommandPayload>);
+static_assert(blueprintStruct<CommandPatch>);
 static_assert(blueprintStruct<HistoryStack>);
+static_assert(blueprintStruct<HistoryStepResult>);
 static_assert(blueprintStruct<UndoRedoController>);
 static_assert(blueprintStruct<HistorySnapshot>);
 
 static_assert(blueprintStruct<PointerEvent>);
+static_assert(blueprintStruct<TouchGestureState>);
+static_assert(blueprintStruct<TabletTiltCalibration>);
 static_assert(blueprintStruct<TabletState>);
 static_assert(blueprintStruct<InputNormalizer>);
 static_assert(blueprintStruct<InputStrokeBuilder>);
 
 static_assert(blueprintStruct<PaintColor>);
 static_assert(blueprintStruct<Palette>);
+static_assert(blueprintStruct<ColorChromaticity>);
 static_assert(blueprintStruct<ColorSpace>);
 static_assert(blueprintStruct<Gradient>);
+
+static_assert(blueprintStruct<SelectionMask>);
+static_assert(blueprintStruct<SelectionState>);
+static_assert(blueprintStruct<AffineTransform>);
+static_assert(blueprintStruct<TransformState>);
+static_assert(blueprintStruct<FilterNode>);
+static_assert(blueprintStruct<FilterPipeline>);
+static_assert(blueprintStruct<FillOperation>);
+static_assert(blueprintStruct<GradientOperation>);
+static_assert(blueprintStruct<EraserOperation>);
+static_assert(blueprintStruct<ToolState>);
+static_assert(blueprintStruct<ToolStateMachine>);
 
 static_assert(blueprintStruct<PaintEngineController>);
 static_assert(blueprintStruct<DocumentAdapter>);
@@ -185,6 +218,8 @@ int main()
     HistoryStack history{};
     PointerEvent pointerEvent{};
     PaintColor color{};
+    SelectionState selection{};
+    ToolStateMachine tools{};
 
     PaintCanvasItem canvasItem;
     PaintEngineController controller{};
@@ -208,6 +243,8 @@ int main()
     (void) history;
     (void) pointerEvent;
     (void) color;
+    (void) selection;
+    (void) tools;
     (void) controller;
     (void) documentAdapter;
     (void) layerListModel;

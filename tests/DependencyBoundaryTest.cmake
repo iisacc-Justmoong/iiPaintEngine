@@ -1,5 +1,5 @@
 set(ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
-set(MODULES Core Canvas Input Document Layer Stroke Brush Render History Color QtAdapter)
+set(MODULES Core Canvas Input Document Layer Stroke Brush Render History Color Selection Transform Filter Tool QtAdapter)
 
 function(module_for path out_var)
     string(REGEX MATCH "^[^/]+" module "${path}")
@@ -15,10 +15,18 @@ function(allowed_modules_for source_module out_var)
         set(allowed "")
     elseif (source_module STREQUAL "Layer"
             OR source_module STREQUAL "Brush"
-            OR source_module STREQUAL "Render"
             OR source_module STREQUAL "History"
-            OR source_module STREQUAL "Color")
+            OR source_module STREQUAL "Color"
+            OR source_module STREQUAL "Selection")
         set(allowed Core)
+    elseif (source_module STREQUAL "Render")
+        set(allowed Core Layer Color)
+    elseif (source_module STREQUAL "Transform")
+        set(allowed Core Layer Selection)
+    elseif (source_module STREQUAL "Filter")
+        set(allowed Core Layer Selection)
+    elseif (source_module STREQUAL "Tool")
+        set(allowed Core Layer Selection Transform Filter)
     elseif (source_module STREQUAL "Stroke")
         set(allowed Core Brush)
     elseif (source_module STREQUAL "Document")
@@ -28,7 +36,7 @@ function(allowed_modules_for source_module out_var)
     elseif (source_module STREQUAL "Input")
         set(allowed Core Stroke)
     elseif (source_module STREQUAL "QtAdapter")
-        set(allowed Core Canvas Input Document Layer Stroke Brush Render History Color)
+        set(allowed Core Canvas Input Document Layer Stroke Brush Render History Color Selection Transform Filter Tool)
     else ()
         set(allowed "")
     endif ()

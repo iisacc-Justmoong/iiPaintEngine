@@ -18,4 +18,5 @@ struct StrokePoint {
     Types::Scalar tiltY = 0.0;
     std::uint32_t deviceState = 0;
     Types::Scalar arcLength = 0.0;
+    Types::Scalar rotationRadians = 0.0;
 };

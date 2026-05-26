@@ -6,4 +6,7 @@
 
 enum class RasterBlendMode {
     SourceOver,
+    Multiply,
+    Screen,
+    Overlay,
 };

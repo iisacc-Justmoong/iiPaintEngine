@@ -9,6 +9,7 @@ enum class EngineErrorCode {
     InvalidArgument,
     InvalidState,
     IoFailure,
+    UnsupportedColorTransform,
 };
 
 struct EngineError {

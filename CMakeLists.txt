@@ -90,6 +90,10 @@ set(IIPAINTENGINE_SOURCES
         Layer/VectorLayer.h
         Brush/BrushPreset.cpp
         Brush/BrushPreset.h
+        Brush/BrushMaterial.cpp
+        Brush/BrushMaterial.h
+        Brush/BrushPresetSerializer.cpp
+        Brush/BrushPresetSerializer.h
         Brush/BrushDynamics.cpp
         Brush/BrushDynamics.h
         Brush/BrushShape.cpp
@@ -158,6 +162,16 @@ set(IIPAINTENGINE_SOURCES
         Color/ColorSpace.h
         Color/Gradient.cpp
         Color/Gradient.h
+        Selection/Selection.cpp
+        Selection/Selection.h
+        Transform/Transform.cpp
+        Transform/Transform.h
+        Filter/FilterPipeline.cpp
+        Filter/FilterPipeline.h
+        Tool/RasterEditTool.cpp
+        Tool/RasterEditTool.h
+        Tool/ToolStateMachine.cpp
+        Tool/ToolStateMachine.h
         QtAdapter/PaintCanvasItem.cpp
         QtAdapter/PaintCanvasItem.h
         QtAdapter/CanvasEventWork.cpp
@@ -251,6 +265,15 @@ target_link_libraries(iiPaintEnginePointerStrokeFlowTests PRIVATE
 add_test(NAME iiPaintEnginePointerStrokeFlow
         COMMAND iiPaintEnginePointerStrokeFlowTests)
 
+add_executable(iiPaintEngineTabletInputSurfaceTests
+        tests/TabletInputSurfaceTest.cpp)
+
+target_link_libraries(iiPaintEngineTabletInputSurfaceTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineTabletInputSurface
+        COMMAND iiPaintEngineTabletInputSurfaceTests)
+
 add_executable(iiPaintEngineHybridPaintingModelTests
         tests/HybridPaintingModelTest.cpp)
 
@@ -287,6 +310,33 @@ target_link_libraries(iiPaintEngineBrushDynamicsMappingTests PRIVATE
 add_test(NAME iiPaintEngineBrushDynamicsMapping
         COMMAND iiPaintEngineBrushDynamicsMappingTests)
 
+add_executable(iiPaintEngineBrushExpressionContractTests
+        tests/BrushExpressionContractTest.cpp)
+
+target_link_libraries(iiPaintEngineBrushExpressionContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineBrushExpressionContract
+        COMMAND iiPaintEngineBrushExpressionContractTests)
+
+add_executable(iiPaintEngineHistoryUndoRedoContractTests
+        tests/HistoryUndoRedoContractTest.cpp)
+
+target_link_libraries(iiPaintEngineHistoryUndoRedoContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineHistoryUndoRedoContract
+        COMMAND iiPaintEngineHistoryUndoRedoContractTests)
+
+add_executable(iiPaintEngineEditingToolPipelineContractTests
+        tests/EditingToolPipelineContractTest.cpp)
+
+target_link_libraries(iiPaintEngineEditingToolPipelineContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineEditingToolPipelineContract
+        COMMAND iiPaintEngineEditingToolPipelineContractTests)
+
 add_executable(iiPaintEngineStrokeResamplerTests
         tests/StrokeResamplerTest.cpp)
 
@@ -304,6 +354,33 @@ target_link_libraries(iiPaintEngineStrokeCompositingTests PRIVATE
 
 add_test(NAME iiPaintEngineStrokeCompositing
         COMMAND iiPaintEngineStrokeCompositingTests)
+
+add_executable(iiPaintEngineLayerCompositingContractTests
+        tests/LayerCompositingContractTest.cpp)
+
+target_link_libraries(iiPaintEngineLayerCompositingContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineLayerCompositingContract
+        COMMAND iiPaintEngineLayerCompositingContractTests)
+
+add_executable(iiPaintEngineRendererProjectionContractTests
+        tests/RendererProjectionContractTest.cpp)
+
+target_link_libraries(iiPaintEngineRendererProjectionContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineRendererProjectionContract
+        COMMAND iiPaintEngineRendererProjectionContractTests)
+
+add_executable(iiPaintEngineColorManagementContractTests
+        tests/ColorManagementContractTest.cpp)
+
+target_link_libraries(iiPaintEngineColorManagementContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineColorManagementContract
+        COMMAND iiPaintEngineColorManagementContractTests)
 
 add_executable(iiPaintEngineBrushMaskSamplingTests
         tests/BrushMaskSamplingTest.cpp)

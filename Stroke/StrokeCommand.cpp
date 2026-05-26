@@ -17,6 +17,7 @@ StrokeCommand makeStrokeCommand(const StrokeInput &rawInput,
     command.dabs = placeBrushDabs(command.path.renderedCurve,
                                   brush.rasterizer,
                                   brush.dynamics,
+                                  brush.material,
                                   brush.randomSeed);
     command.dabDirtyBounds = documentBoundsForEachBrushDab(command.dabs, brush.rasterizer);
     command.dirtyBounds = documentBoundsForBrushDabs(command.dabs, brush.rasterizer);

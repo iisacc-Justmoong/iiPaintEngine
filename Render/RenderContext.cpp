@@ -3,3 +3,8 @@
 //
 
 #include "RenderContext.h"
+
+bool renderColorSpacesMatch(const ColorSpace &source, const ColorSpace &target)
+{
+    return colorSpacesEquivalent(source, target);
+}

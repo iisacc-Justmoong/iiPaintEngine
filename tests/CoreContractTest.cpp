@@ -78,6 +78,7 @@ int main()
     if (documentRect.width != 100.0
             || canvasRect.width != 100.0
             || error.code != EngineErrorCode::None
+            || EngineError{EngineErrorCode::UnsupportedColorTransform, nullptr}.code != EngineErrorCode::UnsupportedColorTransform
             || config.defaultDpi <= 0.0) {
         return 1;
     }

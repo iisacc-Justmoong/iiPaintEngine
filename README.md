@@ -14,12 +14,16 @@ aggregate 초기화를 지원하는 단순 `struct` 청사진으로 둔다. 엔�
   `StrokeLayer`, `TextLayer`, `VectorLayer`
 - Stroke: `Stroke`, `StrokePoint`, `StrokeInput`, `Stabilizer`, `StrokeCurve`, `StrokeResampler`, `Rasterizer`,
   `BrushDab`, `StrokePath`, `BrushState`, `StrokeCommand`, `StrokeRepository`, `LiveStrokeFrame`, `LiveStrokeBuffer`
-- Brush: `BrushPreset`, `BrushDynamics`, `BrushDynamicsInput`, `BrushDynamicsResult`, `BrushShape`, `BrushTip`,
-  `BrushLibrary`, `BrushSnapshot`, `BrushResolve`
+- Brush: `BrushPreset`, `BrushMaterial`, `BrushPresetSerializer`, `BrushDynamics`, `BrushDynamicsInput`,
+  `BrushDynamicsResult`, `BrushShape`, `BrushTip`, `BrushLibrary`, `BrushSnapshot`, `BrushResolve`
 - Render: `Renderer`, `RenderContext`, `DirtyRegion`, `Compositor`, `CpuRenderer`, `GpuRenderer`
 - History: `Command`, `HistoryStack`, `UndoRedoController`, `HistorySnapshot`
 - Input: `PointerEvent`, `TabletState`, `InputNormalizer`, `InputStrokeBuilder`
-- Color: `PaintColor`, `Palette`, `ColorSpace`, `Gradient`
+- Color: `PaintColor`, `ColorChromaticity`, `Palette`, `ColorSpace`, `Gradient`
+- Selection: `SelectionMask`, `SelectionState`
+- Transform: `AffineTransform`, `TransformState`
+- Filter: `FilterNode`, `FilterPipeline`
+- Tool: `FillOperation`, `GradientOperation`, `EraserOperation`, `ToolState`, `ToolStateMachine`
 - QtAdapter: `PaintCanvasItem`, `CanvasEventWork`, `registerIipeQmlTypes`, `PaintEngineController`, `DocumentAdapter`,
   `LayerListModel`
 
@@ -36,12 +40,24 @@ Document
 -> Canvas
 Canvas
 -> Layer / Stroke
-Layer / Stroke / Brush / Render / History / Color
+Layer / Brush / History / Color
 -> Core
+Render
+-> Core / Layer
+Selection
+-> Core
+Transform
+-> Core / Layer / Selection
+Filter
+-> Core / Layer / Selection
+Tool
+-> Core / Layer / Selection / Transform / Filter
 ```
 
-`Core`는 최하층이며 어떤 프로젝트 모듈에도 의존하지 않는다. `Layer`, `Brush`, `Render`, `History`, `Color`는 `Core` 타입을 통해 최소한의 식별자와 좌표만 공유한다.
-`Stroke`는 브러시 파라미터를 dab 명령으로 해석하기 위해 `BrushDynamics` 값 타입만 읽을 수 있다. `Canvas`는 `LayerStack`과 `StrokeRepository`를 묶는 작업
+`Core`는 최하층이며 어떤 프로젝트 모듈에도 의존하지 않는다. `Layer`, `Brush`, `History`, `Color`는 `Core` 타입을 통해 최소한의 식별자와 좌표만 공유한다.
+`Render`는 layer stack을 최종 래스터 결과로 합성하기 위해 `Layer`의 값 타입을 읽을 수 있다.
+`Stroke`는 브러시 파라미터를 dab 명령으로 해석하기 위해 `BrushDynamics`와 `BrushMaterial` 값 타입을 읽을 수 있다. `Canvas`는 `LayerStack`과
+`StrokeRepository`를 묶는 작업
 공간이며, `Document`는 하나 이상의 `Canvas`와 문서 메타데이터를 소유한다. `QObject`, `QQuickItem`, QML 관련 include는 `QtAdapter`에만 둔다.
 
 `Input`은 포인터 이벤트를 `StrokeInput` 값으로 바꾸기 위해 `Stroke`의 순수 값 타입만 사용할 수 있다. `Input`은 Qt, QML, 브러시, 래스터 레이어를 알 수 없으며, 장치별 이벤트
@@ -69,7 +85,7 @@ Core는 모든 상위 계층이 공유하는 최하층 타입만 가진다.
 현재 엔진의 최소 동작 파이프라인은 아래와 같다.
 
 ```text
-Mouse PointerEvent
+Mouse / Tablet PointerEvent
 -> InputStrokeBuilder
 -> StrokeInput
 -> LiveStrokeBuffer / StrokeCommand
@@ -93,16 +109,58 @@ Mouse PointerEvent
 
 메타데이터는 문서, 캔버스, 레이어 단위로 나눈다. `DocumentMetadata`는 제목, 작성자, 저장 경로, 버전, document id 같은 문서 전체 정보를 담고,
 `CanvasMetadata`는 배경색, 단위, 의도한 export 크기, DPI, 색공간, thumbnail 같은 캔버스 표현 정보를 담는다. `LayerMetadata`는 layer id,
-name, visible, opacity, blend mode 같은 레이어 편집 공통 정보를 담는다.
+name, visible, opacity, blend mode, layer kind, clipping, alpha lock 같은 레이어 편집 공통 정보를 담는다. `LayerMask`는 레이어의 per-pixel
+alpha mask를 보관하고, group layer는 `Layer::children`으로 하위 레이어를 가진다.
+
+`Compositor`는 `LayerStack`을 `RasterLayer`로 합성한다. 현재 계약은 source-over, multiply, screen, overlay blend mode와 layer
+opacity, layer
+mask, clipping-to-below, group child composition을 포함한다. adjustment layer는 아직 색 변환 연산을 수행하지 않고 `LayerKind::Adjustment` 값
+계약만
+가진다.
+`Renderer`는 `RenderContext`를 기준으로 CPU/GPU backend를 선택해 전체 layer stack을 target `RasterLayer`로 투영한다. CPU backend는 실제
+`Compositor`를 호출한다. GPU backend는 아직 장치 구현이 없으면 `allowCpuFallback` 계약에 따라 CPU로 내려가며, fallback이 금지되어 있으면 `InvalidState`를
+반환한다.
+색공간은 현재 source/target `ColorSpace`가 같은 경우에만 통과시키고, 다른 primaries/transfer/component
+encoding/ICC/name/linear/HDR/chromaticity 조합은
+`UnsupportedColorTransform`으로 실패시켜 암묵 변환을 금지한다.
+
+`ColorSpace`는 이름만 저장하지 않는다. primaries는 sRGB, Display P3, Rec.2020, Custom을 구분하고, transfer function은 sRGB, linear, gamma
+2.2,
+PQ, HLG를 구분한다. component encoding은 8-bit, 16-bit, float16, float32를 표현한다. ICC profile bytes, linear flag, HDR flag,
+component range,
+reference white nits, RGB primary/white-point chromaticity가 같은 값 계약 안에 있다. `PaintColor`는 `Types::Scalar` component와
+`ColorSpace`를 함께 들고,
+HDR float space에서는 1.0을 넘는 component를 보존하며 SDR space에서는 `clampPaintColorToColorSpace`로 range를 제한한다.
 
 `DocumentArchive`는 저장 포맷의 값 계약이다. `PaintDocument` 본문, brush source snapshot, color space profile, 외부 asset, history
 stack을 한 묶음으로
 보관한다. `serializeDocumentArchive`/`deserializeDocumentArchive`는 이 archive를 key/value payload로 왕복시켜 레이어 표면, layer
 metadata, stroke command,
-brush state, brush source mask, ICC profile bytes, asset bytes, history command가 파일 컨테이너 구현 전에 먼저 보존되는지 고정한다.
+layer mask, child layer, stroke command, brush state material, brush source material/mask, ICC profile bytes, asset
+bytes, history command와
+before/after patch payload가 파일 컨테이너 구현 전에 먼저 보존되는지 고정한다.
 모듈 경계에서는 `PaintDocument` 자체가 여전히 `Canvas`만 소유하고, `DocumentSerializer`만 저장 포맷 경계로서 `Brush`, `Color`, `History`의
 persistent value를
 읽을 수 있다.
+
+`HistoryStack`은 부가 로그가 아니라 undo/redo의 중심 operation journal이다. `Command`는 command kind, scope, transaction id,
+coalescing key, dirty bounds, target id와 함께 before/after `CommandPatch` payload를 가진다. payload는 inline bytes 또는 asset
+reference로
+표현할 수 있어 raster tile, layer metadata, mask, selection, transform 같은 변화가 나중에 실제 적용기로 연결될 수 있다. `recordHistoryCommand`는
+redo
+branch를 지우고 sequence를 부여하며, `undoHistoryCommand`/`redoHistoryCommand`는 command를 undo/redo stack 사이로 이동시켜 호출자가 같은 patch를
+반대 방향으로
+적용할 수 있게 한다. `HistorySnapshot`은 UI나 저장 경계가 undo/redo depth, cursor, next sequence를 안정적으로 읽기 위한 값 계약이다.
+
+`SelectionState`는 rectangle/mask 기반 선택 영역과 inverted/feather metadata를 보관한다. 선택이 비활성화된 상태는 전체 픽셀 허용으로 해석되어 기존 stroke/fill
+경로와 자연스럽게 이어진다. `TransformState`는 affine transform, interpolation, source/transformed bounds를 값으로 보관하고, 현재 구현은 selection
+이동과
+surface crop을 먼저 제공한다. `FillOperation`, `GradientOperation`, `EraserOperation`은 `DrawingSurface`에 선택 영역을 기준으로 적용되는 기본 편집
+도구이다.
+`FilterPipeline`은 blur/smudge node 목록을 순서대로 적용한다. 현재 blur는 선택 영역 내부 box blur, smudge는 좌측 샘플을 strength로 섞는 최소 CPU 계약이며,
+차후 GPU/비파괴 필터 그래프로 승격될 수 있다. `ToolStateMachine`은 selection/transform/crop/fill/gradient/eraser/blur/smudge 같은 도구의 begin,
+drag,
+commit, cancel 상태 전이를 값 타입으로 고정한다.
 
 초기 브러시는 `Rasterizer`의 기본값인 검은색 원형 브러시를 사용한다. 브러시 알파 이미지가 지정되면 `Rasterizer`는 먼저 `StrokeCurve`의 벡터 구간을 spacing/density
 간격으로 순회하여 `BrushDab` 명령 시퀀스를 만든다. 각 dab은 position, scale, rotation, alpha, color, blendMode를 가진 작은 브러시 투영 명령이다. 그 다음 dab
@@ -112,7 +170,8 @@ persistent value를
 subpixel 위치를 보존하며, 축소된 dab은 픽셀 영역을 샘플링해 작은 브러시가 격자 사이에서 사라지지 않도록 한다. `Rasterizer::hardness`는 bilinear mask alpha에 적용되는
 커브이며, 낮을수록 soft mask 가장자리가 더 부드럽게 감쇠한다.
 
-`StrokeInput`은 단순 점 목록이 아니라 시간, 압력, 속도, 기울기를 가진 샘플 시퀀스로 보존된다. `makeStrokeCurve`는 샘플의 시간 차이와 이동 거리로 velocity를 계산한다. dab의
+`StrokeInput`은 단순 점 목록이 아니라 시간, 압력, 속도, 기울기, 펜 회전, 장치 상태를 가진 샘플 시퀀스로 보존된다. `makeStrokeCurve`는 샘플의 시간 차이와 이동 거리로
+velocity를 계산한다. dab의
 scale은 pressure, rotation은 tilt 또는 곡선 접선, 간격은 spacing/density와 velocity spacing 계수, alpha는 flow에 의해 결정된다.
 
 입력 원본과 stroke command는 document coordinate로 저장한다. `CanvasViewport`는 document, view, device pixel 좌표 사이의 변환을 제공하고,
@@ -122,6 +181,12 @@ scale은 pressure, rotation은 tilt 또는 곡선 접선, 간격은 spacing/dens
 `BrushDynamics`는 pressure, velocity, tilt, deterministic random 값을 dab 파라미터로 해석한다. pressure는 size, opacity cap, flow
 contribution에 매핑된다. velocity는 spacing, opacity, dry-out에 매핑된다. tilt는 rotation, ellipse scale, texture direction에 매핑된다.
 `BrushState::randomSeed`는 rotation jitter와 grain 값을 재현 가능하게 만든다.
+
+`BrushMaterial`은 회화적 표현층의 저장 가능한 계약이다. texture/grain alpha, dual brush, scatter, wet paint/smudge/mixer 모델, bristle
+shape/count를
+한 값으로 묶고, `BrushPresetSerializer`는 이 preset을 독립 payload로 왕복시킨다. 현재 렌더 경로는 texture alpha와 grain, dual brush scale,
+scatter position, wet/smudge/mix flow 감쇠를 deterministic dab 명령으로 반영한다. 실제 유체 시뮬레이션, 안료 혼합, bristle 물리 해석은 아직 엔진 모델로
+승격되지 않은 다음 단계이다.
 
 raw input과 rendered stroke는 분리한다. `StrokeCommand`는 `StrokePath::rawInput`에 사용자가 입력한 원본 사건열을 그대로 보존하고,
 `StrokePath::renderedInput`과 `StrokePath::renderedCurve`에 smoothing/interpolation 이후의 파생 데이터를 둔다. 브러시 알고리즘, 해상도, export
@@ -156,8 +221,13 @@ bounds를 함께 가진다. 렌더링 경계에서는 같은 dab bounds를 viewp
 `PaintCanvasItem`은 live preview를 지울 때 이전 live dirty rect만 비우고, 새 live/committed stroke도 해당 dirty bounds만 `update(rect)`로
 요청한다.
 
-`PaintCanvasItem`은 Qt 경계에서 왼쪽 마우스 입력만 받아 `PointerEvent`로 정규화한다. 터치나 태블릿 입력은 현재 스트로크 빌더의 완료 조건에 포함하지 않는다. 마우스 press/move는
-live preview job을 만들고, release가 하나의 `StrokeInput`을 완료하면 commit job을 만든다.
+`InputNormalizer`는 태블릿 장치의 hover/contact, barrel button, eraser, pressure range, tilt calibration, rotation을 Qt와 무관한
+`PointerEvent`로 정규화한다. `InputStrokeBuilder`는 mouse와 tablet contact만 stroke로 받아들이고, hover와 touch gesture는 stroke를 시작하지
+않는다.
+touch gesture는 centroid, translation, scale, rotation, finger count를 가진 별도 pointer event surface로 보존되어 viewport gesture
+같은 상위 경계에서 사용할 수 있다.
+`PaintCanvasItem`은 현재 Qt 마우스 이벤트를 `PointerEvent`로 만들고, press/move는 live preview job을 만들며 release가 하나의 `StrokeInput`을
+완료하면 commit job을 만든다.
 
 캔버스 이벤트의 무거운 계산은 `CanvasEventWork` 값 타입 job으로 분리한다. worker thread는 raw input, brush state, stabilizer, raster projection
 snapshot만 받아 `LiveStrokeFrame`, `StrokeCommand`, `RasterSample`, dirty bounds를 계산한다. `PaintCanvasItem`의 `RasterLayer`,
@@ -224,6 +294,8 @@ command를 문자열 payload로 저장하고 다시 열 수 있는지 검사한�
 `iiPaintEngineCanvasQmlApi` 테스트는 `registerIipeQmlTypes()`로 `iipe.Canvas`를 등록하고 QML에서 viewport, brush, live preview,
 clear API를 하나의 객체로 사용할 수 있는지 검사한다.
 `iiPaintEnginePointerStrokeFlow` 테스트는 마우스 포인터만 스트로크를 완성하고, 벡터 스트로크 위에 브러시 알파 이미지가 flow/spacing에 따라 투영되는지 검사한다.
+`iiPaintEngineTabletInputSurface` 테스트는 tablet hover, pressure normalization, barrel button, eraser, tilt calibration,
+rotation, touch gesture event surface가 stroke 입력 경계에서 보존되거나 무시되어야 할 때 무시되는지 검사한다.
 `iiPaintEngineHybridPaintingModel` 테스트는 샘플 velocity/tilt 보존, dab 배치, 브러시 투영, flow 누적과 opacity 상한 분리를 검사한다.
 `iiPaintEngineStrokePhysicalContract` 테스트는 raw/rendered stroke 분리, 누적 arc length 기반 spacing, deterministic seed,
 warm-up/taper, stroke dirty bounds를 검사한다.
@@ -231,10 +303,27 @@ warm-up/taper, stroke dirty bounds를 검사한다.
 committed layer로 넘어가는지 검사한다.
 `iiPaintEngineBrushDynamicsMapping` 테스트는 pressure/velocity/tilt/random seed가 dab size, flow, opacity cap, spacing,
 ellipse, texture direction, grain에 반영되는지 검사한다.
+`iiPaintEngineBrushExpressionContract` 테스트는 texture/grain, dual brush, scatter, wet/smudge/mixer, bristle 값 계약과 preset
+serialization, deterministic scatter 재현성을 검사한다.
+`iiPaintEngineHistoryUndoRedoContract` 테스트는 `Command`의 before/after patch payload, dirty bounds, sequence 부여, redo
+branch clearing,
+undo/redo stack 이동, history snapshot을 검사한다.
+`iiPaintEngineEditingToolPipelineContract` 테스트는 rectangular selection, fill, linear gradient, eraser, crop, affine
+transform,
+blur/smudge filter pipeline, tool state begin/drag/commit/cancel 전이를 검사한다.
 `iiPaintEngineStrokeResampler` 테스트는 Catmull-Rom rendered path가 raw input을 보존하면서 timestamp와 누적 arc length를 가진 보간 샘플을 만드는지
 검사한다.
 `iiPaintEngineStrokeCompositing` 테스트는 stroke-local buffer의 opacity cap, premultiplied source-over, layer commit 합성을
 검사한다.
+`iiPaintEngineLayerCompositingContract` 테스트는 layer stack의 multiply/screen/overlay blend mode, layer mask, clipping,
+group child
+composition, adjustment/alpha-lock 메타데이터 계약을 검사한다.
+`iiPaintEngineRendererProjectionContract` 테스트는 `Renderer`가 CPU/GPU backend 선택, CPU fallback, layer stack projection, 색공간
+호환성 오류를 처리하는지
+검사한다.
+`iiPaintEngineColorManagementContract` 테스트는 sRGB 8-bit, Display P3 linear float HDR, ICC profile, wide gamut/HDR 판별,
+`PaintColor` HDR 값 보존과
+SDR clamp 계약을 검사한다.
 `iiPaintEngineBrushMaskSampling` 테스트는 브러시 마스크의 subpixel 위치, bilinear sampling, rotation, soft hardness curve, 축소 dab의 픽셀
 영역 샘플링을 검사한다.
 `iiPaintEngineCoordinateDirtyRegion` 테스트는 view 입력이 document 좌표로 저장되고, 렌더링 때만 viewport projection이 적용되며, dab별 dirty

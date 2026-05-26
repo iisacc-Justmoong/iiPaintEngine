@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "Brush/BrushDynamics.h"
+#include "Brush/BrushMaterial.h"
 #include "Core/PaintRect.h"
 #include "Stroke/Rasterizer.h"
 #include "Stroke/Stabilizer.h"
@@ -27,6 +28,7 @@ struct BrushState {
     Rasterizer rasterizer;
     BrushDynamics dynamics;
     StrokeResampler resampler;
+    BrushMaterial material;
     std::uint32_t randomSeed = 0;
 };
 

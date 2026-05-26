@@ -5,6 +5,7 @@
 #include "Rasterizer.h"
 
 #include "Brush/BrushDynamics.h"
+#include "Brush/BrushMaterial.h"
 
 #include <algorithm>
 #include <array>
@@ -448,6 +449,9 @@ StrokePoint interpolateSample(const StrokePoint &start, const StrokePoint &end, 
             start.velocity + (end.velocity - start.velocity) * t,
             start.tiltX + (end.tiltX - start.tiltX) * t,
             start.tiltY + (end.tiltY - start.tiltY) * t,
+            t < 1.0 ? start.deviceState : end.deviceState,
+            start.arcLength + (end.arcLength - start.arcLength) * t,
+            start.rotationRadians + (end.rotationRadians - start.rotationRadians) * t,
     };
 }
 
@@ -495,6 +499,45 @@ Types::Scalar deterministicSigned(std::uint32_t randomSeed, std::uint32_t sequen
     return deterministicUnit(randomSeed, sequenceIndex) * 2.0 - 1.0;
 }
 
+Types::Scalar materialTextureAlpha(const BrushTexture &texture, std::uint32_t sequenceIndex)
+{
+    if (!texture.enabled || texture.alpha.empty() || texture.width <= 0 || texture.height <= 0) {
+        return 1.0;
+    }
+
+    const std::size_t index = static_cast<std::size_t>(sequenceIndex) % texture.alpha.size();
+    return static_cast<Types::Scalar>(texture.alpha[index]) / 255.0;
+}
+
+Types::Scalar materialFlowScale(const BrushMaterial &material, Types::Scalar textureAlpha)
+{
+    Types::Scalar scale = 1.0;
+    if (material.texture.enabled) {
+        scale *= 1.0 - std::clamp(material.texture.grainStrength, 0.0, 1.0) * (1.0 - textureAlpha);
+    }
+    if (material.dualBrush.enabled) {
+        scale *= std::clamp(material.dualBrush.scale, 0.0, 1.0);
+    }
+    scale *= 1.0 - std::clamp(material.simulation.wetness, 0.0, 1.0) * 0.25;
+    scale *= 1.0 - std::clamp(material.simulation.smudgeStrength, 0.0, 1.0) * 0.15;
+    scale *= 1.0 - std::clamp(material.simulation.mixStrength, 0.0, 1.0) * 0.10;
+    return std::clamp(scale, 0.0, 1.0);
+}
+
+DocumentPoint scatterPosition(DocumentPoint position,
+                              const BrushScatter &scatter,
+                              std::uint32_t randomSeed,
+                              std::uint32_t sequenceIndex)
+{
+    if (!scatter.enabled || scatter.radius <= 0.0) {
+        return position;
+    }
+
+    const Types::Scalar dx = deterministicSigned(randomSeed + 0x51A7U, sequenceIndex) * scatter.radius;
+    const Types::Scalar dy = deterministicSigned(randomSeed + 0x8D31U, sequenceIndex) * scatter.radius;
+    return {position.x + dx, position.y + dy};
+}
+
 Types::Scalar taperFactor(const Rasterizer &rasterizer, Types::Scalar distanceOnCurve, Types::Scalar curveLength)
 {
     Types::Scalar factor = 1.0;
@@ -514,6 +557,7 @@ BrushDab makeBrushDab(const StrokePoint &sample,
                       Types::Scalar tangentRadians,
                       const Rasterizer &rasterizer,
                       const BrushDynamics &dynamics,
+                      const BrushMaterial &material,
                       Types::Scalar distanceOnCurve,
                       Types::Scalar curveLength,
                       std::uint32_t randomSeed,
@@ -542,17 +586,22 @@ BrushDab makeBrushDab(const StrokePoint &sample,
     const Types::Scalar textureDirection = dynamicsResult.textureDirectionFromTilt
             ? dynamicsResult.textureDirectionRadians
             : baseRotation;
+    const Types::Scalar textureAlpha = materialTextureAlpha(material.texture, sequenceIndex);
+    const DocumentPoint position = scatterPosition(sample.position, material.scatter, randomSeed, sequenceIndex);
 
     return BrushDab{
-            sample.position,
-            scale * dynamicsResult.sizeScale,
+            position,
+            scale * dynamicsResult.sizeScale * (material.dualBrush.enabled ? std::max<Types::Scalar>(0.01, material.dualBrush.scale) : 1.0),
             baseRotation + jitter,
-            clamp01(rasterizer.flow) * dynamicsResult.flowScale * taperFactor(rasterizer, distanceOnCurve, curveLength),
+            clamp01(rasterizer.flow) * dynamicsResult.flowScale * taperFactor(rasterizer, distanceOnCurve, curveLength)
+                    * materialFlowScale(material, textureAlpha),
             dynamicsResult.opacityScale,
             dynamicsResult.ellipseScaleX,
             dynamicsResult.ellipseScaleY,
             textureDirection,
-            dynamicsResult.grain,
+            clamp01(dynamicsResult.grain + material.texture.grainStrength * (1.0 - textureAlpha)),
+            textureAlpha,
+            material.dualBrush.enabled,
             rasterizer.argb,
             RasterBlendMode::SourceOver,
             sequenceIndex,
@@ -568,6 +617,7 @@ void appendDabAtDistance(std::vector<BrushDab> &dabs,
                          Types::Scalar curveLength,
                          const Rasterizer &rasterizer,
                          const BrushDynamics &dynamics,
+                         const BrushMaterial &material,
                          std::uint32_t randomSeed)
 {
     const Types::Scalar dx = end.position.x - start.position.x;
@@ -579,6 +629,7 @@ void appendDabAtDistance(std::vector<BrushDab> &dabs,
                                 std::atan2(dy, dx),
                                 rasterizer,
                                 dynamics,
+                                material,
                                 distanceOnCurve,
                                 curveLength,
                                 randomSeed,
@@ -604,19 +655,29 @@ std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
                                      const BrushDynamics &dynamics,
                                      std::uint32_t randomSeed)
 {
+    return placeBrushDabs(curve, rasterizer, dynamics, BrushMaterial{}, randomSeed);
+}
+
+std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
+                                     const Rasterizer &rasterizer,
+                                     const BrushDynamics &dynamics,
+                                     const BrushMaterial &material,
+                                     std::uint32_t randomSeed)
+{
     std::vector<BrushDab> dabs;
     if (curve.samples.empty()) {
         return dabs;
     }
 
     if (curve.samples.size() == 1) {
-        dabs.push_back(makeBrushDab(curve.samples.front(), 0.0, rasterizer, dynamics, 0.0, 0.0, randomSeed, 0));
+        dabs.push_back(makeBrushDab(curve.samples.front(), 0.0, rasterizer, dynamics, material, 0.0, 0.0, randomSeed, 0));
         return dabs;
     }
 
     const Types::Scalar curveLength = totalCurveLength(curve);
     Types::Scalar segmentStartDistance = 0.0;
     Types::Scalar nextDabDistance = 0.0;
+    Types::Scalar lastPlacedDistance = -1.0;
     constexpr Types::Scalar epsilon = 0.000001;
 
     for (std::size_t index = 0; index + 1 < curve.samples.size(); ++index) {
@@ -646,7 +707,9 @@ std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
                                     curveLength,
                                     rasterizer,
                                     dynamics,
+                                    material,
                                     randomSeed);
+                lastPlacedDistance = nextDabDistance;
                 nextDabDistance += effectiveSpacing(rasterizer, dynamics, sample);
             } else {
                 nextDabDistance += effectiveSpacing(rasterizer, dynamics, start);
@@ -656,9 +719,7 @@ std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
         segmentStartDistance = segmentEndDistance;
     }
 
-    if (dabs.empty()
-            || std::hypot(dabs.back().position.x - curve.samples.back().position.x,
-                          dabs.back().position.y - curve.samples.back().position.y) > epsilon) {
+    if (dabs.empty() || curveLength - lastPlacedDistance > epsilon) {
         const StrokePoint &previous = curve.samples[curve.samples.size() - 2];
         const StrokePoint &last = curve.samples.back();
         appendDabAtDistance(dabs,
@@ -672,6 +733,7 @@ std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
                             curveLength,
                             rasterizer,
                             dynamics,
+                            material,
                             randomSeed);
     }
 
