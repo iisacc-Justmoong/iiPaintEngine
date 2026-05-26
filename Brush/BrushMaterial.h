@@ -47,6 +47,7 @@ struct BrushScatter {
 };
 
 struct BrushSimulation {
+    bool enabled = false;
     BrushSimulationModel model = BrushSimulationModel::Dry;
     Types::Scalar wetness = 0.0;
     Types::Scalar smudgeStrength = 0.0;
@@ -54,6 +55,7 @@ struct BrushSimulation {
 };
 
 struct BristleSimulation {
+    bool enabled = false;
     BristleShape shape = BristleShape::Round;
     std::uint32_t count = 0;
     Types::Scalar length = 0.0;

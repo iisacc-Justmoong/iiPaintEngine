@@ -23,17 +23,23 @@
 
 namespace {
 
-void drawRasterLayer(QPainter *painter, const RasterLayer &layer)
+Types::Scalar safePixelRatio(Types::Scalar value)
+{
+    return std::max<Types::Scalar>(0.01, value);
+}
+
+void drawRasterLayer(QPainter *painter, const RasterLayer &layer, Types::Scalar devicePixelRatio)
 {
     if (layer.width <= 0 || layer.height <= 0 || layer.pixels.empty()) {
         return;
     }
 
-    const QImage image(reinterpret_cast<const uchar *>(layer.pixels.data()),
-                       layer.width,
-                       layer.height,
-                       static_cast<qsizetype>(layer.width) * 4,
-                       QImage::Format_ARGB32);
+    QImage image(reinterpret_cast<const uchar *>(layer.pixels.data()),
+                 layer.width,
+                 layer.height,
+                 static_cast<qsizetype>(layer.width) * 4,
+                 QImage::Format_ARGB32);
+    image.setDevicePixelRatio(safePixelRatio(devicePixelRatio));
     painter->drawImage(QPointF{0.0, 0.0}, image);
 }
 
@@ -58,9 +64,12 @@ void clearRasterLayerRect(RasterLayer &layer, DevicePixelRect dirtyBounds)
     }
 }
 
-Types::Pixel itemPixelSize(qreal value)
+Types::Pixel itemPixelSize(qreal value, Types::Scalar devicePixelRatio)
 {
-    return std::max<Types::Pixel>(0, static_cast<Types::Pixel>(std::ceil(value)));
+    return std::max<Types::Pixel>(
+            0,
+            static_cast<Types::Pixel>(std::ceil(static_cast<Types::Scalar>(value)
+                                                * safePixelRatio(devicePixelRatio))));
 }
 
 PointerButton pointerButtonFromMouseButton(Qt::MouseButton button)
@@ -80,9 +89,14 @@ PointerButton pointerButtonFromMouseButton(Qt::MouseButton button)
     return PointerButton::None;
 }
 
-QRect qRectFromDeviceRect(DevicePixelRect rect)
+QRect qRectFromDeviceRect(DevicePixelRect rect, Types::Scalar devicePixelRatio)
 {
-    return QRect(rect.origin.x, rect.origin.y, rect.width, rect.height);
+    const Types::Scalar ratio = safePixelRatio(devicePixelRatio);
+    const auto left = static_cast<int>(std::floor(static_cast<Types::Scalar>(rect.origin.x) / ratio));
+    const auto top = static_cast<int>(std::floor(static_cast<Types::Scalar>(rect.origin.y) / ratio));
+    const auto right = static_cast<int>(std::ceil(static_cast<Types::Scalar>(rect.origin.x + rect.width) / ratio));
+    const auto bottom = static_cast<int>(std::ceil(static_cast<Types::Scalar>(rect.origin.y + rect.height) / ratio));
+    return QRect(left, top, std::max(0, right - left), std::max(0, bottom - top));
 }
 
 std::uint32_t argbFromColor(const QColor &color)
@@ -355,9 +369,9 @@ int PaintCanvasItem::strokeCount() const
 void PaintCanvasItem::paint(QPainter *painter)
 {
     ensureRasterLayerSize();
-    drawRasterLayer(painter, m_rasterLayer);
+    drawRasterLayer(painter, m_rasterLayer, m_devicePixelRatio);
     if (m_liveStrokeBuffer.active) {
-        drawRasterLayer(painter, m_liveRasterLayer);
+        drawRasterLayer(painter, m_liveRasterLayer, m_devicePixelRatio);
     }
 }
 
@@ -456,8 +470,8 @@ void PaintCanvasItem::mouseReleaseEvent(QMouseEvent *event)
 
 void PaintCanvasItem::ensureRasterLayerSize()
 {
-    const Types::Pixel nextWidth = itemPixelSize(width());
-    const Types::Pixel nextHeight = itemPixelSize(height());
+    const Types::Pixel nextWidth = itemPixelSize(width(), m_devicePixelRatio);
+    const Types::Pixel nextHeight = itemPixelSize(height(), m_devicePixelRatio);
     bool resized = false;
     if (m_rasterLayer.width != nextWidth || m_rasterLayer.height != nextHeight) {
         m_rasterLayer = makeRasterLayer(nextWidth, nextHeight);
@@ -477,8 +491,8 @@ void PaintCanvasItem::ensureRasterLayerSize()
 
 void PaintCanvasItem::updateViewportGeometry()
 {
-    const Types::Scalar viewWidth = static_cast<Types::Scalar>(std::max<Types::Pixel>(0, m_rasterLayer.width));
-    const Types::Scalar viewHeight = static_cast<Types::Scalar>(std::max<Types::Pixel>(0, m_rasterLayer.height));
+    const Types::Scalar viewWidth = std::max<Types::Scalar>(0.0, static_cast<Types::Scalar>(width()));
+    const Types::Scalar viewHeight = std::max<Types::Scalar>(0.0, static_cast<Types::Scalar>(height()));
     const Types::Scalar zoom = std::max<Types::Scalar>(0.01, m_zoom);
     m_viewport.documentRect = {
             m_documentOrigin,
@@ -548,7 +562,7 @@ void PaintCanvasItem::requestTextureUpdate(DevicePixelRect dirtyBounds)
         return;
     }
 
-    update(qRectFromDeviceRect(clipped));
+    update(qRectFromDeviceRect(clipped, m_devicePixelRatio));
 }
 
 void PaintCanvasItem::updateLiveStrokePreview()

@@ -600,6 +600,19 @@ void writeBrushDynamics(std::ostringstream &output,
                         const std::string &prefix,
                         const BrushDynamics &dynamics)
 {
+    writeLine(output, prefix + ".pressureInputEnabled", boolText(dynamics.pressureInputEnabled));
+    writeLine(output, prefix + ".velocityInputEnabled", boolText(dynamics.velocityInputEnabled));
+    writeLine(output, prefix + ".tiltInputEnabled", boolText(dynamics.tiltInputEnabled));
+    writeLine(output, prefix + ".randomInputEnabled", boolText(dynamics.randomInputEnabled));
+    writeLine(output, prefix + ".pressureToSizeEnabled", boolText(dynamics.pressureToSizeEnabled));
+    writeLine(output, prefix + ".pressureToOpacityEnabled", boolText(dynamics.pressureToOpacityEnabled));
+    writeLine(output, prefix + ".pressureToFlowEnabled", boolText(dynamics.pressureToFlowEnabled));
+    writeLine(output, prefix + ".velocityToSpacingEnabled", boolText(dynamics.velocityToSpacingEnabled));
+    writeLine(output, prefix + ".velocityToOpacityEnabled", boolText(dynamics.velocityToOpacityEnabled));
+    writeLine(output, prefix + ".velocityToDryOutEnabled", boolText(dynamics.velocityToDryOutEnabled));
+    writeLine(output, prefix + ".tiltToEllipseEnabled", boolText(dynamics.tiltToEllipseEnabled));
+    writeLine(output, prefix + ".rotationJitterEnabled", boolText(dynamics.rotationJitterEnabled));
+    writeLine(output, prefix + ".grainJitterEnabled", boolText(dynamics.grainJitterEnabled));
     writeLine(output, prefix + ".pressureToSize", numberText(dynamics.pressureToSize));
     writeLine(output, prefix + ".pressureToOpacity", numberText(dynamics.pressureToOpacity));
     writeLine(output, prefix + ".pressureToFlow", numberText(dynamics.pressureToFlow));
@@ -617,6 +630,19 @@ BrushDynamics readBrushDynamics(const std::map<std::string, std::string> &values
                                 const std::string &prefix)
 {
     BrushDynamics dynamics;
+    dynamics.pressureInputEnabled = readBool(values, prefix + ".pressureInputEnabled", true);
+    dynamics.velocityInputEnabled = readBool(values, prefix + ".velocityInputEnabled", true);
+    dynamics.tiltInputEnabled = readBool(values, prefix + ".tiltInputEnabled", true);
+    dynamics.randomInputEnabled = readBool(values, prefix + ".randomInputEnabled", true);
+    dynamics.pressureToSizeEnabled = readBool(values, prefix + ".pressureToSizeEnabled", true);
+    dynamics.pressureToOpacityEnabled = readBool(values, prefix + ".pressureToOpacityEnabled", true);
+    dynamics.pressureToFlowEnabled = readBool(values, prefix + ".pressureToFlowEnabled", true);
+    dynamics.velocityToSpacingEnabled = readBool(values, prefix + ".velocityToSpacingEnabled", true);
+    dynamics.velocityToOpacityEnabled = readBool(values, prefix + ".velocityToOpacityEnabled", true);
+    dynamics.velocityToDryOutEnabled = readBool(values, prefix + ".velocityToDryOutEnabled", true);
+    dynamics.tiltToEllipseEnabled = readBool(values, prefix + ".tiltToEllipseEnabled", true);
+    dynamics.rotationJitterEnabled = readBool(values, prefix + ".rotationJitterEnabled", true);
+    dynamics.grainJitterEnabled = readBool(values, prefix + ".grainJitterEnabled", true);
     dynamics.pressureToSize = readNumber<Types::Scalar>(values, prefix + ".pressureToSize");
     dynamics.pressureToOpacity = readNumber<Types::Scalar>(values, prefix + ".pressureToOpacity");
     dynamics.pressureToFlow = readNumber<Types::Scalar>(values, prefix + ".pressureToFlow");
@@ -667,10 +693,12 @@ void writeBrushMaterial(std::ostringstream &output,
     writeLine(output, prefix + ".scatter.enabled", boolText(material.scatter.enabled));
     writeLine(output, prefix + ".scatter.radius", numberText(material.scatter.radius));
     writeLine(output, prefix + ".scatter.count", numberText(material.scatter.count));
+    writeLine(output, prefix + ".simulation.enabled", boolText(material.simulation.enabled));
     writeLine(output, prefix + ".simulation.model", numberText(static_cast<int>(material.simulation.model)));
     writeLine(output, prefix + ".simulation.wetness", numberText(material.simulation.wetness));
     writeLine(output, prefix + ".simulation.smudgeStrength", numberText(material.simulation.smudgeStrength));
     writeLine(output, prefix + ".simulation.mixStrength", numberText(material.simulation.mixStrength));
+    writeLine(output, prefix + ".bristle.enabled", boolText(material.bristle.enabled));
     writeLine(output, prefix + ".bristle.shape", numberText(static_cast<int>(material.bristle.shape)));
     writeLine(output, prefix + ".bristle.count", numberText(material.bristle.count));
     writeLine(output, prefix + ".bristle.length", numberText(material.bristle.length));
@@ -696,11 +724,13 @@ BrushMaterial readBrushMaterial(const std::map<std::string, std::string> &values
     material.scatter.enabled = readBool(values, prefix + ".scatter.enabled");
     material.scatter.radius = readNumber<Types::Scalar>(values, prefix + ".scatter.radius");
     material.scatter.count = readNumber<std::uint32_t>(values, prefix + ".scatter.count", 1);
+    material.simulation.enabled = readBool(values, prefix + ".simulation.enabled");
     material.simulation.model = static_cast<BrushSimulationModel>(
             readNumber<int>(values, prefix + ".simulation.model"));
     material.simulation.wetness = readNumber<Types::Scalar>(values, prefix + ".simulation.wetness");
     material.simulation.smudgeStrength = readNumber<Types::Scalar>(values, prefix + ".simulation.smudgeStrength");
     material.simulation.mixStrength = readNumber<Types::Scalar>(values, prefix + ".simulation.mixStrength");
+    material.bristle.enabled = readBool(values, prefix + ".bristle.enabled");
     material.bristle.shape = static_cast<BristleShape>(readNumber<int>(values, prefix + ".bristle.shape"));
     material.bristle.count = readNumber<std::uint32_t>(values, prefix + ".bristle.count");
     material.bristle.length = readNumber<Types::Scalar>(values, prefix + ".bristle.length");

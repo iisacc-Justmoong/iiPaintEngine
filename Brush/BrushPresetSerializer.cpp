@@ -218,10 +218,12 @@ void writeMaterial(std::ostringstream &output, const BrushMaterial &material)
     writeLine(output, "material.scatter.enabled", boolText(material.scatter.enabled));
     writeLine(output, "material.scatter.radius", numberText(material.scatter.radius));
     writeLine(output, "material.scatter.count", numberText(material.scatter.count));
+    writeLine(output, "material.simulation.enabled", boolText(material.simulation.enabled));
     writeLine(output, "material.simulation.model", numberText(static_cast<int>(material.simulation.model)));
     writeLine(output, "material.simulation.wetness", numberText(material.simulation.wetness));
     writeLine(output, "material.simulation.smudgeStrength", numberText(material.simulation.smudgeStrength));
     writeLine(output, "material.simulation.mixStrength", numberText(material.simulation.mixStrength));
+    writeLine(output, "material.bristle.enabled", boolText(material.bristle.enabled));
     writeLine(output, "material.bristle.shape", numberText(static_cast<int>(material.bristle.shape)));
     writeLine(output, "material.bristle.count", numberText(material.bristle.count));
     writeLine(output, "material.bristle.length", numberText(material.bristle.length));
@@ -246,10 +248,12 @@ BrushMaterial readMaterial(const std::map<std::string, std::string> &values)
     material.scatter.enabled = readBool(values, "material.scatter.enabled");
     material.scatter.radius = readNumber<Types::Scalar>(values, "material.scatter.radius");
     material.scatter.count = readNumber<std::uint32_t>(values, "material.scatter.count", 1);
+    material.simulation.enabled = readBool(values, "material.simulation.enabled");
     material.simulation.model = static_cast<BrushSimulationModel>(readNumber<int>(values, "material.simulation.model"));
     material.simulation.wetness = readNumber<Types::Scalar>(values, "material.simulation.wetness");
     material.simulation.smudgeStrength = readNumber<Types::Scalar>(values, "material.simulation.smudgeStrength");
     material.simulation.mixStrength = readNumber<Types::Scalar>(values, "material.simulation.mixStrength");
+    material.bristle.enabled = readBool(values, "material.bristle.enabled");
     material.bristle.shape = static_cast<BristleShape>(readNumber<int>(values, "material.bristle.shape"));
     material.bristle.count = readNumber<std::uint32_t>(values, "material.bristle.count");
     material.bristle.length = readNumber<Types::Scalar>(values, "material.bristle.length");

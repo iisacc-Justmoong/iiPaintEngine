@@ -460,7 +460,8 @@ Types::Scalar effectiveSpacing(const Rasterizer &rasterizer,
                                const StrokePoint &sample)
 {
     const Types::Scalar density = std::max<Types::Scalar>(0.01, rasterizer.density);
-    const Types::Scalar velocityScale = 1.0 + std::max<Types::Scalar>(0.0, sample.velocity) * rasterizer.velocitySpacing;
+    const Types::Scalar velocity = dynamics.velocityInputEnabled ? std::max<Types::Scalar>(0.0, sample.velocity) : 0.0;
+    const Types::Scalar velocityScale = 1.0 + velocity * rasterizer.velocitySpacing;
     const Types::Scalar baseSpacing = rasterizer.brushSize > 0.0
             ? rasterizer.brushSize * std::max<Types::Scalar>(0.01, rasterizer.spacingRatio)
             : rasterizer.spacing;
@@ -518,9 +519,11 @@ Types::Scalar materialFlowScale(const BrushMaterial &material, Types::Scalar tex
     if (material.dualBrush.enabled) {
         scale *= std::clamp(material.dualBrush.scale, 0.0, 1.0);
     }
-    scale *= 1.0 - std::clamp(material.simulation.wetness, 0.0, 1.0) * 0.25;
-    scale *= 1.0 - std::clamp(material.simulation.smudgeStrength, 0.0, 1.0) * 0.15;
-    scale *= 1.0 - std::clamp(material.simulation.mixStrength, 0.0, 1.0) * 0.10;
+    if (material.simulation.enabled) {
+        scale *= 1.0 - std::clamp(material.simulation.wetness, 0.0, 1.0) * 0.25;
+        scale *= 1.0 - std::clamp(material.simulation.smudgeStrength, 0.0, 1.0) * 0.15;
+        scale *= 1.0 - std::clamp(material.simulation.mixStrength, 0.0, 1.0) * 0.10;
+    }
     return std::clamp(scale, 0.0, 1.0);
 }
 
@@ -563,11 +566,13 @@ BrushDab makeBrushDab(const StrokePoint &sample,
                       std::uint32_t randomSeed,
                       std::uint32_t sequenceIndex)
 {
-    const Types::Scalar pressure = clamp01(sample.pressure);
+    const Types::Scalar pressure = dynamics.pressureInputEnabled ? clamp01(sample.pressure) : 1.0;
     const Types::Scalar scale = std::max<Types::Scalar>(
             0.01,
             1.0 + (pressure - 1.0) * rasterizer.pressureScale);
-    const bool hasTilt = sample.tiltX != 0.0 || sample.tiltY != 0.0;
+    const Types::Scalar tiltX = dynamics.tiltInputEnabled ? sample.tiltX : 0.0;
+    const Types::Scalar tiltY = dynamics.tiltInputEnabled ? sample.tiltY : 0.0;
+    const bool hasTilt = tiltX != 0.0 || tiltY != 0.0;
     const BrushDynamicsResult dynamicsResult = resolveBrushDynamics(
             dynamics,
             BrushDynamicsInput{
@@ -578,11 +583,14 @@ BrushDab makeBrushDab(const StrokePoint &sample,
                     deterministicSigned(randomSeed, sequenceIndex),
                     deterministicUnit(randomSeed + 0xA511E9B3U, sequenceIndex),
             });
-    const Types::Scalar jitter = deterministicSigned(randomSeed, sequenceIndex) * rasterizer.rotationJitter
+    const Types::Scalar rasterizerJitter = dynamics.randomInputEnabled
+            ? deterministicSigned(randomSeed, sequenceIndex) * rasterizer.rotationJitter
+            : 0.0;
+    const Types::Scalar jitter = rasterizerJitter
             + dynamicsResult.rotationJitterRadians;
     const Types::Scalar baseRotation = dynamicsResult.rotationFromTilt
             ? dynamicsResult.rotationRadians
-            : (hasTilt ? std::atan2(sample.tiltY, sample.tiltX) : tangentRadians);
+            : (hasTilt ? std::atan2(tiltY, tiltX) : tangentRadians);
     const Types::Scalar textureDirection = dynamicsResult.textureDirectionFromTilt
             ? dynamicsResult.textureDirectionRadians
             : baseRotation;

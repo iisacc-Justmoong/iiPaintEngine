@@ -20,6 +20,13 @@ struct TouchGestureState {
 };
 
 struct InputNormalizer {
+    bool pressureEnabled = true;
+    bool tiltEnabled = true;
+    bool rotationEnabled = true;
+    bool hoverEnabled = true;
+    bool barrelButtonEnabled = true;
+    bool eraserEnabled = true;
+    bool touchGestureEnabled = true;
     Types::Scalar pressureMin = 0.0;
     Types::Scalar pressureMax = 1.0;
     TabletTiltCalibration tabletTiltCalibration;

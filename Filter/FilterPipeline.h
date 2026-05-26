@@ -16,6 +16,7 @@ enum class FilterKind {
 };
 
 struct FilterNode {
+    bool enabled = true;
     FilterKind kind = FilterKind::Blur;
     Types::Scalar radius = 0.0;
     Types::Scalar strength = 1.0;

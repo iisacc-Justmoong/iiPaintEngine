@@ -156,11 +156,12 @@ branch를 지우고 sequence를 부여하며, `undoHistoryCommand`/`redoHistoryC
 경로와 자연스럽게 이어진다. `TransformState`는 affine transform, interpolation, source/transformed bounds를 값으로 보관하고, 현재 구현은 selection
 이동과
 surface crop을 먼저 제공한다. `FillOperation`, `GradientOperation`, `EraserOperation`은 `DrawingSurface`에 선택 영역을 기준으로 적용되는 기본 편집
-도구이다.
+도구이며, 각 operation의 `enabled`가 false이면 적용 함수는 표면을 변경하지 않는다.
 `FilterPipeline`은 blur/smudge node 목록을 순서대로 적용한다. 현재 blur는 선택 영역 내부 box blur, smudge는 좌측 샘플을 strength로 섞는 최소 CPU 계약이며,
-차후 GPU/비파괴 필터 그래프로 승격될 수 있다. `ToolStateMachine`은 selection/transform/crop/fill/gradient/eraser/blur/smudge 같은 도구의 begin,
+각 `FilterNode::enabled`가 false이면 해당 노드는 건너뛴다. 차후 GPU/비파괴 필터 그래프로 승격될 수 있다. `ToolStateMachine`은
+selection/transform/crop/fill/gradient/eraser/blur/smudge 같은 도구의 begin,
 drag,
-commit, cancel 상태 전이를 값 타입으로 고정한다.
+commit, cancel 상태 전이를 값 타입으로 고정한다. `ToolStateMachine::enabled`가 false이면 도구 상태 전이를 받지 않는다.
 
 초기 브러시는 `Rasterizer`의 기본값인 검은색 원형 브러시를 사용한다. 브러시 알파 이미지가 지정되면 `Rasterizer`는 먼저 `StrokeCurve`의 벡터 구간을 spacing/density
 간격으로 순회하여 `BrushDab` 명령 시퀀스를 만든다. 각 dab은 position, scale, rotation, alpha, color, blendMode를 가진 작은 브러시 투영 명령이다. 그 다음 dab
@@ -180,12 +181,19 @@ scale은 pressure, rotation은 tilt 또는 곡선 접선, 간격은 spacing/dens
 
 `BrushDynamics`는 pressure, velocity, tilt, deterministic random 값을 dab 파라미터로 해석한다. pressure는 size, opacity cap, flow
 contribution에 매핑된다. velocity는 spacing, opacity, dry-out에 매핑된다. tilt는 rotation, ellipse scale, texture direction에 매핑된다.
+각 입력 계열은 공개 bool 스위치로 켜고 끌 수 있다. `pressureInputEnabled`, `velocityInputEnabled`, `tiltInputEnabled`,
+`randomInputEnabled`가
+false이면 해당 입력값은 neutral 값으로 해석된다. 개별 매핑도 `pressureToSizeEnabled`, `pressureToOpacityEnabled`, `pressureToFlowEnabled`,
+`velocityToSpacingEnabled`, `velocityToOpacityEnabled`, `velocityToDryOutEnabled`, `tiltToRotation`,
+`tiltToEllipseEnabled`,
+`tiltToTextureDirection`, `rotationJitterEnabled`, `grainJitterEnabled`로 독립 제어한다. 비활성화된 기능은 값을 저장하더라도 dab 생성 인자로
+사용하지 않는다.
 `BrushState::randomSeed`는 rotation jitter와 grain 값을 재현 가능하게 만든다.
 
 `BrushMaterial`은 회화적 표현층의 저장 가능한 계약이다. texture/grain alpha, dual brush, scatter, wet paint/smudge/mixer 모델, bristle
-shape/count를
-한 값으로 묶고, `BrushPresetSerializer`는 이 preset을 독립 payload로 왕복시킨다. 현재 렌더 경로는 texture alpha와 grain, dual brush scale,
-scatter position, wet/smudge/mix flow 감쇠를 deterministic dab 명령으로 반영한다. 실제 유체 시뮬레이션, 안료 혼합, bristle 물리 해석은 아직 엔진 모델로
+shape/count를 한 값으로 묶고, `BrushPresetSerializer`는 이 preset을 독립 payload로 왕복시킨다. texture, dual brush, scatter,
+simulation, bristle은 모두 공개 `enabled` 스위치를 가진다. 현재 렌더 경로는 활성화된 texture alpha와 grain, dual brush scale, scatter
+position, wet/smudge/mix flow 감쇠를 deterministic dab 명령으로 반영한다. 실제 유체 시뮬레이션, 안료 혼합, bristle 물리 해석은 아직 엔진 모델로
 승격되지 않은 다음 단계이다.
 
 raw input과 rendered stroke는 분리한다. `StrokeCommand`는 `StrokePath::rawInput`에 사용자가 입력한 원본 사건열을 그대로 보존하고,
@@ -225,7 +233,9 @@ bounds를 함께 가진다. 렌더링 경계에서는 같은 dab bounds를 viewp
 `PointerEvent`로 정규화한다. `InputStrokeBuilder`는 mouse와 tablet contact만 stroke로 받아들이고, hover와 touch gesture는 stroke를 시작하지
 않는다.
 touch gesture는 centroid, translation, scale, rotation, finger count를 가진 별도 pointer event surface로 보존되어 viewport gesture
-같은 상위 경계에서 사용할 수 있다.
+같은 상위 경계에서 사용할 수 있다. `InputNormalizer`의 `pressureEnabled`, `tiltEnabled`, `rotationEnabled`, `hoverEnabled`,
+`barrelButtonEnabled`, `eraserEnabled`, `touchGestureEnabled`가 false이면 해당 장치 기능은 neutral 값으로 정규화되어 stroke 입력 인자로 전달되지
+않는다.
 `PaintCanvasItem`은 현재 Qt 마우스 이벤트를 `PointerEvent`로 만들고, press/move는 live preview job을 만들며 release가 하나의 `StrokeInput`을
 완료하면 commit job을 만든다.
 
@@ -269,9 +279,19 @@ Iipe.Canvas {
 `brushColor`, `brushSize`, `brushSpacing`, `brushSpacingRatio`, `brushFlow`, `brushOpacity`, `brushHardness`,
 `setBrush(size, color, flow, opacity)`를 제공한다. 편집/상태 API는 `clear()`, `livePreviewEnabled`, `multithreadedEventsEnabled`,
 `liveStrokeActive`, `strokeCount`를 제공한다.
+`canvasDevicePixelRatio`가 1보다 크면 내부 raster layer는 device pixel 크기로 유지하고, 화면 페인트 단계에서 QImage device pixel ratio를 적용한다.
+따라서 QML pointer의 논리 좌표와 실제 stroke 표시 위치는 같은 지점에 남아야 한다. 이 계약은 `iiPaintEngineCanvasPointerAlignment` 테스트가 고정한다.
 
 QML은 `Canvas` 하나만 직접 다룬다. `InputStrokeBuilder`, `LiveStrokeBuffer`, `StrokeCommand`, `RasterProjection`, `DirtyRegion`,
 `LayerStack` 같은 내부 구조는 C++ 엔진 경계 안에 남긴다.
+
+## Example
+
+`Example/Main.qml`은 LVRS의 `ApplicationWindow`, control component와 `iipe.Canvas`를 함께 쓰는 데모 페인팅 앱이다.
+`iiPaintEngineExample`
+target은 LVRS bootstrapped QML 앱으로 실행되며, 빌드 산출물은 `Example/bin/iiPaintEngineExample`에 놓인다. 앱은 현재 공개된 canvas viewport,
+brush color, brush size, flow, opacity, hardness, spacing, live preview, clear/reset view API를 화면에서 바로 드러낸다.
+`iiPaintEngineExampleDemoContract` 테스트는 예제 QML을 실제 엔진으로 로드하고 `Example/bin` 실행 파일 산출 계약을 함께 검사한다.
 
 ## 검증
 
@@ -295,7 +315,7 @@ command를 문자열 payload로 저장하고 다시 열 수 있는지 검사한�
 clear API를 하나의 객체로 사용할 수 있는지 검사한다.
 `iiPaintEnginePointerStrokeFlow` 테스트는 마우스 포인터만 스트로크를 완성하고, 벡터 스트로크 위에 브러시 알파 이미지가 flow/spacing에 따라 투영되는지 검사한다.
 `iiPaintEngineTabletInputSurface` 테스트는 tablet hover, pressure normalization, barrel button, eraser, tilt calibration,
-rotation, touch gesture event surface가 stroke 입력 경계에서 보존되거나 무시되어야 할 때 무시되는지 검사한다.
+rotation, touch gesture event surface와 입력 기능별 enabled 스위치가 stroke 입력 경계에서 보존되거나 무시되어야 할 때 무시되는지 검사한다.
 `iiPaintEngineHybridPaintingModel` 테스트는 샘플 velocity/tilt 보존, dab 배치, 브러시 투영, flow 누적과 opacity 상한 분리를 검사한다.
 `iiPaintEngineStrokePhysicalContract` 테스트는 raw/rendered stroke 분리, 누적 arc length 기반 spacing, deterministic seed,
 warm-up/taper, stroke dirty bounds를 검사한다.
@@ -303,14 +323,16 @@ warm-up/taper, stroke dirty bounds를 검사한다.
 committed layer로 넘어가는지 검사한다.
 `iiPaintEngineBrushDynamicsMapping` 테스트는 pressure/velocity/tilt/random seed가 dab size, flow, opacity cap, spacing,
 ellipse, texture direction, grain에 반영되는지 검사한다.
-`iiPaintEngineBrushExpressionContract` 테스트는 texture/grain, dual brush, scatter, wet/smudge/mixer, bristle 값 계약과 preset
-serialization, deterministic scatter 재현성을 검사한다.
+`iiPaintEngineBrushFeatureToggleContract` 테스트는 BrushDynamics의 공개 bool 스위치가 false일 때 pressure, velocity, tilt,
+random과 개별 매핑이 dab 생성 인자로 쓰이지 않는지 검사한다.
+`iiPaintEngineBrushExpressionContract` 테스트는 texture/grain, dual brush, scatter, wet/smudge/mixer, bristle 값 계약과 공개
+enabled 스위치, preset serialization, deterministic scatter 재현성을 검사한다.
 `iiPaintEngineHistoryUndoRedoContract` 테스트는 `Command`의 before/after patch payload, dirty bounds, sequence 부여, redo
 branch clearing,
 undo/redo stack 이동, history snapshot을 검사한다.
 `iiPaintEngineEditingToolPipelineContract` 테스트는 rectangular selection, fill, linear gradient, eraser, crop, affine
 transform,
-blur/smudge filter pipeline, tool state begin/drag/commit/cancel 전이를 검사한다.
+blur/smudge filter pipeline, operation/filter/tool enabled 스위치, tool state begin/drag/commit/cancel 전이를 검사한다.
 `iiPaintEngineStrokeResampler` 테스트는 Catmull-Rom rendered path가 raw input을 보존하면서 timestamp와 누적 arc length를 가진 보간 샘플을 만드는지
 검사한다.
 `iiPaintEngineStrokeCompositing` 테스트는 stroke-local buffer의 opacity cap, premultiplied source-over, layer commit 합성을

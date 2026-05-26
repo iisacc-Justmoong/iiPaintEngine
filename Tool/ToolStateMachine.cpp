@@ -21,6 +21,10 @@ DocumentRect rectFromDrag(DocumentPoint start, DocumentPoint end)
 
 void beginTool(ToolStateMachine &machine, ToolKind tool, DocumentPoint startPoint)
 {
+    if (!machine.enabled) {
+        return;
+    }
+
     machine.state.activeTool = tool;
     machine.state.phase = ToolPhase::Dragging;
     machine.state.startPoint = startPoint;
@@ -30,6 +34,10 @@ void beginTool(ToolStateMachine &machine, ToolKind tool, DocumentPoint startPoin
 
 void updateToolDrag(ToolStateMachine &machine, DocumentPoint currentPoint)
 {
+    if (!machine.enabled) {
+        return;
+    }
+
     machine.state.currentPoint = currentPoint;
     if (machine.state.activeTool == ToolKind::Selection) {
         machine.state.selection = makeRectangularSelection(rectFromDrag(machine.state.startPoint, currentPoint));
@@ -44,10 +52,18 @@ void updateToolDrag(ToolStateMachine &machine, DocumentPoint currentPoint)
 
 void commitTool(ToolStateMachine &machine)
 {
+    if (!machine.enabled) {
+        return;
+    }
+
     machine.state.phase = ToolPhase::Committed;
 }
 
 void cancelTool(ToolStateMachine &machine)
 {
+    if (!machine.enabled) {
+        return;
+    }
+
     machine.state.phase = ToolPhase::Cancelled;
 }

@@ -7,6 +7,19 @@
 #include "Core/Types.h"
 
 struct BrushDynamics {
+    bool pressureInputEnabled = true;
+    bool velocityInputEnabled = true;
+    bool tiltInputEnabled = true;
+    bool randomInputEnabled = true;
+    bool pressureToSizeEnabled = true;
+    bool pressureToOpacityEnabled = true;
+    bool pressureToFlowEnabled = true;
+    bool velocityToSpacingEnabled = true;
+    bool velocityToOpacityEnabled = true;
+    bool velocityToDryOutEnabled = true;
+    bool tiltToEllipseEnabled = true;
+    bool rotationJitterEnabled = true;
+    bool grainJitterEnabled = true;
     Types::Scalar pressureToSize = 0.0;
     Types::Scalar pressureToOpacity = 0.0;
     Types::Scalar pressureToFlow = 0.0;

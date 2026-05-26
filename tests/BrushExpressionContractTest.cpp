@@ -1,3 +1,4 @@
+#include <cmath>
 #include <string>
 
 #include "Brush/BrushPresetSerializer.h"
@@ -16,6 +17,11 @@ StrokeInput makeLineInput()
 bool samePosition(DocumentPoint lhs, DocumentPoint rhs)
 {
     return lhs.x == rhs.x && lhs.y == rhs.y;
+}
+
+bool nearlyEqual(Types::Scalar lhs, Types::Scalar rhs)
+{
+    return std::abs(lhs - rhs) < 0.0001;
 }
 
 } // namespace
@@ -41,10 +47,12 @@ int main()
     brush.material.scatter.enabled = true;
     brush.material.scatter.radius = 3.0;
     brush.material.scatter.count = 2;
+    brush.material.simulation.enabled = true;
     brush.material.simulation.model = BrushSimulationModel::Mixer;
     brush.material.simulation.wetness = 0.6;
     brush.material.simulation.smudgeStrength = 0.4;
     brush.material.simulation.mixStrength = 0.7;
+    brush.material.bristle.enabled = true;
     brush.material.bristle.shape = BristleShape::Flat;
     brush.material.bristle.count = 12;
     brush.material.bristle.length = 6.0;
@@ -78,6 +86,24 @@ int main()
         return 1;
     }
 
+    BrushState simulationOnly;
+    simulationOnly.rasterizer.brushSize = 4.0;
+    simulationOnly.rasterizer.spacingRatio = 0.5;
+    simulationOnly.material.simulation.enabled = true;
+    simulationOnly.material.simulation.model = BrushSimulationModel::WetPaint;
+    simulationOnly.material.simulation.wetness = 0.8;
+    simulationOnly.material.simulation.smudgeStrength = 0.4;
+    simulationOnly.material.simulation.mixStrength = 0.2;
+    const StrokeCommand simulationEnabled = makeStrokeCommand(makeLineInput(), simulationOnly, Stabilizer{0.0});
+    simulationOnly.material.simulation.enabled = false;
+    const StrokeCommand simulationDisabled = makeStrokeCommand(makeLineInput(), simulationOnly, Stabilizer{0.0});
+    if (simulationEnabled.dabs.empty()
+            || simulationDisabled.dabs.empty()
+            || !(simulationEnabled.dabs.front().alpha < simulationDisabled.dabs.front().alpha)
+            || !nearlyEqual(simulationDisabled.dabs.front().alpha, simulationOnly.rasterizer.flow)) {
+        return 1;
+    }
+
     BrushPreset preset;
     preset.brushId.bytes[0] = 9;
     preset.name = "Expressive Flat Mixer";
@@ -92,7 +118,9 @@ int main()
             || !reopened.material.dualBrush.enabled
             || !reopened.material.scatter.enabled
             || reopened.material.scatter.count != 2
+            || !reopened.material.simulation.enabled
             || reopened.material.simulation.model != BrushSimulationModel::Mixer
+            || !reopened.material.bristle.enabled
             || reopened.material.bristle.shape != BristleShape::Flat
             || reopened.material.bristle.count != 12) {
         return 1;

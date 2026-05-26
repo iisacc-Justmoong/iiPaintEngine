@@ -114,6 +114,9 @@ void applyFilterPipeline(DrawingSurface &surface,
                          const FilterPipeline &pipeline)
 {
     for (const FilterNode &node : pipeline.nodes) {
+        if (!node.enabled) {
+            continue;
+        }
         if (node.kind == FilterKind::Blur) {
             applyBlur(surface, selection, node.radius);
         } else if (node.kind == FilterKind::Smudge) {

@@ -43,6 +43,7 @@ struct ToolState {
 };
 
 struct ToolStateMachine {
+    bool enabled = true;
     ToolState state;
 };
 

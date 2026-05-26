@@ -135,5 +135,47 @@ int main()
         return 1;
     }
 
+    InputNormalizer disabledNormalizer = normalizer;
+    disabledNormalizer.pressureEnabled = false;
+    disabledNormalizer.tiltEnabled = false;
+    disabledNormalizer.rotationEnabled = false;
+    disabledNormalizer.hoverEnabled = false;
+    disabledNormalizer.barrelButtonEnabled = false;
+    disabledNormalizer.eraserEnabled = false;
+    disabledNormalizer.touchGestureEnabled = false;
+
+    const PointerEvent disabledPen = normalizeTabletPointerEvent(disabledNormalizer,
+                                                                 eraserDown,
+                                                                 PointerEventPhase::Press);
+    if (!nearlyEqual(disabledPen.pressure, 1.0)
+            || !nearlyEqual(disabledPen.tiltX, 0.0)
+            || !nearlyEqual(disabledPen.tiltY, 0.0)
+            || !nearlyEqual(disabledPen.rotationRadians, 0.0)
+            || disabledPen.barrelButtonDown
+            || disabledPen.eraserActive
+            || disabledPen.tool != PointerToolKind::Pen
+            || disabledPen.button != PointerButton::Primary
+            || hasDeviceState(disabledPen.deviceState, PointerDeviceStateBarrelButton)
+            || hasDeviceState(disabledPen.deviceState, PointerDeviceStateEraser)) {
+        return 1;
+    }
+
+    const PointerEvent disabledHover = normalizeTabletPointerEvent(disabledNormalizer,
+                                                                   hover,
+                                                                   PointerEventPhase::Move);
+    if (disabledHover.hovering
+            || hasDeviceState(disabledHover.deviceState, PointerDeviceStateHover)) {
+        return 1;
+    }
+
+    const PointerEvent disabledGesture = normalizeTouchGesturePointerEvent(disabledNormalizer, pinch);
+    if (disabledGesture.gesturePhase != TouchGesturePhase::None
+            || disabledGesture.touchPointCount != 0
+            || !nearlyEqual(disabledGesture.gestureScale, 1.0)
+            || !nearlyEqual(disabledGesture.gestureRotationRadians, 0.0)
+            || hasDeviceState(disabledGesture.deviceState, PointerDeviceStateTouchGesture)) {
+        return 1;
+    }
+
     return 0;
 }

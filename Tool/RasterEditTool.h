@@ -17,11 +17,13 @@ enum class GradientKind {
 };
 
 struct FillOperation {
+    bool enabled = true;
     std::uint32_t argb = 0x00000000U;
     Types::Scalar opacity = 1.0;
 };
 
 struct GradientOperation {
+    bool enabled = true;
     GradientKind kind = GradientKind::Linear;
     DocumentPoint start{};
     DocumentPoint end{};
@@ -31,6 +33,7 @@ struct GradientOperation {
 };
 
 struct EraserOperation {
+    bool enabled = true;
     Types::Scalar opacity = 1.0;
 };
 

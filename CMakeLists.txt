@@ -4,36 +4,49 @@ project(iiPaintEngine LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if(APPLE AND NOT Qt6_DIR)
+if (APPLE AND NOT Qt6_DIR)
     file(GLOB _qt_macos_roots LIST_DIRECTORIES true "$ENV{HOME}/Qt/*/macos")
-    if(_qt_macos_roots)
+    if (_qt_macos_roots)
         list(SORT _qt_macos_roots COMPARE NATURAL ORDER DESCENDING)
         list(GET _qt_macos_roots 0 _qt_macos_root)
         list(APPEND CMAKE_PREFIX_PATH "${_qt_macos_root}")
-    endif()
-endif()
+    endif ()
+endif ()
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick)
+if (NOT LVRS_DIR)
+    if (APPLE AND EXISTS "$ENV{HOME}/.local/LVRS/platforms/macos")
+        list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/.local/LVRS/platforms/macos")
+    elseif (EXISTS "$ENV{HOME}/.local/LVRS")
+        list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/.local/LVRS")
+    endif ()
+endif ()
 
-if(APPLE)
-    foreach(_qt_target Qt6::Gui WrapOpenGL::WrapOpenGL)
-        if(TARGET ${_qt_target})
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Svg Network)
+find_package(LVRS CONFIG REQUIRED)
+
+if (COMMAND qt_policy)
+    qt_policy(SET QTP0004 NEW)
+endif ()
+
+if (APPLE)
+    foreach (_qt_target Qt6::Gui WrapOpenGL::WrapOpenGL)
+        if (TARGET ${_qt_target})
             get_target_property(_qt_link_libraries ${_qt_target} INTERFACE_LINK_LIBRARIES)
-            if(_qt_link_libraries)
+            if (_qt_link_libraries)
                 list(REMOVE_ITEM _qt_link_libraries "-framework" "AGL" "-framework AGL")
                 list(FILTER _qt_link_libraries EXCLUDE REGEX "AGL")
                 set_target_properties(${_qt_target} PROPERTIES
                         INTERFACE_LINK_LIBRARIES "${_qt_link_libraries}")
-            endif()
+            endif ()
             get_target_property(_qt_link_options ${_qt_target} INTERFACE_LINK_OPTIONS)
-            if(_qt_link_options)
+            if (_qt_link_options)
                 list(FILTER _qt_link_options EXCLUDE REGEX "AGL")
                 set_target_properties(${_qt_target} PROPERTIES
                         INTERFACE_LINK_OPTIONS "${_qt_link_options}")
-            endif()
-        endif()
-    endforeach()
-endif()
+            endif ()
+        endif ()
+    endforeach ()
+endif ()
 
 set(CMAKE_AUTOMOC ON)
 
@@ -199,6 +212,31 @@ target_link_libraries(iiPaintEngine PUBLIC
         Qt6::Qml
         Qt6::Quick)
 
+set(IIPAINTENGINE_EXAMPLE_BIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Example/bin")
+
+lvrs_add_qml_app(
+        TARGET iiPaintEngineExample
+        URI IiPaintEngineExample
+        VERSION 1.0
+        ROOT_OBJECT Main
+        APP_NAME "iiPaintEngine Example"
+        SOURCES
+        Example/main.cpp
+        QML_FILES
+        Example/Main.qml
+        NO_PLATFORM_RUNTIME_TARGETS)
+
+target_link_libraries(iiPaintEngineExample PRIVATE
+        iiPaintEngine)
+
+set_target_properties(iiPaintEngineExample PROPERTIES
+        MACOSX_BUNDLE FALSE
+        RUNTIME_OUTPUT_DIRECTORY "${IIPAINTENGINE_EXAMPLE_BIN_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${IIPAINTENGINE_EXAMPLE_BIN_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${IIPAINTENGINE_EXAMPLE_BIN_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${IIPAINTENGINE_EXAMPLE_BIN_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${IIPAINTENGINE_EXAMPLE_BIN_DIR}")
+
 enable_testing()
 
 add_executable(iiPaintEngineTests
@@ -256,6 +294,35 @@ target_link_libraries(iiPaintEngineCanvasQmlApiTests PRIVATE
 add_test(NAME iiPaintEngineCanvasQmlApi
         COMMAND iiPaintEngineCanvasQmlApiTests)
 
+add_executable(iiPaintEngineExampleDemoContractTests
+        tests/ExampleDemoAppContractTest.cpp)
+
+add_dependencies(iiPaintEngineExampleDemoContractTests
+        iiPaintEngineExample)
+
+target_link_libraries(iiPaintEngineExampleDemoContractTests PRIVATE
+        iiPaintEngine
+        LVRS::LVRS
+        Qt6::Qml
+        Qt6::Quick)
+
+target_compile_definitions(iiPaintEngineExampleDemoContractTests PRIVATE
+        IIPAINTENGINE_EXAMPLE_MAIN_QML="${CMAKE_CURRENT_SOURCE_DIR}/Example/Main.qml"
+        IIPAINTENGINE_EXAMPLE_EXECUTABLE="$<TARGET_FILE:iiPaintEngineExample>"
+        IIPAINTENGINE_LVRS_QML_IMPORT_PATH="${LVRS_QML_IMPORT_PATH}")
+
+add_test(NAME iiPaintEngineExampleDemoContract
+        COMMAND iiPaintEngineExampleDemoContractTests)
+
+add_executable(iiPaintEngineCanvasPointerAlignmentTests
+        tests/CanvasPointerAlignmentTest.cpp)
+
+target_link_libraries(iiPaintEngineCanvasPointerAlignmentTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineCanvasPointerAlignment
+        COMMAND iiPaintEngineCanvasPointerAlignmentTests)
+
 add_executable(iiPaintEnginePointerStrokeFlowTests
         tests/PointerStrokeFlowTest.cpp)
 
@@ -309,6 +376,15 @@ target_link_libraries(iiPaintEngineBrushDynamicsMappingTests PRIVATE
 
 add_test(NAME iiPaintEngineBrushDynamicsMapping
         COMMAND iiPaintEngineBrushDynamicsMappingTests)
+
+add_executable(iiPaintEngineBrushFeatureToggleContractTests
+        tests/BrushFeatureToggleContractTest.cpp)
+
+target_link_libraries(iiPaintEngineBrushFeatureToggleContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineBrushFeatureToggleContract
+        COMMAND iiPaintEngineBrushFeatureToggleContractTests)
 
 add_executable(iiPaintEngineBrushExpressionContractTests
         tests/BrushExpressionContractTest.cpp)

@@ -22,6 +22,9 @@ Types::Scalar clampTilt(Types::Scalar value, Types::Scalar maxTilt)
 Types::Scalar normalizePressure(const InputNormalizer &normalizer,
                                 const TabletState &tablet)
 {
+    if (!normalizer.pressureEnabled) {
+        return tablet.contact && !tablet.hovering ? 1.0 : 0.0;
+    }
     if (!tablet.contact || tablet.hovering) {
         return 0.0;
     }
@@ -35,48 +38,62 @@ Types::Scalar normalizePressure(const InputNormalizer &normalizer,
 
 Types::Scalar calibratedTiltX(const InputNormalizer &normalizer, const TabletState &tablet)
 {
+    if (!normalizer.tiltEnabled) {
+        return 0.0;
+    }
     const TabletTiltCalibration &calibration = normalizer.tabletTiltCalibration;
     return clampTilt((tablet.tiltX + calibration.offsetX) * calibration.scaleX, calibration.maxTilt);
 }
 
 Types::Scalar calibratedTiltY(const InputNormalizer &normalizer, const TabletState &tablet)
 {
+    if (!normalizer.tiltEnabled) {
+        return 0.0;
+    }
     const TabletTiltCalibration &calibration = normalizer.tabletTiltCalibration;
     return clampTilt((tablet.tiltY + calibration.offsetY) * calibration.scaleY, calibration.maxTilt);
 }
 
-bool isEraser(const TabletState &tablet)
+bool isEraser(const InputNormalizer &normalizer, const TabletState &tablet)
 {
+    if (!normalizer.eraserEnabled) {
+        return false;
+    }
     return tablet.eraser || tablet.tool == TabletToolKind::Eraser;
 }
 
-PointerButton tabletButton(const TabletState &tablet)
+bool isHovering(const InputNormalizer &normalizer, const TabletState &tablet)
 {
-    if (isEraser(tablet)) {
+    return normalizer.hoverEnabled && (tablet.hovering || (tablet.inProximity && !tablet.contact));
+}
+
+PointerButton tabletButton(const InputNormalizer &normalizer, const TabletState &tablet)
+{
+    if (isEraser(normalizer, tablet)) {
         return PointerButton::Eraser;
     }
     if (tablet.contact || tablet.primaryButtonDown) {
         return PointerButton::Primary;
     }
-    if (tablet.barrelButtonDown) {
+    if (normalizer.barrelButtonEnabled && tablet.barrelButtonDown) {
         return PointerButton::Barrel;
     }
     return PointerButton::None;
 }
 
-std::uint32_t tabletDeviceState(const TabletState &tablet)
+std::uint32_t tabletDeviceState(const InputNormalizer &normalizer, const TabletState &tablet)
 {
     std::uint32_t state = 0;
     if (tablet.contact || tablet.primaryButtonDown) {
         state |= PointerDeviceStatePrimaryButton;
     }
-    if (tablet.barrelButtonDown) {
+    if (normalizer.barrelButtonEnabled && tablet.barrelButtonDown) {
         state |= PointerDeviceStateBarrelButton;
     }
-    if (isEraser(tablet)) {
+    if (isEraser(normalizer, tablet)) {
         state |= PointerDeviceStateEraser;
     }
-    if (tablet.hovering || (tablet.inProximity && !tablet.contact)) {
+    if (isHovering(normalizer, tablet)) {
         state |= PointerDeviceStateHover;
     }
     return state;
@@ -110,20 +127,20 @@ PointerEvent normalizeTabletPointerEvent(const InputNormalizer &normalizer,
     event.documentPosition = tablet.documentPosition;
     event.pressure = normalizePressure(normalizer, tablet);
     event.time = tablet.time;
-    event.button = tabletButton(tablet);
-    event.primaryButtonDown = tablet.contact && !tablet.hovering;
+    event.button = tabletButton(normalizer, tablet);
+    event.hovering = isHovering(normalizer, tablet);
+    event.primaryButtonDown = tablet.contact && !event.hovering;
     event.tiltX = calibratedTiltX(normalizer, tablet);
     event.tiltY = calibratedTiltY(normalizer, tablet);
-    event.tool = isEraser(tablet) ? PointerToolKind::Eraser : PointerToolKind::Pen;
-    event.hovering = tablet.hovering || (tablet.inProximity && !tablet.contact);
-    event.barrelButtonDown = tablet.barrelButtonDown;
-    event.eraserActive = isEraser(tablet);
-    event.rotationRadians = tablet.rotationRadians;
-    event.deviceState = tabletDeviceState(tablet);
+    event.tool = isEraser(normalizer, tablet) ? PointerToolKind::Eraser : PointerToolKind::Pen;
+    event.barrelButtonDown = normalizer.barrelButtonEnabled && tablet.barrelButtonDown;
+    event.eraserActive = isEraser(normalizer, tablet);
+    event.rotationRadians = normalizer.rotationEnabled ? tablet.rotationRadians : 0.0;
+    event.deviceState = tabletDeviceState(normalizer, tablet);
     return event;
 }
 
-PointerEvent normalizeTouchGesturePointerEvent(const InputNormalizer &, const TouchGestureState &gesture)
+PointerEvent normalizeTouchGesturePointerEvent(const InputNormalizer &normalizer, const TouchGestureState &gesture)
 {
     PointerEvent event;
     event.device = PointerDeviceKind::Touch;
@@ -134,6 +151,9 @@ PointerEvent normalizeTouchGesturePointerEvent(const InputNormalizer &, const To
     event.button = PointerButton::None;
     event.primaryButtonDown = false;
     event.tool = PointerToolKind::Finger;
+    if (!normalizer.touchGestureEnabled) {
+        return event;
+    }
     event.gesturePhase = gesture.phase;
     event.gestureCentroid = gesture.centroid;
     event.gestureTranslation = gesture.translation;

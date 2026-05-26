@@ -102,7 +102,15 @@ int main()
     brush.rasterizer.argb = 0xFF336699U;
     brush.rasterizer.brushSize = 6.0;
     brush.rasterizer.flow = 0.6;
+    brush.rasterizer.spacingEnabled = false;
+    brush.rasterizer.flowEnabled = false;
+    brush.rasterizer.opacityEnabled = false;
+    brush.rasterizer.hardnessEnabled = false;
     brush.dynamics.pressureToSize = 0.5;
+    brush.dynamics.pressureToFlowEnabled = false;
+    brush.dynamics.velocityToDryOutEnabled = false;
+    brush.dynamics.tiltToEllipseEnabled = false;
+    brush.dynamics.randomInputEnabled = false;
     brush.resampler.sampleSpacing = 0.25;
     brush.material.texture.enabled = true;
     brush.material.texture.width = 2;
@@ -114,8 +122,10 @@ int main()
     brush.material.scatter.enabled = true;
     brush.material.scatter.radius = 1.0;
     brush.material.scatter.count = 2;
+    brush.material.simulation.enabled = true;
     brush.material.simulation.model = BrushSimulationModel::Smudge;
     brush.material.simulation.smudgeStrength = 0.4;
+    brush.material.bristle.enabled = true;
     brush.material.bristle.shape = BristleShape::Fan;
     brush.material.bristle.count = 9;
     canvas.strokes.strokes.push_back(makeStrokeCommand(input, brush, Stabilizer{0.0}));
@@ -199,13 +209,23 @@ int main()
             || reopenedStroke.path.rawInput.points.size() != 2
             || reopenedStroke.brush.randomSeed != 42
             || reopenedStroke.brush.rasterizer.argb != 0xFF336699U
+            || reopenedStroke.brush.rasterizer.spacingEnabled
+            || reopenedStroke.brush.rasterizer.flowEnabled
+            || reopenedStroke.brush.rasterizer.opacityEnabled
+            || reopenedStroke.brush.rasterizer.hardnessEnabled
             || reopenedStroke.brush.dynamics.pressureToSize != 0.5
+            || reopenedStroke.brush.dynamics.pressureToFlowEnabled
+            || reopenedStroke.brush.dynamics.velocityToDryOutEnabled
+            || reopenedStroke.brush.dynamics.tiltToEllipseEnabled
+            || reopenedStroke.brush.dynamics.randomInputEnabled
             || reopenedStroke.brush.resampler.sampleSpacing != 0.25
             || !reopenedStroke.brush.material.texture.enabled
             || !byteVectorEquals(reopenedStroke.brush.material.texture.alpha, {0x80, 0xFF})
             || !reopenedStroke.brush.material.dualBrush.enabled
             || reopenedStroke.brush.material.scatter.count != 2
+            || !reopenedStroke.brush.material.simulation.enabled
             || reopenedStroke.brush.material.simulation.model != BrushSimulationModel::Smudge
+            || !reopenedStroke.brush.material.bristle.enabled
             || reopenedStroke.brush.material.bristle.shape != BristleShape::Fan
             || reopenedStroke.brush.material.bristle.count != 9
             || reopenedStroke.path.rawInput.points.front().deviceState != PointerDeviceStateBarrelButton
@@ -220,7 +240,9 @@ int main()
             || reopened.brushSources.front().brushId.bytes[0] != 3
             || reopened.brushSources.front().name != "Archive Brush"
             || !byteVectorEquals(reopened.brushSources.front().tip.mask, {0x00, 0x7F, 0xCC, 0xFF})
+            || !reopened.brushSources.front().material.simulation.enabled
             || reopened.brushSources.front().material.simulation.model != BrushSimulationModel::Mixer
+            || !reopened.brushSources.front().material.bristle.enabled
             || reopened.brushSources.front().material.bristle.count != 9
             || reopened.colorSpaces.size() != 1
             || reopened.colorSpaces.front().name != "Display P3 Linear Float"

@@ -45,8 +45,12 @@ Iipe.Canvas {
     brushSpacing: 3
     brushSpacingRatio: 0.25
     brushFlow: 0.4
+    brushFlowEnabled: false
     brushOpacity: 0.7
+    brushOpacityEnabled: false
     brushHardness: 0.6
+    brushHardnessEnabled: false
+    brushSpacingEnabled: false
     livePreviewEnabled: true
     multithreadedEventsEnabled: true
 }
@@ -81,8 +85,12 @@ Iipe.Canvas {
             || canvas->brushSpacing() != 3.0
             || canvas->brushSpacingRatio() != 0.25
             || canvas->brushFlow() != 0.4
+            || canvas->brushFlowEnabled()
             || canvas->brushOpacity() != 0.7
+            || canvas->brushOpacityEnabled()
             || canvas->brushHardness() != 0.6
+            || canvas->brushHardnessEnabled()
+            || canvas->brushSpacingEnabled()
             || !canvas->livePreviewEnabled()
             || !canvas->multithreadedEventsEnabled()
             || canvas->liveStrokeActive()
@@ -119,7 +127,23 @@ Iipe.Canvas {
             || canvas->brushSize() != 12.0
             || canvas->brushColor() != QColor{"#112233"}
             || canvas->brushFlow() != 0.5
-            || canvas->brushOpacity() != 0.75) {
+            || canvas->brushOpacity() != 0.75
+            || canvas->brushFlowEnabled()
+            || canvas->brushOpacityEnabled()
+            || canvas->brushHardnessEnabled()
+            || canvas->brushSpacingEnabled()) {
+        delete object;
+        return 1;
+    }
+
+    canvas->setBrushFlowEnabled(true);
+    canvas->setBrushOpacityEnabled(true);
+    canvas->setBrushHardnessEnabled(true);
+    canvas->setBrushSpacingEnabled(true);
+    if (!canvas->brushFlowEnabled()
+            || !canvas->brushOpacityEnabled()
+            || !canvas->brushHardnessEnabled()
+            || !canvas->brushSpacingEnabled()) {
         delete object;
         return 1;
     }

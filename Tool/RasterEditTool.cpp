@@ -81,6 +81,10 @@ void forSelectedPixels(DrawingSurface &surface, const SelectionState &selection,
 
 void applyFill(DrawingSurface &surface, const SelectionState &selection, const FillOperation &operation)
 {
+    if (!operation.enabled) {
+        return;
+    }
+
     forSelectedPixels(surface, selection, [&](DevicePixelPoint, std::size_t index) {
         surface.pixels[index] = operation.argb;
     });
@@ -88,6 +92,10 @@ void applyFill(DrawingSurface &surface, const SelectionState &selection, const F
 
 void applyGradient(DrawingSurface &surface, const SelectionState &selection, const GradientOperation &operation)
 {
+    if (!operation.enabled) {
+        return;
+    }
+
     forSelectedPixels(surface, selection, [&](DevicePixelPoint point, std::size_t index) {
         const Types::Scalar t = operation.kind == GradientKind::Linear ? linearGradientT(operation, point) : 0.0;
         surface.pixels[index] = mixArgb(operation.startArgb, operation.endArgb, t);
@@ -96,6 +104,10 @@ void applyGradient(DrawingSurface &surface, const SelectionState &selection, con
 
 void applyEraser(DrawingSurface &surface, const SelectionState &selection, const EraserOperation &operation)
 {
+    if (!operation.enabled) {
+        return;
+    }
+
     forSelectedPixels(surface, selection, [&](DevicePixelPoint, std::size_t index) {
         surface.pixels[index] = erasedArgb(surface.pixels[index], operation.opacity);
     });

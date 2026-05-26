@@ -39,6 +39,13 @@ int main()
             || drawingSurfacePixelAt(surface, {0, 0}) != 0xFF000000U) {
         return 1;
     }
+    FillOperation disabledFill = fill;
+    disabledFill.enabled = false;
+    disabledFill.argb = 0xFF00FF00U;
+    applyFill(surface, selection, disabledFill);
+    if (drawingSurfacePixelAt(surface, {1, 1}) != 0xFFFF0000U) {
+        return 1;
+    }
 
     GradientOperation gradient;
     gradient.kind = GradientKind::Linear;
@@ -67,11 +74,28 @@ int main()
     surface.pixels[2 + 1 * surface.width] = 0xFF808080U;
     surface.pixels[3 + 1 * surface.width] = 0xFF000000U;
     FilterPipeline pipeline;
-    pipeline.nodes.push_back(FilterNode{FilterKind::Blur, 1.0, 0.0});
-    pipeline.nodes.push_back(FilterNode{FilterKind::Smudge, 0.0, 0.5});
+    FilterNode blurNode;
+    blurNode.kind = FilterKind::Blur;
+    blurNode.radius = 1.0;
+    pipeline.nodes.push_back(blurNode);
+    FilterNode smudgeNode;
+    smudgeNode.kind = FilterKind::Smudge;
+    smudgeNode.strength = 0.5;
+    pipeline.nodes.push_back(smudgeNode);
     applyFilterPipeline(surface, selection, pipeline);
     if (drawingSurfacePixelAt(surface, {2, 1}) == 0xFF808080U
             || drawingSurfacePixelAt(surface, {0, 0}) != 0xFF000000U) {
+        return 1;
+    }
+    const std::uint32_t filteredPixel = drawingSurfacePixelAt(surface, {2, 1});
+    FilterPipeline disabledPipeline;
+    FilterNode disabledBlur;
+    disabledBlur.enabled = false;
+    disabledBlur.kind = FilterKind::Blur;
+    disabledBlur.radius = 1.0;
+    disabledPipeline.nodes.push_back(disabledBlur);
+    applyFilterPipeline(surface, selection, disabledPipeline);
+    if (drawingSurfacePixelAt(surface, {2, 1}) != filteredPixel) {
         return 1;
     }
 
@@ -107,6 +131,16 @@ int main()
     if (tools.state.phase != ToolPhase::Cancelled
             || tools.state.transform.translationX != 2.0
             || tools.state.transform.translationY != 1.0) {
+        return 1;
+    }
+
+    ToolStateMachine disabledTools;
+    disabledTools.enabled = false;
+    beginTool(disabledTools, ToolKind::Selection, {1.0, 1.0});
+    updateToolDrag(disabledTools, {4.0, 4.0});
+    commitTool(disabledTools);
+    if (disabledTools.state.phase != ToolPhase::Idle
+            || disabledTools.state.selection.active) {
         return 1;
     }
 
