@@ -28,6 +28,14 @@ bool isPrimaryPress(const PointerEvent &event)
             && event.primaryButtonDown;
 }
 
+bool isTabletContactMove(const PointerEvent &event)
+{
+    return isTabletEvent(event)
+            && event.phase == PointerEventPhase::Move
+            && (event.button == PointerButton::Primary || event.button == PointerButton::Eraser)
+            && event.primaryButtonDown;
+}
+
 std::uint32_t deviceStateFromEvent(const PointerEvent &event)
 {
     if (event.deviceState != 0) {
@@ -95,7 +103,7 @@ InputStrokeBuildResult appendPointerEvent(InputStrokeBuilder &builder, const Poi
         return result;
     }
 
-    if (isPrimaryPress(event)) {
+    if (isPrimaryPress(event) || (!builder.active && isTabletContactMove(event))) {
         resetInputStrokeBuilder(builder);
         builder.active = true;
         appendDistinctPoint(builder, event);

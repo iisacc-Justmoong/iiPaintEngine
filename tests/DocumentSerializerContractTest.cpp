@@ -232,6 +232,7 @@ int main()
             || reopenedStroke.path.rawInput.points.front().rotationRadians != 0.35
             || reopenedStroke.dabs.empty()
             || reopenedStroke.dabs.front().textureAlpha <= 0.0
+            || reopenedStroke.dabs.front().hardnessScale != 1.0
             || !reopenedStroke.dabs.front().dualBrush) {
         return 1;
     }

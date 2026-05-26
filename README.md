@@ -18,7 +18,7 @@ aggregate 초기화를 지원하는 단순 `struct` 청사진으로 둔다. 엔�
   `BrushDynamicsResult`, `BrushShape`, `BrushTip`, `BrushLibrary`, `BrushSnapshot`, `BrushResolve`
 - Render: `Renderer`, `RenderContext`, `DirtyRegion`, `Compositor`, `CpuRenderer`, `GpuRenderer`
 - History: `Command`, `HistoryStack`, `UndoRedoController`, `HistorySnapshot`
-- Input: `PointerEvent`, `TabletState`, `InputNormalizer`, `InputStrokeBuilder`
+- Input: `PointerEvent`, `PressureInput`, `TabletState`, `InputNormalizer`, `InputStrokeBuilder`
 - Color: `PaintColor`, `ColorChromaticity`, `Palette`, `ColorSpace`, `Gradient`
 - Selection: `SelectionMask`, `SelectionState`
 - Transform: `AffineTransform`, `TransformState`
@@ -179,8 +179,9 @@ scale은 pressure, rotation은 tilt 또는 곡선 접선, 간격은 spacing/dens
 `PaintCanvasItem`은 QML mouse 위치를 먼저 document 좌표로 변환한 뒤 `InputStrokeBuilder`에 넘긴다. 렌더링은 `RasterProjection`을 통해
 `projectBrushDabs` 호출 시점에만 viewport transform을 적용한다. 따라서 pan/zoom이 바뀌어도 raw stroke와 dab command는 그대로 두고 다시 투영할 수 있다.
 
-`BrushDynamics`는 pressure, velocity, tilt, deterministic random 값을 dab 파라미터로 해석한다. pressure는 size, opacity cap, flow
-contribution에 매핑된다. velocity는 spacing, opacity, dry-out에 매핑된다. tilt는 rotation, ellipse scale, texture direction에 매핑된다.
+`BrushDynamics`는 pressure, velocity, tilt, deterministic random 값을 dab 파라미터로 해석한다. pressure는 size, flow, opacity cap에
+매핑된다. 압력이 높을수록 해당 값은 100%에 가까워지고, 압력이 낮을수록 0%에 가까워진다. pressure는 spacing이나 hardness에는 매핑되지 않는다.
+velocity는 spacing, opacity, dry-out에 매핑된다. tilt는 rotation, ellipse scale, texture direction에 매핑된다.
 각 입력 계열은 공개 bool 스위치로 켜고 끌 수 있다. `pressureInputEnabled`, `velocityInputEnabled`, `tiltInputEnabled`,
 `randomInputEnabled`가
 false이면 해당 입력값은 neutral 값으로 해석된다. 개별 매핑도 `pressureToSizeEnabled`, `pressureToOpacityEnabled`, `pressureToFlowEnabled`,
@@ -188,7 +189,17 @@ false이면 해당 입력값은 neutral 값으로 해석된다. 개별 매핑도
 `tiltToEllipseEnabled`,
 `tiltToTextureDirection`, `rotationJitterEnabled`, `grainJitterEnabled`로 독립 제어한다. 비활성화된 기능은 값을 저장하더라도 dab 생성 인자로
 사용하지 않는다.
-`BrushState::randomSeed`는 rotation jitter와 grain 값을 재현 가능하게 만든다.
+`pressureToSize`, `pressureToFlow`, `pressureToOpacity` 값이 1.0이면 pressure 0.0은 0%, pressure 1.0은 100%로 해석된다.
+`BrushState::randomSeed`는 rotation jitter와 grain 값을 재현 가능하게 만든다. `PaintCanvasItem`의 기본 brush dynamics는 pressure를 size,
+flow, opacity에 1.0 비율로 연결한다. hardness는 필압 인자가 아니라 `Rasterizer::hardness`와 `hardnessEnabled`로만 제어한다.
+입력 pressure curve 자체는 `PressureInput::curveMinimum`, `curveCenter`, `curveMaximum` 세 점으로 조절한다. 기본값 0.0, 0.5, 1.0은
+기존 선형 정규화를 그대로 유지한다. min/center/max는 normalized pen pressure 0%, 50%, 100% 지점의 output을 뜻하며, center를 올리면 낮은
+필압도 더 높은 output으로 빨리 올라가고 center를 낮추면 더 늦게 올라간다.
+
+`Rasterizer`도 stroke 인자별 공개 bool 스위치를 가진다. `brushSpacingRatio`의 공개 범위는 0.0~1.0, 즉 0~100%이다.
+`flowEnabled`, `opacityEnabled`, `hardnessEnabled`, `spacingEnabled`가 false이면
+해당 stroke 인자는 저장되어 있어도 dab 생성 또는 brush mask 투영의 입력값으로 쓰지 않고 neutral 기본값으로 해석한다. flow와 opacity는 1.0, hardness는 1.0,
+spacing은 `brushSize`가 있으면 `brushSize * 1.0`, 없으면 절대 간격 1.0을 사용한다.
 
 `BrushMaterial`은 회화적 표현층의 저장 가능한 계약이다. texture/grain alpha, dual brush, scatter, wet paint/smudge/mixer 모델, bristle
 shape/count를 한 값으로 묶고, `BrushPresetSerializer`는 이 preset을 독립 payload로 왕복시킨다. texture, dual brush, scatter,
@@ -229,20 +240,41 @@ bounds를 함께 가진다. 렌더링 경계에서는 같은 dab bounds를 viewp
 `PaintCanvasItem`은 live preview를 지울 때 이전 live dirty rect만 비우고, 새 live/committed stroke도 해당 dirty bounds만 `update(rect)`로
 요청한다.
 
-`InputNormalizer`는 태블릿 장치의 hover/contact, barrel button, eraser, pressure range, tilt calibration, rotation을 Qt와 무관한
-`PointerEvent`로 정규화한다. `InputStrokeBuilder`는 mouse와 tablet contact만 stroke로 받아들이고, hover와 touch gesture는 stroke를 시작하지
-않는다.
+`PressureInput`은 raw pressure, enabled flag, min/max calibration, contact/hover, graph curve 상태를 받아 0~1 normalized
+pressure로 해석하는 독립 값
+객체이다. `InputNormalizer`는 태블릿 장치의 hover/contact, barrel button, eraser, pressure range, tilt calibration, rotation을 Qt와
+무관한
+`PointerEvent`로 정규화하며, pressure 값은 `PressureInput`을 통해 계산한다. `InputStrokeBuilder`는 mouse와 tablet contact만 stroke로 받아들이고,
+hover와 touch gesture는 stroke를 시작하지 않는다.
 touch gesture는 centroid, translation, scale, rotation, finger count를 가진 별도 pointer event surface로 보존되어 viewport gesture
 같은 상위 경계에서 사용할 수 있다. `InputNormalizer`의 `pressureEnabled`, `tiltEnabled`, `rotationEnabled`, `hoverEnabled`,
 `barrelButtonEnabled`, `eraserEnabled`, `touchGestureEnabled`가 false이면 해당 장치 기능은 neutral 값으로 정규화되어 stroke 입력 인자로 전달되지
 않는다.
-`PaintCanvasItem`은 현재 Qt 마우스 이벤트를 `PointerEvent`로 만들고, press/move는 live preview job을 만들며 release가 하나의 `StrokeInput`을
-완료하면 commit job을 만든다.
+`PaintCanvasItem`은 현재 Qt 마우스 이벤트와 tablet 이벤트를 `PointerEvent`로 만들고, press/move는 live preview job을 만들며 release가 하나의
+`StrokeInput`을 완료하면 commit job을 만든다. tablet press/move/release는 먼저 `TabletState`로 옮긴 뒤 `InputNormalizer`를 통해
+`PointerDeviceKind::Tablet` 이벤트가 되며, pressure, tilt, rotation, eraser/barrel 상태를 stroke sample에 보존한다. 따라서 실제 펜 필압
+jitter가
+기본 brush dynamics의 size, flow, opacity 입력으로 전달된다. hardness는 tablet pressure와 무관하다. tablet tip contact는 `Qt::LeftButton`
+플래그뿐 아니라 pressure가 0보다 큰
+상태도 primary contact로 해석하므로, 장치/플랫폼이 tablet button 상태를 따로 채우지 않아도 필압 stroke가 시작되고 move 중에도 이어진다. Wacom처럼
+`TabletPress`가 pressure 0과 button 없음으로 먼저 들어오고 이후 `TabletMove`에서 첫 pressure contact가 확인되는 경우에는 그 move가 stroke를 시작한다.
+release는 hover로 분류하지 않아 contact가 0으로 끝나는 Wacom release도 stroke 완료로 들어간다. tablet stroke 중 또는 직후의 합성 mouse event는
+pressure 1.0 sample로 섞이지 않게 무시한다. 단 QTabletEvent가 전혀 도착하지 않고 플랫폼이 펜을 synthesized mouse stream으로만 전달하는 경우에는 mouse
+fallback을
+차단하지 않아 적어도 그리기는 가능하게 한다. 이 fallback에서도 `QMouseEvent`의 `QEventPoint::pressure()`가 실제 값을 들고 있으면 tablet-like pointer로
+변환해 같은 `PressureInput` 및 pressure dynamics 경로를 태운다. 해당 pressure point가 항상 1.0으로만 들어오는 플랫폼에서는 Qt mouse fallback만으로 필압을
+복원하지 못한다.
+
+`Stabilizer::smoothing`은 stroke 안정화 강도이며 0.0~1.0으로 clamp된다. `PaintCanvasItem::stabilizerStrength`는 이 값을 QML에서 직접 바꾸는
+사용자 설정용 API이다.
 
 캔버스 이벤트의 무거운 계산은 `CanvasEventWork` 값 타입 job으로 분리한다. worker thread는 raw input, brush state, stabilizer, raster projection
 snapshot만 받아 `LiveStrokeFrame`, `StrokeCommand`, `RasterSample`, dirty bounds를 계산한다. `PaintCanvasItem`의 `RasterLayer`,
 `LiveStrokeBuffer`, QML property, `update(rect)` 호출은 GUI thread에서만 변경한다. live preview와 commit은 서로 다른 worker queue를 사용하고
-각 queue는 순서를 보존하기 위해 1개 thread로 시작한다. viewport/size/clear가 바뀌면 revision과 live generation으로 오래된 결과를 버린다.
+각 queue는 순서를 보존하기 위해 1개 thread로 시작한다. live preview는 실행 중인 job 1개와 최신 pending snapshot 1개만 유지해 move event가
+많아져도 오래된 frame들이 queue에 쌓이지 않는다. 같은 live revision에서 끝난 frame은 최신 generation보다 조금 뒤처져도 화면에 반영하고, 이어서 최신 pending
+snapshot을 다시 투영한다. release 시에는 live work만 무효화하고 live layer 픽셀은 commit 결과가 committed layer에 적용될 때까지 유지해 handoff 중
+빈 프레임이 보이지 않게 한다. viewport/size/clear/release가 바뀌면 revision과 live generation으로 오래된 결과를 버린다.
 
 ## QML API
 
@@ -266,9 +298,13 @@ Iipe.Canvas {
     brushSize: 6
     brushSpacing: 1
     brushSpacingRatio: 0.25
+    brushSpacingEnabled: true
     brushFlow: 0.5
+    brushFlowEnabled: true
     brushOpacity: 1.0
+    brushOpacityEnabled: true
     brushHardness: 0.8
+    brushHardnessEnabled: true
     livePreviewEnabled: true
     multithreadedEventsEnabled: true
 }
@@ -276,9 +312,14 @@ Iipe.Canvas {
 
 `Canvas`는 현재 QML 단일 진입점이다. viewport API는 `documentX`, `documentY`, `zoom`, `canvasDevicePixelRatio`,
 `setDocumentViewport(x, y, zoom)`, `resetView()`, `panBy(dx, dy)`, `zoomAt(viewX, viewY, factor)`를 제공한다. 브러시 API는
-`brushColor`, `brushSize`, `brushSpacing`, `brushSpacingRatio`, `brushFlow`, `brushOpacity`, `brushHardness`,
+`brushColor`, `brushSize`, `brushSpacing`, `brushSpacingRatio`, `brushSpacingEnabled`, `brushFlow`, `brushFlowEnabled`,
+`brushOpacity`,
+`brushOpacityEnabled`, `brushHardness`, `brushHardnessEnabled`,
+`pressureCurveMinimum`, `pressureCurveCenter`, `pressureCurveMaximum`, `stabilizerStrength`,
 `setBrush(size, color, flow, opacity)`를 제공한다. 편집/상태 API는 `clear()`, `livePreviewEnabled`, `multithreadedEventsEnabled`,
-`liveStrokeActive`, `strokeCount`를 제공한다.
+`liveStrokeActive`, `strokeCount`, `inputDevice`, `inputPressure`를 제공한다. `inputDevice`와 `inputPressure`는 마지막으로 수신한
+pointer event가
+mouse/tablet/touch 중 무엇이었고 pressure가 어떤 값으로 들어왔는지 예제와 디버깅 UI에서 읽기 위한 read-only 상태이다.
 `canvasDevicePixelRatio`가 1보다 크면 내부 raster layer는 device pixel 크기로 유지하고, 화면 페인트 단계에서 QImage device pixel ratio를 적용한다.
 따라서 QML pointer의 논리 좌표와 실제 stroke 표시 위치는 같은 지점에 남아야 한다. 이 계약은 `iiPaintEngineCanvasPointerAlignment` 테스트가 고정한다.
 
@@ -290,7 +331,10 @@ QML은 `Canvas` 하나만 직접 다룬다. `InputStrokeBuilder`, `LiveStrokeBuf
 `Example/Main.qml`은 LVRS의 `ApplicationWindow`, control component와 `iipe.Canvas`를 함께 쓰는 데모 페인팅 앱이다.
 `iiPaintEngineExample`
 target은 LVRS bootstrapped QML 앱으로 실행되며, 빌드 산출물은 `Example/bin/iiPaintEngineExample`에 놓인다. 앱은 현재 공개된 canvas viewport,
-brush color, brush size, flow, opacity, hardness, spacing, live preview, clear/reset view API를 화면에서 바로 드러낸다.
+brush color, brush size, flow, opacity, hardness, spacing, 각 stroke 인자 enabled 토글, live preview, clear/reset view API와
+마지막 입력 pressure
+상태를 화면에서 바로 드러낸다. 필압 민감도는 min/center/max 그래프와 보조 슬라이더로 노출되고, 스태빌라이저 강도도 별도 슬라이더로 노출되어 사용자 맞춤형
+필압/브러시 설정 UI의 공개 API를 검증한다.
 `iiPaintEngineExampleDemoContract` 테스트는 예제 QML을 실제 엔진으로 로드하고 `Example/bin` 실행 파일 산출 계약을 함께 검사한다.
 
 ## 검증
@@ -312,19 +356,35 @@ ctest --test-dir build --output-on-failure
 profile, asset, history
 command를 문자열 payload로 저장하고 다시 열 수 있는지 검사한다.
 `iiPaintEngineCanvasQmlApi` 테스트는 `registerIipeQmlTypes()`로 `iipe.Canvas`를 등록하고 QML에서 viewport, brush, live preview,
-clear API를 하나의 객체로 사용할 수 있는지 검사한다.
+clear API와 마지막 입력 상태 read-only API를 하나의 객체로 사용할 수 있는지 검사한다.
+`iiPaintEngineCanvasTabletPressureContract` 테스트는 Qt tablet event의 pressure jitter가 실제 canvas stroke의 농도, dab size, brush
+dynamics로
+전달되고, button flag 없이 pressure만 있는 tablet contact도 stroke로 인정되며, pressure 0의 tablet press 뒤 첫 pressure move가 stroke를
+시작하고,
+tablet 뒤 합성 mouse event가 필압 stroke를 덮지 않으며, QTabletEvent 없는 synthesized mouse fallback은 계속 그릴 수 있고
+`QEventPoint::pressure()`를
+가진 mouse fallback은 필압 dynamics를 타는지 검사한다.
+`iiPaintEngineCanvasLivePreviewRealtimeContract` 테스트는 긴 stroke move burst 중에도 release 전에 최신 포인터 근처 live preview가 제한 시간
+안에
+그려지고, release 직후 commit worker 결과가 오기 전에도 해당 stroke가 사라지지 않는지 검사한다.
 `iiPaintEnginePointerStrokeFlow` 테스트는 마우스 포인터만 스트로크를 완성하고, 벡터 스트로크 위에 브러시 알파 이미지가 flow/spacing에 따라 투영되는지 검사한다.
+`iiPaintEnginePressureInputContract` 테스트는 `PressureInput`이 enabled flag, min/max calibration, contact, hover 상태를 유지한 채
+기존
+pressure normalization 결과를 보존하고 graph curve를 적용하는지 검사한다.
 `iiPaintEngineTabletInputSurface` 테스트는 tablet hover, pressure normalization, barrel button, eraser, tilt calibration,
-rotation, touch gesture event surface와 입력 기능별 enabled 스위치가 stroke 입력 경계에서 보존되거나 무시되어야 할 때 무시되는지 검사한다.
+rotation, touch gesture event surface, pressure graph curve와 입력 기능별 enabled 스위치가 stroke 입력 경계에서 보존되거나 무시되어야 할 때 무시되는지
+검사한다.
 `iiPaintEngineHybridPaintingModel` 테스트는 샘플 velocity/tilt 보존, dab 배치, 브러시 투영, flow 누적과 opacity 상한 분리를 검사한다.
 `iiPaintEngineStrokePhysicalContract` 테스트는 raw/rendered stroke 분리, 누적 arc length 기반 spacing, deterministic seed,
 warm-up/taper, stroke dirty bounds를 검사한다.
 `iiPaintEngineLiveStrokeRendering` 테스트는 pointer move 중 live buffer가 즉시 샘플을 만들고, 현재 tip을 raw 위치에 유지하며, release 뒤
 committed layer로 넘어가는지 검사한다.
-`iiPaintEngineBrushDynamicsMapping` 테스트는 pressure/velocity/tilt/random seed가 dab size, flow, opacity cap, spacing,
-ellipse, texture direction, grain에 반영되는지 검사한다.
-`iiPaintEngineBrushFeatureToggleContract` 테스트는 BrushDynamics의 공개 bool 스위치가 false일 때 pressure, velocity, tilt,
-random과 개별 매핑이 dab 생성 인자로 쓰이지 않는지 검사한다.
+`iiPaintEngineBrushDynamicsMapping` 테스트는 pressure/velocity/tilt/random seed가 dab size, flow, opacity cap,
+spacing, ellipse, texture direction, grain에 반영되는지 검사하며, pressure가 spacing 위치를 바꾸지 않는 계약도 함께 고정한다.
+`iiPaintEngineBrushFeatureToggleContract` 테스트는 BrushDynamics와 Rasterizer의 공개 bool 스위치가 false일 때 pressure, velocity,
+tilt,
+random, 개별 매핑, flow, opacity, hardness, spacing이 dab 생성 및 brush mask 투영 인자로 쓰이지 않는지 검사하며, pressure가 hardness 공개
+매핑을 갖지 않는 계약도 고정한다.
 `iiPaintEngineBrushExpressionContract` 테스트는 texture/grain, dual brush, scatter, wet/smudge/mixer, bristle 값 계약과 공개
 enabled 스위치, preset serialization, deterministic scatter 재현성을 검사한다.
 `iiPaintEngineHistoryUndoRedoContract` 테스트는 `Command`의 before/after patch payload, dirty bounds, sequence 부여, redo

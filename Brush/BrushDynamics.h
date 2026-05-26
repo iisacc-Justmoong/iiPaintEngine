@@ -46,6 +46,7 @@ struct BrushDynamicsResult {
     Types::Scalar sizeScale = 1.0;
     Types::Scalar opacityScale = 1.0;
     Types::Scalar flowScale = 1.0;
+    Types::Scalar hardnessScale = 1.0;
     Types::Scalar spacingScale = 1.0;
     bool rotationFromTilt = false;
     Types::Scalar rotationRadians = 0.0;

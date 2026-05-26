@@ -1,11 +1,34 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 #include <vector>
 
 #include "Stroke/StrokeCommand.h"
 
 namespace {
+
+template <typename T, typename = void>
+struct HasPressureToHardness : std::false_type {
+};
+
+template <typename T>
+struct HasPressureToHardness<T, std::void_t<decltype(&T::pressureToHardness)>> : std::true_type {
+};
+
+template <typename T, typename = void>
+struct HasPressureToHardnessEnabled : std::false_type {
+};
+
+template <typename T>
+struct HasPressureToHardnessEnabled<T, std::void_t<decltype(&T::pressureToHardnessEnabled)>>
+    : std::true_type {
+};
+
+static_assert(!HasPressureToHardness<BrushDynamics>::value,
+              "BrushDynamics must not expose pressureToHardness");
+static_assert(!HasPressureToHardnessEnabled<BrushDynamics>::value,
+              "BrushDynamics must not expose pressureToHardnessEnabled");
 
 bool nearlyEqual(Types::Scalar lhs, Types::Scalar rhs)
 {
@@ -91,7 +114,8 @@ int main()
             || neutralPressure.dabs.empty()
             || !nearlyEqual(withoutPressure.dabs.front().scale, neutralPressure.dabs.front().scale)
             || !nearlyEqual(withoutPressure.dabs.back().alpha, neutralPressure.dabs.back().alpha)
-            || !nearlyEqual(withoutPressure.dabs.back().opacityCapScale, neutralPressure.dabs.back().opacityCapScale)) {
+            || !nearlyEqual(withoutPressure.dabs.back().opacityCapScale, neutralPressure.dabs.back().opacityCapScale)
+            || !nearlyEqual(withoutPressure.dabs.back().hardnessScale, neutralPressure.dabs.back().hardnessScale)) {
         return 1;
     }
 
@@ -147,6 +171,8 @@ int main()
             || !nearlyEqual(partlyDisabled.dabs.back().scale, expectedDirectPressureScale)
             || !(partlyDisabled.dabs.back().scale > mappingEnabled.dabs.back().scale)
             || !(partlyDisabled.dabs.back().alpha > mappingEnabled.dabs.back().alpha)
+            || !nearlyEqual(partlyDisabled.dabs.back().hardnessScale, 1.0)
+            || !nearlyEqual(mappingEnabled.dabs.back().hardnessScale, 1.0)
             || !nearlyEqual(partlyDisabled.dabs.back().ellipseScaleX, 1.0)
             || !nearlyEqual(partlyDisabled.dabs[1].grain, 0.0)) {
         return 1;

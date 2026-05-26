@@ -43,7 +43,7 @@ Iipe.Canvas {
     brushColor: "#336699"
     brushSize: 9
     brushSpacing: 3
-    brushSpacingRatio: 0.25
+    brushSpacingRatio: 0
     brushFlow: 0.4
     brushFlowEnabled: false
     brushOpacity: 0.7
@@ -51,6 +51,10 @@ Iipe.Canvas {
     brushHardness: 0.6
     brushHardnessEnabled: false
     brushSpacingEnabled: false
+    pressureCurveMinimum: 0.2
+    pressureCurveCenter: 0.6
+    pressureCurveMaximum: 0.9
+    stabilizerStrength: 0.4
     livePreviewEnabled: true
     multithreadedEventsEnabled: true
 }
@@ -83,7 +87,7 @@ Iipe.Canvas {
             || canvas->brushColor() != QColor{"#336699"}
             || canvas->brushSize() != 9.0
             || canvas->brushSpacing() != 3.0
-            || canvas->brushSpacingRatio() != 0.25
+            || canvas->brushSpacingRatio() != 0.0
             || canvas->brushFlow() != 0.4
             || canvas->brushFlowEnabled()
             || canvas->brushOpacity() != 0.7
@@ -91,10 +95,16 @@ Iipe.Canvas {
             || canvas->brushHardness() != 0.6
             || canvas->brushHardnessEnabled()
             || canvas->brushSpacingEnabled()
+            || canvas->pressureCurveMinimum() != 0.2
+            || canvas->pressureCurveCenter() != 0.6
+            || canvas->pressureCurveMaximum() != 0.9
+            || canvas->stabilizerStrength() != 0.4
             || !canvas->livePreviewEnabled()
             || !canvas->multithreadedEventsEnabled()
             || canvas->liveStrokeActive()
-            || canvas->strokeCount() != 0) {
+            || canvas->strokeCount() != 0
+            || canvas->inputDevice() != QStringLiteral("mouse")
+            || canvas->inputPressure() != 1.0) {
         delete object;
         return 1;
     }
@@ -140,10 +150,30 @@ Iipe.Canvas {
     canvas->setBrushOpacityEnabled(true);
     canvas->setBrushHardnessEnabled(true);
     canvas->setBrushSpacingEnabled(true);
+    canvas->setBrushSpacingRatio(1.5);
     if (!canvas->brushFlowEnabled()
             || !canvas->brushOpacityEnabled()
             || !canvas->brushHardnessEnabled()
-            || !canvas->brushSpacingEnabled()) {
+            || !canvas->brushSpacingEnabled()
+            || canvas->brushSpacingRatio() != 1.0) {
+        delete object;
+        return 1;
+    }
+
+    canvas->setBrushSpacingRatio(0.0);
+    if (canvas->brushSpacingRatio() != 0.0) {
+        delete object;
+        return 1;
+    }
+
+    canvas->setPressureCurveMinimum(0.7);
+    canvas->setPressureCurveCenter(0.1);
+    canvas->setPressureCurveMaximum(0.5);
+    canvas->setStabilizerStrength(2.0);
+    if (canvas->pressureCurveMinimum() != 0.5
+            || canvas->pressureCurveCenter() != 0.5
+            || canvas->pressureCurveMaximum() != 0.5
+            || canvas->stabilizerStrength() != 1.0) {
         delete object;
         return 1;
     }

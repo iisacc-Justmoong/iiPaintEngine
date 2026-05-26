@@ -6,34 +6,14 @@
 
 #include <algorithm>
 
-namespace {
+#include "Input/PressureInput.h"
 
-Types::Scalar clamp01(Types::Scalar value)
-{
-    return std::clamp(value, 0.0, 1.0);
-}
+namespace {
 
 Types::Scalar clampTilt(Types::Scalar value, Types::Scalar maxTilt)
 {
     const Types::Scalar limit = std::max<Types::Scalar>(0.0, maxTilt);
     return std::clamp(value, -limit, limit);
-}
-
-Types::Scalar normalizePressure(const InputNormalizer &normalizer,
-                                const TabletState &tablet)
-{
-    if (!normalizer.pressureEnabled) {
-        return tablet.contact && !tablet.hovering ? 1.0 : 0.0;
-    }
-    if (!tablet.contact || tablet.hovering) {
-        return 0.0;
-    }
-
-    const Types::Scalar range = normalizer.pressureMax - normalizer.pressureMin;
-    if (range <= 0.0) {
-        return clamp01(tablet.pressure);
-    }
-    return clamp01((tablet.pressure - normalizer.pressureMin) / range);
 }
 
 Types::Scalar calibratedTiltX(const InputNormalizer &normalizer, const TabletState &tablet)
@@ -62,9 +42,13 @@ bool isEraser(const InputNormalizer &normalizer, const TabletState &tablet)
     return tablet.eraser || tablet.tool == TabletToolKind::Eraser;
 }
 
-bool isHovering(const InputNormalizer &normalizer, const TabletState &tablet)
+bool isHovering(const InputNormalizer &normalizer,
+                const TabletState &tablet,
+                PointerEventPhase phase)
 {
-    return normalizer.hoverEnabled && (tablet.hovering || (tablet.inProximity && !tablet.contact));
+    return normalizer.hoverEnabled
+            && phase == PointerEventPhase::Move
+            && (tablet.hovering || (tablet.inProximity && !tablet.contact));
 }
 
 PointerButton tabletButton(const InputNormalizer &normalizer, const TabletState &tablet)
@@ -81,7 +65,9 @@ PointerButton tabletButton(const InputNormalizer &normalizer, const TabletState 
     return PointerButton::None;
 }
 
-std::uint32_t tabletDeviceState(const InputNormalizer &normalizer, const TabletState &tablet)
+std::uint32_t tabletDeviceState(const InputNormalizer &normalizer,
+                                const TabletState &tablet,
+                                PointerEventPhase phase)
 {
     std::uint32_t state = 0;
     if (tablet.contact || tablet.primaryButtonDown) {
@@ -93,7 +79,7 @@ std::uint32_t tabletDeviceState(const InputNormalizer &normalizer, const TabletS
     if (isEraser(normalizer, tablet)) {
         state |= PointerDeviceStateEraser;
     }
-    if (isHovering(normalizer, tablet)) {
+    if (isHovering(normalizer, tablet, phase)) {
         state |= PointerDeviceStateHover;
     }
     return state;
@@ -125,10 +111,20 @@ PointerEvent normalizeTabletPointerEvent(const InputNormalizer &normalizer,
     event.device = PointerDeviceKind::Tablet;
     event.phase = phase;
     event.documentPosition = tablet.documentPosition;
-    event.pressure = normalizePressure(normalizer, tablet);
+    event.pressure = resolvePressureInput(PressureInput{
+            normalizer.pressureEnabled,
+            normalizer.pressureMin,
+            normalizer.pressureMax,
+            tablet.pressure,
+            tablet.contact,
+            tablet.hovering,
+            normalizer.pressureCurveMinimum,
+            normalizer.pressureCurveCenter,
+            normalizer.pressureCurveMaximum,
+    });
     event.time = tablet.time;
     event.button = tabletButton(normalizer, tablet);
-    event.hovering = isHovering(normalizer, tablet);
+    event.hovering = isHovering(normalizer, tablet, phase);
     event.primaryButtonDown = tablet.contact && !event.hovering;
     event.tiltX = calibratedTiltX(normalizer, tablet);
     event.tiltY = calibratedTiltY(normalizer, tablet);
@@ -136,7 +132,7 @@ PointerEvent normalizeTabletPointerEvent(const InputNormalizer &normalizer,
     event.barrelButtonDown = normalizer.barrelButtonEnabled && tablet.barrelButtonDown;
     event.eraserActive = isEraser(normalizer, tablet);
     event.rotationRadians = normalizer.rotationEnabled ? tablet.rotationRadians : 0.0;
-    event.deviceState = tabletDeviceState(normalizer, tablet);
+    event.deviceState = tabletDeviceState(normalizer, tablet, phase);
     return event;
 }
 

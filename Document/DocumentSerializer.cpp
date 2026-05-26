@@ -561,9 +561,13 @@ void writeRasterizer(std::ostringstream &output,
     writeLine(output, prefix + ".brushAlpha", byteVectorText(rasterizer.brushAlpha));
     writeLine(output, prefix + ".spacing", numberText(rasterizer.spacing));
     writeLine(output, prefix + ".spacingRatio", numberText(rasterizer.spacingRatio));
+    writeLine(output, prefix + ".spacingEnabled", boolText(rasterizer.spacingEnabled));
     writeLine(output, prefix + ".opacity", numberText(rasterizer.opacity));
+    writeLine(output, prefix + ".opacityEnabled", boolText(rasterizer.opacityEnabled));
     writeLine(output, prefix + ".flow", numberText(rasterizer.flow));
+    writeLine(output, prefix + ".flowEnabled", boolText(rasterizer.flowEnabled));
     writeLine(output, prefix + ".hardness", numberText(rasterizer.hardness));
+    writeLine(output, prefix + ".hardnessEnabled", boolText(rasterizer.hardnessEnabled));
     writeLine(output, prefix + ".density", numberText(rasterizer.density));
     writeLine(output, prefix + ".pressureScale", numberText(rasterizer.pressureScale));
     writeLine(output, prefix + ".velocitySpacing", numberText(rasterizer.velocitySpacing));
@@ -584,9 +588,13 @@ Rasterizer readRasterizer(const std::map<std::string, std::string> &values,
     rasterizer.brushAlpha = readTypesByteVector(values, prefix + ".brushAlpha");
     rasterizer.spacing = readNumber<Types::Scalar>(values, prefix + ".spacing", 1.0);
     rasterizer.spacingRatio = readNumber<Types::Scalar>(values, prefix + ".spacingRatio", 1.0);
+    rasterizer.spacingEnabled = readBool(values, prefix + ".spacingEnabled", true);
     rasterizer.opacity = readNumber<Types::Scalar>(values, prefix + ".opacity", 1.0);
+    rasterizer.opacityEnabled = readBool(values, prefix + ".opacityEnabled", true);
     rasterizer.flow = readNumber<Types::Scalar>(values, prefix + ".flow", 1.0);
+    rasterizer.flowEnabled = readBool(values, prefix + ".flowEnabled", true);
     rasterizer.hardness = readNumber<Types::Scalar>(values, prefix + ".hardness", 1.0);
+    rasterizer.hardnessEnabled = readBool(values, prefix + ".hardnessEnabled", true);
     rasterizer.density = readNumber<Types::Scalar>(values, prefix + ".density", 1.0);
     rasterizer.pressureScale = readNumber<Types::Scalar>(values, prefix + ".pressureScale");
     rasterizer.velocitySpacing = readNumber<Types::Scalar>(values, prefix + ".velocitySpacing");
@@ -770,6 +778,7 @@ void writeBrushDab(std::ostringstream &output,
     writeLine(output, prefix + ".rotationRadians", numberText(dab.rotationRadians));
     writeLine(output, prefix + ".alpha", numberText(dab.alpha));
     writeLine(output, prefix + ".opacityCapScale", numberText(dab.opacityCapScale));
+    writeLine(output, prefix + ".hardnessScale", numberText(dab.hardnessScale));
     writeLine(output, prefix + ".ellipseScaleX", numberText(dab.ellipseScaleX));
     writeLine(output, prefix + ".ellipseScaleY", numberText(dab.ellipseScaleY));
     writeLine(output, prefix + ".textureDirectionRadians", numberText(dab.textureDirectionRadians));
@@ -790,6 +799,7 @@ BrushDab readBrushDab(const std::map<std::string, std::string> &values,
     dab.rotationRadians = readNumber<Types::Scalar>(values, prefix + ".rotationRadians");
     dab.alpha = readNumber<Types::Scalar>(values, prefix + ".alpha", 1.0);
     dab.opacityCapScale = readNumber<Types::Scalar>(values, prefix + ".opacityCapScale", 1.0);
+    dab.hardnessScale = readNumber<Types::Scalar>(values, prefix + ".hardnessScale", 1.0);
     dab.ellipseScaleX = readNumber<Types::Scalar>(values, prefix + ".ellipseScaleX", 1.0);
     dab.ellipseScaleY = readNumber<Types::Scalar>(values, prefix + ".ellipseScaleY", 1.0);
     dab.textureDirectionRadians = readNumber<Types::Scalar>(values, prefix + ".textureDirectionRadians");

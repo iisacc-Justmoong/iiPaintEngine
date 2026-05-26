@@ -8,8 +8,10 @@
 #include <QMetaObject>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPointingDevice>
 #include <QPointer>
 #include <QRect>
+#include <QTabletEvent>
 
 #include <algorithm>
 #include <cstddef>
@@ -17,6 +19,7 @@
 #include <memory>
 
 #include "Layer/RasterLayer.h"
+#include "Input/PressureInput.h"
 #include "Render/DirtyRegion.h"
 #include "Stroke/LiveStroke.h"
 #include "Stroke/Rasterizer.h"
@@ -26,6 +29,14 @@ namespace {
 Types::Scalar safePixelRatio(Types::Scalar value)
 {
     return std::max<Types::Scalar>(0.01, value);
+}
+
+Types::Scalar unitSettingOrDefault(Types::Scalar value, Types::Scalar fallback)
+{
+    if (!std::isfinite(value)) {
+        return fallback;
+    }
+    return std::clamp(value, 0.0, 1.0);
 }
 
 void drawRasterLayer(QPainter *painter, const RasterLayer &layer, Types::Scalar devicePixelRatio)
@@ -105,12 +116,73 @@ std::uint32_t argbFromColor(const QColor &color)
     return static_cast<std::uint32_t>(resolved.rgba());
 }
 
+bool isTabletEraser(const QPointingDevice *device)
+{
+    return device != nullptr && device->pointerType() == QPointingDevice::PointerType::Eraser;
+}
+
+bool isTabletPointerDevice(const QPointingDevice *device)
+{
+    if (device == nullptr) {
+        return false;
+    }
+
+    const QPointingDevice::PointerType pointerType = device->pointerType();
+    return pointerType == QPointingDevice::PointerType::Pen
+            || pointerType == QPointingDevice::PointerType::Eraser
+            || pointerType == QPointingDevice::PointerType::Cursor;
+}
+
+Types::Scalar eventPointPressure(const QMouseEvent *event)
+{
+    if (event->points().isEmpty()) {
+        return 1.0;
+    }
+
+    return std::clamp(static_cast<Types::Scalar>(event->points().first().pressure()), 0.0, 1.0);
+}
+
+Types::Scalar eventPointRotation(const QMouseEvent *event)
+{
+    if (event->points().isEmpty()) {
+        return 0.0;
+    }
+
+    return static_cast<Types::Scalar>(event->points().first().rotation());
+}
+
+bool hasVariableMousePressure(const QMouseEvent *event)
+{
+    if (event->points().isEmpty()) {
+        return false;
+    }
+
+    return pressureInputHasVariablePressure(eventPointPressure(event));
+}
+
+bool isPressureAwareMouseEvent(const QMouseEvent *event)
+{
+    return isTabletPointerDevice(event->pointingDevice())
+            || event->source() != Qt::MouseEventNotSynthesized
+            || hasVariableMousePressure(event);
+}
+
+BrushDynamics pressureSensitiveDynamics()
+{
+    BrushDynamics dynamics;
+    dynamics.pressureToSize = 1.0;
+    dynamics.pressureToFlow = 1.0;
+    dynamics.pressureToOpacity = 1.0;
+    return dynamics;
+}
+
 } // namespace
 
 PaintCanvasItem::PaintCanvasItem(QQuickItem *parent)
     : QQuickPaintedItem(parent)
 {
     setAcceptedMouseButtons(Qt::LeftButton);
+    setAcceptHoverEvents(true);
     setAntialiasing(false);
     m_liveEventThreadPool.setMaxThreadCount(1);
     m_liveEventThreadPool.setExpiryTimeout(-1);
@@ -260,12 +332,27 @@ qreal PaintCanvasItem::brushSpacingRatio() const
 
 void PaintCanvasItem::setBrushSpacingRatio(qreal value)
 {
-    const Types::Scalar nextRatio = std::max<Types::Scalar>(0.01, static_cast<Types::Scalar>(value));
+    const Types::Scalar nextRatio = std::clamp(static_cast<Types::Scalar>(value), 0.0, 1.0);
     if (m_rasterizer.spacingRatio == nextRatio) {
         return;
     }
 
     m_rasterizer.spacingRatio = nextRatio;
+    emit brushChanged();
+}
+
+bool PaintCanvasItem::brushSpacingEnabled() const
+{
+    return m_rasterizer.spacingEnabled;
+}
+
+void PaintCanvasItem::setBrushSpacingEnabled(bool enabled)
+{
+    if (m_rasterizer.spacingEnabled == enabled) {
+        return;
+    }
+
+    m_rasterizer.spacingEnabled = enabled;
     emit brushChanged();
 }
 
@@ -285,6 +372,21 @@ void PaintCanvasItem::setBrushFlow(qreal value)
     emit brushChanged();
 }
 
+bool PaintCanvasItem::brushFlowEnabled() const
+{
+    return m_rasterizer.flowEnabled;
+}
+
+void PaintCanvasItem::setBrushFlowEnabled(bool enabled)
+{
+    if (m_rasterizer.flowEnabled == enabled) {
+        return;
+    }
+
+    m_rasterizer.flowEnabled = enabled;
+    emit brushChanged();
+}
+
 qreal PaintCanvasItem::brushOpacity() const
 {
     return m_rasterizer.opacity;
@@ -298,6 +400,21 @@ void PaintCanvasItem::setBrushOpacity(qreal value)
     }
 
     m_rasterizer.opacity = nextOpacity;
+    emit brushChanged();
+}
+
+bool PaintCanvasItem::brushOpacityEnabled() const
+{
+    return m_rasterizer.opacityEnabled;
+}
+
+void PaintCanvasItem::setBrushOpacityEnabled(bool enabled)
+{
+    if (m_rasterizer.opacityEnabled == enabled) {
+        return;
+    }
+
+    m_rasterizer.opacityEnabled = enabled;
     emit brushChanged();
 }
 
@@ -315,6 +432,106 @@ void PaintCanvasItem::setBrushHardness(qreal value)
 
     m_rasterizer.hardness = nextHardness;
     emit brushChanged();
+}
+
+bool PaintCanvasItem::brushHardnessEnabled() const
+{
+    return m_rasterizer.hardnessEnabled;
+}
+
+void PaintCanvasItem::setBrushHardnessEnabled(bool enabled)
+{
+    if (m_rasterizer.hardnessEnabled == enabled) {
+        return;
+    }
+
+    m_rasterizer.hardnessEnabled = enabled;
+    emit brushChanged();
+}
+
+qreal PaintCanvasItem::pressureCurveMinimum() const
+{
+    return m_inputNormalizer.pressureCurveMinimum;
+}
+
+void PaintCanvasItem::setPressureCurveMinimum(qreal value)
+{
+    const Types::Scalar nextMinimum = unitSettingOrDefault(static_cast<Types::Scalar>(value), 0.0);
+    const Types::Scalar nextCenter = std::max(m_inputNormalizer.pressureCurveCenter, nextMinimum);
+    const Types::Scalar nextMaximum = std::max(m_inputNormalizer.pressureCurveMaximum, nextMinimum);
+    if (m_inputNormalizer.pressureCurveMinimum == nextMinimum
+            && m_inputNormalizer.pressureCurveCenter == nextCenter
+            && m_inputNormalizer.pressureCurveMaximum == nextMaximum) {
+        return;
+    }
+
+    m_inputNormalizer.pressureCurveMinimum = nextMinimum;
+    m_inputNormalizer.pressureCurveCenter = nextCenter;
+    m_inputNormalizer.pressureCurveMaximum = nextMaximum;
+    emit strokeSettingsChanged();
+}
+
+qreal PaintCanvasItem::pressureCurveCenter() const
+{
+    return m_inputNormalizer.pressureCurveCenter;
+}
+
+void PaintCanvasItem::setPressureCurveCenter(qreal value)
+{
+    const Types::Scalar nextCenter = std::clamp(
+            unitSettingOrDefault(static_cast<Types::Scalar>(value), 0.5),
+            m_inputNormalizer.pressureCurveMinimum,
+            m_inputNormalizer.pressureCurveMaximum);
+    if (m_inputNormalizer.pressureCurveCenter == nextCenter) {
+        return;
+    }
+
+    m_inputNormalizer.pressureCurveCenter = nextCenter;
+    emit strokeSettingsChanged();
+}
+
+qreal PaintCanvasItem::pressureCurveMaximum() const
+{
+    return m_inputNormalizer.pressureCurveMaximum;
+}
+
+void PaintCanvasItem::setPressureCurveMaximum(qreal value)
+{
+    const Types::Scalar nextMaximum = unitSettingOrDefault(static_cast<Types::Scalar>(value), 1.0);
+    const Types::Scalar nextMinimum = std::min(m_inputNormalizer.pressureCurveMinimum, nextMaximum);
+    const Types::Scalar nextCenter = std::clamp(m_inputNormalizer.pressureCurveCenter,
+                                                nextMinimum,
+                                                nextMaximum);
+    if (m_inputNormalizer.pressureCurveMinimum == nextMinimum
+            && m_inputNormalizer.pressureCurveCenter == nextCenter
+            && m_inputNormalizer.pressureCurveMaximum == nextMaximum) {
+        return;
+    }
+
+    m_inputNormalizer.pressureCurveMinimum = nextMinimum;
+    m_inputNormalizer.pressureCurveCenter = nextCenter;
+    m_inputNormalizer.pressureCurveMaximum = nextMaximum;
+    emit strokeSettingsChanged();
+}
+
+qreal PaintCanvasItem::stabilizerStrength() const
+{
+    return m_stabilizer.smoothing;
+}
+
+void PaintCanvasItem::setStabilizerStrength(qreal value)
+{
+    const Types::Scalar nextStrength = unitSettingOrDefault(static_cast<Types::Scalar>(value), 0.0);
+    if (m_stabilizer.smoothing == nextStrength) {
+        return;
+    }
+
+    m_stabilizer.smoothing = nextStrength;
+    invalidatePendingCanvasEventWork();
+    if (m_strokeBuilder.active && m_livePreviewEnabled) {
+        updateLiveStrokePreview();
+    }
+    emit strokeSettingsChanged();
 }
 
 bool PaintCanvasItem::livePreviewEnabled() const
@@ -350,6 +567,9 @@ void PaintCanvasItem::setMultithreadedEventsEnabled(bool enabled)
 
     m_multithreadedEventsEnabled = enabled;
     if (!m_multithreadedEventsEnabled) {
+        ++m_livePreviewGeneration;
+        ++m_livePreviewRevision;
+        m_livePreviewWorkPending = false;
         m_liveEventThreadPool.waitForDone();
         m_commitEventThreadPool.waitForDone();
     }
@@ -364,6 +584,25 @@ bool PaintCanvasItem::liveStrokeActive() const
 int PaintCanvasItem::strokeCount() const
 {
     return static_cast<int>(m_nextStrokeSeed - 1);
+}
+
+QString PaintCanvasItem::inputDevice() const
+{
+    switch (m_lastInputDevice) {
+        case PointerDeviceKind::Tablet:
+            return QStringLiteral("tablet");
+        case PointerDeviceKind::Touch:
+            return QStringLiteral("touch");
+        case PointerDeviceKind::Mouse:
+            return QStringLiteral("mouse");
+    }
+
+    return QStringLiteral("mouse");
+}
+
+qreal PaintCanvasItem::inputPressure() const
+{
+    return m_lastInputPressure;
 }
 
 void PaintCanvasItem::paint(QPainter *painter)
@@ -440,8 +679,35 @@ void PaintCanvasItem::setBrush(qreal size, const QColor &color, qreal flow, qrea
     setBrushOpacity(opacity);
 }
 
+bool PaintCanvasItem::event(QEvent *event)
+{
+    switch (event->type()) {
+        case QEvent::TabletPress:
+            handleTabletPointerEvent(static_cast<QTabletEvent *>(event), PointerEventPhase::Press);
+            event->accept();
+            return true;
+        case QEvent::TabletMove:
+            handleTabletPointerEvent(static_cast<QTabletEvent *>(event), PointerEventPhase::Move);
+            event->accept();
+            return true;
+        case QEvent::TabletRelease:
+            handleTabletPointerEvent(static_cast<QTabletEvent *>(event), PointerEventPhase::Release);
+            event->accept();
+            return true;
+        default:
+            break;
+    }
+
+    return QQuickPaintedItem::event(event);
+}
+
 void PaintCanvasItem::mousePressEvent(QMouseEvent *event)
 {
+    if (shouldIgnoreMousePointerEvent(event)) {
+        event->accept();
+        return;
+    }
+
     if (event->button() != Qt::LeftButton) {
         event->ignore();
         return;
@@ -453,12 +719,22 @@ void PaintCanvasItem::mousePressEvent(QMouseEvent *event)
 
 void PaintCanvasItem::mouseMoveEvent(QMouseEvent *event)
 {
+    if (shouldIgnoreMousePointerEvent(event)) {
+        event->accept();
+        return;
+    }
+
     handleMousePointerEvent(event, PointerEventPhase::Move);
     event->accept();
 }
 
 void PaintCanvasItem::mouseReleaseEvent(QMouseEvent *event)
 {
+    if (shouldIgnoreMousePointerEvent(event)) {
+        event->accept();
+        return;
+    }
+
     if (event->button() != Qt::LeftButton) {
         event->ignore();
         return;
@@ -505,13 +781,46 @@ void PaintCanvasItem::updateViewportGeometry()
     m_viewport.devicePixelRatio = std::max<Types::Scalar>(0.01, m_devicePixelRatio);
 }
 
+bool PaintCanvasItem::shouldIgnoreMousePointerEvent(QMouseEvent *event)
+{
+    if (m_tabletPointerActive || m_suppressMouseAfterTablet) {
+        if (event->type() == QEvent::MouseButtonRelease && !event->buttons().testFlag(Qt::LeftButton)) {
+            m_suppressMouseAfterTablet = false;
+        }
+        return true;
+    }
+
+    return false;
+}
+
 void PaintCanvasItem::handleMousePointerEvent(QMouseEvent *event, PointerEventPhase phase)
 {
     const bool wasLiveStrokeActive = liveStrokeActive();
     ensureRasterLayerSize();
-    const InputStrokeBuildResult result = appendPointerEvent(m_strokeBuilder, makeDocumentPointerEvent(event, phase));
+    const PointerEvent pointerEvent = makeDocumentPointerEvent(event, phase);
+    noteInputState(pointerEvent);
+    const InputStrokeBuildResult result = appendPointerEvent(m_strokeBuilder, pointerEvent);
     if (result.strokeCompleted) {
-        clearLiveStrokePreview();
+        preserveLiveStrokePreviewForCommit();
+        commitStroke(result.stroke);
+        ++m_nextStrokeSeed;
+        emit strokeCountChanged();
+    } else if (m_strokeBuilder.active && m_livePreviewEnabled) {
+        updateLiveStrokePreview();
+    }
+    emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
+}
+
+void PaintCanvasItem::handleTabletPointerEvent(QTabletEvent *event, PointerEventPhase phase)
+{
+    const bool wasLiveStrokeActive = liveStrokeActive();
+    ensureRasterLayerSize();
+    const PointerEvent pointerEvent = makeDocumentPointerEvent(event, phase);
+    noteTabletPointerEvent(pointerEvent);
+    noteInputState(pointerEvent);
+    const InputStrokeBuildResult result = appendPointerEvent(m_strokeBuilder, pointerEvent);
+    if (result.strokeCompleted) {
+        preserveLiveStrokePreviewForCommit();
         commitStroke(result.stroke);
         ++m_nextStrokeSeed;
         emit strokeCountChanged();
@@ -524,21 +833,106 @@ void PaintCanvasItem::handleMousePointerEvent(QMouseEvent *event, PointerEventPh
 PointerEvent PaintCanvasItem::makeDocumentPointerEvent(QMouseEvent *event, PointerEventPhase phase) const
 {
     const QPointF position = event->position();
+    const bool pressureAware = isPressureAwareMouseEvent(event);
+    const bool eraserActive = pressureAware && isTabletEraser(event->pointingDevice());
+    const Types::Scalar pressure = pressureAware
+            ? resolvePressureInput(PressureInput{
+                    true,
+                    0.0,
+                    1.0,
+                    eventPointPressure(event),
+                    true,
+                    false,
+                    m_inputNormalizer.pressureCurveMinimum,
+                    m_inputNormalizer.pressureCurveCenter,
+                    m_inputNormalizer.pressureCurveMaximum,
+            })
+            : 1.0;
+    const bool pressureContact = pressureAware && pressureInputHasContact(pressure);
     const bool primaryDown = event->buttons().testFlag(Qt::LeftButton)
-            || (phase == PointerEventPhase::Press && event->button() == Qt::LeftButton);
+            || (phase == PointerEventPhase::Press && event->button() == Qt::LeftButton)
+            || pressureContact
+            || eraserActive;
     const DocumentPoint documentPosition = documentPointFromViewPoint(
             m_viewport,
             ViewPoint{position.x(), position.y()});
 
-    return PointerEvent{
-            PointerDeviceKind::Mouse,
-            phase,
-            documentPosition,
-            1.0,
-            static_cast<Types::Scalar>(event->timestamp()),
-            pointerButtonFromMouseButton(event->button()),
-            primaryDown,
-    };
+    PointerEvent pointerEvent;
+    pointerEvent.device = pressureAware ? PointerDeviceKind::Tablet : PointerDeviceKind::Mouse;
+    pointerEvent.phase = phase;
+    pointerEvent.documentPosition = documentPosition;
+    pointerEvent.pressure = pressure;
+    pointerEvent.time = static_cast<Types::Scalar>(event->timestamp());
+    pointerEvent.button = eraserActive
+            ? PointerButton::Eraser
+            : (pressureContact ? PointerButton::Primary : pointerButtonFromMouseButton(event->button()));
+    pointerEvent.primaryButtonDown = primaryDown;
+    pointerEvent.tool = eraserActive
+            ? PointerToolKind::Eraser
+            : (pressureAware ? PointerToolKind::Pen : PointerToolKind::Mouse);
+    pointerEvent.eraserActive = eraserActive;
+    pointerEvent.rotationRadians = pressureAware ? eventPointRotation(event) : 0.0;
+    if (primaryDown) {
+        pointerEvent.deviceState |= PointerDeviceStatePrimaryButton;
+    }
+    if (eraserActive) {
+        pointerEvent.deviceState |= PointerDeviceStateEraser;
+    }
+    return pointerEvent;
+}
+
+PointerEvent PaintCanvasItem::makeDocumentPointerEvent(QTabletEvent *event, PointerEventPhase phase) const
+{
+    return normalizeTabletPointerEvent(m_inputNormalizer, makeTabletState(event, phase), phase);
+}
+
+void PaintCanvasItem::noteTabletPointerEvent(const PointerEvent &event)
+{
+    const bool contact = event.primaryButtonDown || event.pressure > 0.0 || event.eraserActive;
+    if ((event.phase == PointerEventPhase::Press || event.phase == PointerEventPhase::Move) && contact) {
+        m_tabletPointerActive = true;
+        m_suppressMouseAfterTablet = true;
+        return;
+    }
+
+    if (event.phase == PointerEventPhase::Release || event.phase == PointerEventPhase::Cancel) {
+        const bool suppressMouseFallback = m_tabletPointerActive || contact;
+        m_tabletPointerActive = false;
+        if (suppressMouseFallback) {
+            m_suppressMouseAfterTablet = true;
+        }
+    }
+}
+
+TabletState PaintCanvasItem::makeTabletState(QTabletEvent *event, PointerEventPhase phase) const
+{
+    const QPointF position = event->position();
+    const bool eraserActive = isTabletEraser(event->pointingDevice());
+    const Types::Scalar pressure = std::clamp(static_cast<Types::Scalar>(event->pressure()), 0.0, 1.0);
+    const bool pressureContact = pressure > 0.0;
+    const bool primaryDown = event->buttons().testFlag(Qt::LeftButton)
+            || (phase == PointerEventPhase::Press && event->button() == Qt::LeftButton)
+            || pressureContact
+            || eraserActive;
+    const DocumentPoint documentPosition = documentPointFromViewPoint(
+            m_viewport,
+            ViewPoint{position.x(), position.y()});
+
+    TabletState tablet;
+    tablet.documentPosition = documentPosition;
+    tablet.pressure = pressure;
+    tablet.tiltX = std::clamp(static_cast<Types::Scalar>(event->xTilt()) / 60.0, -1.0, 1.0);
+    tablet.tiltY = std::clamp(static_cast<Types::Scalar>(event->yTilt()) / 60.0, -1.0, 1.0);
+    tablet.rotationRadians = static_cast<Types::Scalar>(event->rotation()) * 3.14159265358979323846 / 180.0;
+    tablet.time = static_cast<Types::Scalar>(event->timestamp());
+    tablet.inProximity = true;
+    tablet.contact = primaryDown;
+    tablet.primaryButtonDown = primaryDown;
+    tablet.hovering = phase == PointerEventPhase::Move && !primaryDown && pressure <= 0.0;
+    tablet.barrelButtonDown = event->buttons().testFlag(Qt::RightButton) || event->button() == Qt::RightButton;
+    tablet.eraser = eraserActive;
+    tablet.tool = eraserActive ? TabletToolKind::Eraser : TabletToolKind::Pen;
+    return tablet;
 }
 
 RasterProjection PaintCanvasItem::currentRasterProjection() const
@@ -569,33 +963,79 @@ void PaintCanvasItem::updateLiveStrokePreview()
 {
     const CanvasLiveStrokeWorkRequest request = currentLiveStrokeWorkRequest();
     const std::uint64_t generation = ++m_livePreviewGeneration;
+    const std::uint64_t revision = m_livePreviewRevision;
     if (!m_multithreadedEventsEnabled) {
-        applyLiveStrokeWorkResult(generation, runCanvasLiveStrokeWork(request));
+        applyLiveStrokeWorkResult(generation, revision, runCanvasLiveStrokeWork(request));
         return;
     }
 
+    if (m_livePreviewWorkActive) {
+        m_pendingLiveStrokeWorkRequest = request;
+        m_pendingLivePreviewGeneration = generation;
+        m_pendingLivePreviewRevision = revision;
+        m_livePreviewWorkPending = true;
+        return;
+    }
+
+    startLiveStrokePreviewWork(request, generation, revision);
+}
+
+void PaintCanvasItem::startLiveStrokePreviewWork(const CanvasLiveStrokeWorkRequest &request,
+                                                 std::uint64_t generation,
+                                                 std::uint64_t revision)
+{
+    m_livePreviewWorkActive = true;
     const QPointer<PaintCanvasItem> self(this);
-    m_liveEventThreadPool.start([self, request, generation]() {
+    m_liveEventThreadPool.start([self, request, generation, revision]() {
         const auto result = std::make_shared<CanvasLiveStrokeWorkResult>(runCanvasLiveStrokeWork(request));
         if (!self) {
             return;
         }
 
         QMetaObject::invokeMethod(self.data(),
-                                  [self, generation, result]() {
+                                  [self, generation, revision, result]() {
                                       if (!self) {
                                           return;
                                       }
-                                      self->applyLiveStrokeWorkResult(generation, *result);
+                                      self->applyLiveStrokeWorkResult(generation, revision, *result);
                                   },
                                   Qt::QueuedConnection);
     });
 }
 
+void PaintCanvasItem::startPendingLiveStrokePreviewWork()
+{
+    if (m_livePreviewWorkActive || !m_livePreviewWorkPending) {
+        return;
+    }
+
+    if (!m_multithreadedEventsEnabled) {
+        m_livePreviewWorkPending = false;
+        return;
+    }
+
+    const CanvasLiveStrokeWorkRequest request = m_pendingLiveStrokeWorkRequest;
+    const std::uint64_t generation = m_pendingLivePreviewGeneration;
+    const std::uint64_t revision = m_pendingLivePreviewRevision;
+    m_livePreviewWorkPending = false;
+
+    if (revision != m_livePreviewRevision || !m_livePreviewEnabled || !m_strokeBuilder.active) {
+        return;
+    }
+
+    startLiveStrokePreviewWork(request, generation, revision);
+}
+
 void PaintCanvasItem::applyLiveStrokeWorkResult(std::uint64_t generation,
+                                                std::uint64_t revision,
                                                 const CanvasLiveStrokeWorkResult &result)
 {
-    if (generation != m_livePreviewGeneration) {
+    m_livePreviewWorkActive = false;
+    if (revision != m_livePreviewRevision
+            || generation > m_livePreviewGeneration
+            || !m_livePreviewEnabled
+            || !m_strokeBuilder.active) {
+        startPendingLiveStrokePreviewWork();
         return;
     }
 
@@ -612,12 +1052,26 @@ void PaintCanvasItem::applyLiveStrokeWorkResult(std::uint64_t generation,
 
     requestTextureUpdate(uniteDevicePixelRects(previousDirtyBounds, m_liveStrokeDeviceDirtyBounds));
     emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
+    startPendingLiveStrokePreviewWork();
+}
+
+void PaintCanvasItem::preserveLiveStrokePreviewForCommit()
+{
+    ++m_livePreviewGeneration;
+    ++m_livePreviewRevision;
+    m_livePreviewWorkPending = false;
 }
 
 void PaintCanvasItem::clearLiveStrokePreview()
 {
     ++m_livePreviewGeneration;
-    m_liveEventThreadPool.clear();
+    ++m_livePreviewRevision;
+    m_livePreviewWorkPending = false;
+    clearLiveStrokePreviewPixels();
+}
+
+void PaintCanvasItem::clearLiveStrokePreviewPixels()
+{
     const DevicePixelRect previousDirtyBounds = m_liveStrokeDeviceDirtyBounds;
     clearLiveStrokeBuffer(m_liveStrokeBuffer);
     clearRasterLayerRect(m_liveRasterLayer, previousDirtyBounds);
@@ -660,7 +1114,11 @@ void PaintCanvasItem::applyCommitStrokeWorkResult(std::uint64_t revision,
     }
 
     paintRasterSamples(m_rasterLayer, result.samples);
-    requestTextureUpdate(result.dirtyBounds);
+    const bool wasLiveStrokeActive = liveStrokeActive();
+    const DevicePixelRect previousLiveDirtyBounds = m_liveStrokeDeviceDirtyBounds;
+    clearLiveStrokePreviewPixels();
+    requestTextureUpdate(uniteDevicePixelRects(result.dirtyBounds, previousLiveDirtyBounds));
+    emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
 }
 
 void PaintCanvasItem::emitLiveStrokeActiveChangedIfNeeded(bool previousActive)
@@ -670,9 +1128,22 @@ void PaintCanvasItem::emitLiveStrokeActiveChangedIfNeeded(bool previousActive)
     }
 }
 
+void PaintCanvasItem::noteInputState(const PointerEvent &event)
+{
+    const Types::Scalar pressure = std::clamp(event.pressure, 0.0, 1.0);
+    if (m_lastInputDevice == event.device
+            && std::abs(m_lastInputPressure - pressure) < 0.001) {
+        return;
+    }
+
+    m_lastInputDevice = event.device;
+    m_lastInputPressure = pressure;
+    emit inputStateChanged();
+}
+
 BrushState PaintCanvasItem::currentBrushState() const
 {
-    return BrushState{m_rasterizer, BrushDynamics{}, StrokeResampler{}, BrushMaterial{}, m_nextStrokeSeed};
+    return BrushState{m_rasterizer, pressureSensitiveDynamics(), StrokeResampler{}, BrushMaterial{}, m_nextStrokeSeed};
 }
 
 CanvasLiveStrokeWorkRequest PaintCanvasItem::currentLiveStrokeWorkRequest() const
@@ -699,6 +1170,7 @@ void PaintCanvasItem::invalidatePendingCanvasEventWork()
 {
     ++m_canvasEventRevision;
     ++m_livePreviewGeneration;
-    m_liveEventThreadPool.clear();
+    ++m_livePreviewRevision;
+    m_livePreviewWorkPending = false;
     m_commitEventThreadPool.clear();
 }

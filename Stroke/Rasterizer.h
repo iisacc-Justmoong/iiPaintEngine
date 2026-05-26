@@ -21,6 +21,7 @@ struct BrushDab {
     Types::Scalar rotationRadians = 0.0;
     Types::Scalar alpha = 1.0;
     Types::Scalar opacityCapScale = 1.0;
+    Types::Scalar hardnessScale = 1.0;
     Types::Scalar ellipseScaleX = 1.0;
     Types::Scalar ellipseScaleY = 1.0;
     Types::Scalar textureDirectionRadians = 0.0;
@@ -49,9 +50,13 @@ struct Rasterizer {
     std::vector<Types::Byte> brushAlpha;
     Types::Scalar spacing = 1.0;
     Types::Scalar spacingRatio = 1.0;
+    bool spacingEnabled = true;
     Types::Scalar opacity = 1.0;
+    bool opacityEnabled = true;
     Types::Scalar flow = 1.0;
+    bool flowEnabled = true;
     Types::Scalar hardness = 1.0;
+    bool hardnessEnabled = true;
     Types::Scalar density = 1.0;
     Types::Scalar pressureScale = 0.0;
     Types::Scalar velocitySpacing = 0.0;

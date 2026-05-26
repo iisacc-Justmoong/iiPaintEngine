@@ -38,6 +38,7 @@
 #include "Input/InputNormalizer.h"
 #include "Input/InputStrokeBuilder.h"
 #include "Input/PointerEvent.h"
+#include "Input/PressureInput.h"
 #include "Input/TabletState.h"
 #include "Layer/DrawingSurface.h"
 #include "Layer/Layer.h"
@@ -172,6 +173,7 @@ static_assert(blueprintStruct<UndoRedoController>);
 static_assert(blueprintStruct<HistorySnapshot>);
 
 static_assert(blueprintStruct<PointerEvent>);
+static_assert(blueprintStruct<PressureInput>);
 static_assert(blueprintStruct<TouchGestureState>);
 static_assert(blueprintStruct<TabletTiltCalibration>);
 static_assert(blueprintStruct<TabletState>);

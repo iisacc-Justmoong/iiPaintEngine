@@ -66,6 +66,13 @@ int main(int argc, char **argv)
     const QObject *opacityArgumentToggle = root->findChild<QObject *>(QStringLiteral("opacityArgumentToggle"));
     const QObject *hardnessArgumentToggle = root->findChild<QObject *>(QStringLiteral("hardnessArgumentToggle"));
     const QObject *spacingArgumentToggle = root->findChild<QObject *>(QStringLiteral("spacingArgumentToggle"));
+    const QObject *spacingSlider = root->findChild<QObject *>(QStringLiteral("spacingSlider"));
+    const QObject *pressureCurveGraph = root->findChild<QObject *>(QStringLiteral("pressureCurveGraph"));
+    const QObject *pressureCurveMinimumSlider = root->findChild<QObject *>(QStringLiteral("pressureCurveMinimumSlider"));
+    const QObject *pressureCurveCenterSlider = root->findChild<QObject *>(QStringLiteral("pressureCurveCenterSlider"));
+    const QObject *pressureCurveMaximumSlider = root->findChild<QObject *>(QStringLiteral("pressureCurveMaximumSlider"));
+    const QObject *stabilizerStrengthSlider = root->findChild<QObject *>(QStringLiteral("stabilizerStrengthSlider"));
+    const QObject *inputPressureLabel = root->findChild<QObject *>(QStringLiteral("inputPressureLabel"));
     if (root->objectName() != QStringLiteral("iiPaintEngineExampleWindow")
             || canvas == nullptr
             || controls == nullptr
@@ -75,6 +82,13 @@ int main(int argc, char **argv)
             || opacityArgumentToggle == nullptr
             || hardnessArgumentToggle == nullptr
             || spacingArgumentToggle == nullptr
+            || spacingSlider == nullptr
+            || pressureCurveGraph == nullptr
+            || pressureCurveMinimumSlider == nullptr
+            || pressureCurveCenterSlider == nullptr
+            || pressureCurveMaximumSlider == nullptr
+            || stabilizerStrengthSlider == nullptr
+            || inputPressureLabel == nullptr
             || !root->property("demoReady").toBool()) {
         delete root;
         return 1;
@@ -84,6 +98,10 @@ int main(int argc, char **argv)
             || canvas->brushFlow() != 0.78
             || canvas->brushOpacity() != 0.92
             || canvas->brushSpacingRatio() != 0.22
+            || canvas->pressureCurveMinimum() != 0.0
+            || canvas->pressureCurveCenter() != 0.5
+            || canvas->pressureCurveMaximum() != 1.0
+            || canvas->stabilizerStrength() != 0.25
             || canvas->zoom() != 1.0
             || !canvas->livePreviewEnabled()
             || !canvas->multithreadedEventsEnabled()
@@ -91,6 +109,37 @@ int main(int argc, char **argv)
             || !canvas->brushOpacityEnabled()
             || !canvas->brushHardnessEnabled()
             || !canvas->brushSpacingEnabled()) {
+        delete root;
+        return 1;
+    }
+
+    if (spacingSlider->property("from").toReal() != 0.0
+            || spacingSlider->property("to").toReal() != 1.0) {
+        delete root;
+        return 1;
+    }
+
+    if (pressureCurveMinimumSlider->property("from").toReal() != 0.0
+            || pressureCurveMinimumSlider->property("to").toReal() != 1.0
+            || pressureCurveCenterSlider->property("from").toReal() != 0.0
+            || pressureCurveCenterSlider->property("to").toReal() != 1.0
+            || pressureCurveMaximumSlider->property("from").toReal() != 0.0
+            || pressureCurveMaximumSlider->property("to").toReal() != 1.0
+            || stabilizerStrengthSlider->property("from").toReal() != 0.0
+            || stabilizerStrengthSlider->property("to").toReal() != 1.0) {
+        delete root;
+        return 1;
+    }
+
+    if (!root->setProperty("currentPressureCurveMinimum", 0.2)
+            || !root->setProperty("currentPressureCurveCenter", 0.6)
+            || !root->setProperty("currentPressureCurveMaximum", 0.9)
+            || !root->setProperty("currentStabilizerStrength", 0.75)
+            || !QMetaObject::invokeMethod(root, "applyBrushSettings")
+            || canvas->pressureCurveMinimum() != 0.2
+            || canvas->pressureCurveCenter() != 0.6
+            || canvas->pressureCurveMaximum() != 0.9
+            || canvas->stabilizerStrength() != 0.75) {
         delete root;
         return 1;
     }

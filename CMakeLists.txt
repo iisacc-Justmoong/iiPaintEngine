@@ -161,6 +161,8 @@ set(IIPAINTENGINE_SOURCES
         History/HistorySnapshot.h
         Input/PointerEvent.cpp
         Input/PointerEvent.h
+        Input/PressureInput.cpp
+        Input/PressureInput.h
         Input/TabletState.cpp
         Input/TabletState.h
         Input/InputNormalizer.cpp
@@ -323,6 +325,28 @@ target_link_libraries(iiPaintEngineCanvasPointerAlignmentTests PRIVATE
 add_test(NAME iiPaintEngineCanvasPointerAlignment
         COMMAND iiPaintEngineCanvasPointerAlignmentTests)
 
+add_executable(iiPaintEngineCanvasTabletPressureContractTests
+        tests/CanvasTabletPressureContractTest.cpp)
+
+target_link_libraries(iiPaintEngineCanvasTabletPressureContractTests PRIVATE
+        iiPaintEngine)
+if (TARGET Qt6::GuiPrivate)
+    target_link_libraries(iiPaintEngineCanvasTabletPressureContractTests PRIVATE
+            Qt6::GuiPrivate)
+endif ()
+
+add_test(NAME iiPaintEngineCanvasTabletPressureContract
+        COMMAND iiPaintEngineCanvasTabletPressureContractTests)
+
+add_executable(iiPaintEngineCanvasLivePreviewRealtimeContractTests
+        tests/CanvasLivePreviewRealtimeContractTest.cpp)
+
+target_link_libraries(iiPaintEngineCanvasLivePreviewRealtimeContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineCanvasLivePreviewRealtimeContract
+        COMMAND iiPaintEngineCanvasLivePreviewRealtimeContractTests)
+
 add_executable(iiPaintEnginePointerStrokeFlowTests
         tests/PointerStrokeFlowTest.cpp)
 
@@ -331,6 +355,15 @@ target_link_libraries(iiPaintEnginePointerStrokeFlowTests PRIVATE
 
 add_test(NAME iiPaintEnginePointerStrokeFlow
         COMMAND iiPaintEnginePointerStrokeFlowTests)
+
+add_executable(iiPaintEnginePressureInputContractTests
+        tests/PressureInputContractTest.cpp)
+
+target_link_libraries(iiPaintEnginePressureInputContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEnginePressureInputContract
+        COMMAND iiPaintEnginePressureInputContractTests)
 
 add_executable(iiPaintEngineTabletInputSurfaceTests
         tests/TabletInputSurfaceTest.cpp)

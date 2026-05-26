@@ -29,6 +29,9 @@ struct InputNormalizer {
     bool touchGestureEnabled = true;
     Types::Scalar pressureMin = 0.0;
     Types::Scalar pressureMax = 1.0;
+    Types::Scalar pressureCurveMinimum = 0.0;
+    Types::Scalar pressureCurveCenter = 0.5;
+    Types::Scalar pressureCurveMaximum = 1.0;
     TabletTiltCalibration tabletTiltCalibration;
 };
 

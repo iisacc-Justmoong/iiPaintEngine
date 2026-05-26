@@ -51,7 +51,8 @@ std::uint8_t opacityCap(std::uint32_t argb,
 {
     const auto source = static_cast<Types::Scalar>(sourceAlpha(argb));
     const auto mask = clamp01(maskAlpha);
-    return alphaByte(source * mask * clamp01(rasterizer.opacity) * clamp01(opacityCapScale));
+    const Types::Scalar opacity = rasterizer.opacityEnabled ? rasterizer.opacity : 1.0;
+    return alphaByte(source * mask * clamp01(opacity) * clamp01(opacityCapScale));
 }
 
 void appendCircle(std::vector<RasterSample> &samples,
@@ -225,8 +226,11 @@ Types::Scalar transformedBrushMaskAt(const Rasterizer &rasterizer,
     const Types::Scalar localY = (-dx * sinTheta + dy * cosTheta) / scaleY;
     const Types::Scalar sourceX = localX + centerOffsetX;
     const Types::Scalar sourceY = localY + centerOffsetY;
+    const Types::Scalar hardness = rasterizer.hardnessEnabled
+            ? rasterizer.hardness * dab.hardnessScale
+            : 1.0;
     return applyHardness(bilinearBrushAlphaAt(rasterizer, sourceX, sourceY),
-                         rasterizer.hardness);
+                         hardness);
 }
 
 Types::Scalar projectedBrushMaskAt(const Rasterizer &rasterizer,
@@ -462,9 +466,11 @@ Types::Scalar effectiveSpacing(const Rasterizer &rasterizer,
     const Types::Scalar density = std::max<Types::Scalar>(0.01, rasterizer.density);
     const Types::Scalar velocity = dynamics.velocityInputEnabled ? std::max<Types::Scalar>(0.0, sample.velocity) : 0.0;
     const Types::Scalar velocityScale = 1.0 + velocity * rasterizer.velocitySpacing;
-    const Types::Scalar baseSpacing = rasterizer.brushSize > 0.0
-            ? rasterizer.brushSize * std::max<Types::Scalar>(0.01, rasterizer.spacingRatio)
-            : rasterizer.spacing;
+    const Types::Scalar baseSpacing = rasterizer.spacingEnabled
+            ? (rasterizer.brushSize > 0.0
+                       ? rasterizer.brushSize * std::max<Types::Scalar>(0.01, rasterizer.spacingRatio)
+                       : rasterizer.spacing)
+            : (rasterizer.brushSize > 0.0 ? rasterizer.brushSize : 1.0);
     const BrushDynamicsResult dynamicsResult = resolveBrushDynamics(
             dynamics,
             BrushDynamicsInput{sample.pressure, sample.velocity, sample.tiltX, sample.tiltY});
@@ -596,14 +602,16 @@ BrushDab makeBrushDab(const StrokePoint &sample,
             : baseRotation;
     const Types::Scalar textureAlpha = materialTextureAlpha(material.texture, sequenceIndex);
     const DocumentPoint position = scatterPosition(sample.position, material.scatter, randomSeed, sequenceIndex);
+    const Types::Scalar flow = rasterizer.flowEnabled ? rasterizer.flow : 1.0;
 
     return BrushDab{
             position,
             scale * dynamicsResult.sizeScale * (material.dualBrush.enabled ? std::max<Types::Scalar>(0.01, material.dualBrush.scale) : 1.0),
             baseRotation + jitter,
-            clamp01(rasterizer.flow) * dynamicsResult.flowScale * taperFactor(rasterizer, distanceOnCurve, curveLength)
+            clamp01(flow) * dynamicsResult.flowScale * taperFactor(rasterizer, distanceOnCurve, curveLength)
                     * materialFlowScale(material, textureAlpha),
             dynamicsResult.opacityScale,
+            dynamicsResult.hardnessScale,
             dynamicsResult.ellipseScaleX,
             dynamicsResult.ellipseScaleY,
             textureDirection,

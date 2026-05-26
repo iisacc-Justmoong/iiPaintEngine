@@ -6,11 +6,13 @@
 
 #include <QColor>
 #include <QQuickPaintedItem>
+#include <QString>
 #include <QThreadPool>
 
 #include <cstdint>
 
 #include "Canvas/CanvasViewport.h"
+#include "Input/InputNormalizer.h"
 #include "Input/InputStrokeBuilder.h"
 #include "Layer/RasterLayer.h"
 #include "QtAdapter/CanvasEventWork.h"
@@ -22,6 +24,8 @@
 
 class QMouseEvent;
 class QPainter;
+class QEvent;
+class QTabletEvent;
 
 class PaintCanvasItem : public QQuickPaintedItem {
     Q_OBJECT
@@ -33,13 +37,23 @@ class PaintCanvasItem : public QQuickPaintedItem {
     Q_PROPERTY(qreal brushSize READ brushSize WRITE setBrushSize NOTIFY brushChanged)
     Q_PROPERTY(qreal brushSpacing READ brushSpacing WRITE setBrushSpacing NOTIFY brushChanged)
     Q_PROPERTY(qreal brushSpacingRatio READ brushSpacingRatio WRITE setBrushSpacingRatio NOTIFY brushChanged)
+    Q_PROPERTY(bool brushSpacingEnabled READ brushSpacingEnabled WRITE setBrushSpacingEnabled NOTIFY brushChanged)
     Q_PROPERTY(qreal brushFlow READ brushFlow WRITE setBrushFlow NOTIFY brushChanged)
+    Q_PROPERTY(bool brushFlowEnabled READ brushFlowEnabled WRITE setBrushFlowEnabled NOTIFY brushChanged)
     Q_PROPERTY(qreal brushOpacity READ brushOpacity WRITE setBrushOpacity NOTIFY brushChanged)
+    Q_PROPERTY(bool brushOpacityEnabled READ brushOpacityEnabled WRITE setBrushOpacityEnabled NOTIFY brushChanged)
     Q_PROPERTY(qreal brushHardness READ brushHardness WRITE setBrushHardness NOTIFY brushChanged)
+    Q_PROPERTY(bool brushHardnessEnabled READ brushHardnessEnabled WRITE setBrushHardnessEnabled NOTIFY brushChanged)
+    Q_PROPERTY(qreal pressureCurveMinimum READ pressureCurveMinimum WRITE setPressureCurveMinimum NOTIFY strokeSettingsChanged)
+    Q_PROPERTY(qreal pressureCurveCenter READ pressureCurveCenter WRITE setPressureCurveCenter NOTIFY strokeSettingsChanged)
+    Q_PROPERTY(qreal pressureCurveMaximum READ pressureCurveMaximum WRITE setPressureCurveMaximum NOTIFY strokeSettingsChanged)
+    Q_PROPERTY(qreal stabilizerStrength READ stabilizerStrength WRITE setStabilizerStrength NOTIFY strokeSettingsChanged)
     Q_PROPERTY(bool livePreviewEnabled READ livePreviewEnabled WRITE setLivePreviewEnabled NOTIFY livePreviewEnabledChanged)
     Q_PROPERTY(bool multithreadedEventsEnabled READ multithreadedEventsEnabled WRITE setMultithreadedEventsEnabled NOTIFY multithreadedEventsEnabledChanged)
     Q_PROPERTY(bool liveStrokeActive READ liveStrokeActive NOTIFY liveStrokeActiveChanged)
     Q_PROPERTY(int strokeCount READ strokeCount NOTIFY strokeCountChanged)
+    Q_PROPERTY(QString inputDevice READ inputDevice NOTIFY inputStateChanged)
+    Q_PROPERTY(qreal inputPressure READ inputPressure NOTIFY inputStateChanged)
 
 public:
     explicit PaintCanvasItem(QQuickItem *parent = nullptr);
@@ -71,14 +85,38 @@ public:
     qreal brushSpacingRatio() const;
     void setBrushSpacingRatio(qreal value);
 
+    bool brushSpacingEnabled() const;
+    void setBrushSpacingEnabled(bool enabled);
+
     qreal brushFlow() const;
     void setBrushFlow(qreal value);
+
+    bool brushFlowEnabled() const;
+    void setBrushFlowEnabled(bool enabled);
 
     qreal brushOpacity() const;
     void setBrushOpacity(qreal value);
 
+    bool brushOpacityEnabled() const;
+    void setBrushOpacityEnabled(bool enabled);
+
     qreal brushHardness() const;
     void setBrushHardness(qreal value);
+
+    bool brushHardnessEnabled() const;
+    void setBrushHardnessEnabled(bool enabled);
+
+    qreal pressureCurveMinimum() const;
+    void setPressureCurveMinimum(qreal value);
+
+    qreal pressureCurveCenter() const;
+    void setPressureCurveCenter(qreal value);
+
+    qreal pressureCurveMaximum() const;
+    void setPressureCurveMaximum(qreal value);
+
+    qreal stabilizerStrength() const;
+    void setStabilizerStrength(qreal value);
 
     bool livePreviewEnabled() const;
     void setLivePreviewEnabled(bool enabled);
@@ -88,6 +126,8 @@ public:
 
     bool liveStrokeActive() const;
     int strokeCount() const;
+    QString inputDevice() const;
+    qreal inputPressure() const;
 
     Q_INVOKABLE void clear();
     Q_INVOKABLE void setDocumentViewport(qreal documentX, qreal documentY, qreal zoom);
@@ -99,12 +139,15 @@ public:
 signals:
     void viewportChanged();
     void brushChanged();
+    void strokeSettingsChanged();
     void livePreviewEnabledChanged();
     void multithreadedEventsEnabledChanged();
     void liveStrokeActiveChanged();
     void strokeCountChanged();
+    void inputStateChanged();
 
 protected:
+    bool event(QEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -112,17 +155,31 @@ protected:
 private:
     void ensureRasterLayerSize();
     void updateViewportGeometry();
+    bool shouldIgnoreMousePointerEvent(QMouseEvent *event);
     void handleMousePointerEvent(QMouseEvent *event, PointerEventPhase phase);
     PointerEvent makeDocumentPointerEvent(QMouseEvent *event, PointerEventPhase phase) const;
+    void handleTabletPointerEvent(QTabletEvent *event, PointerEventPhase phase);
+    void noteTabletPointerEvent(const PointerEvent &event);
+    TabletState makeTabletState(QTabletEvent *event, PointerEventPhase phase) const;
+    PointerEvent makeDocumentPointerEvent(QTabletEvent *event, PointerEventPhase phase) const;
     RasterProjection currentRasterProjection() const;
     DevicePixelRect layerBounds() const;
     void requestTextureUpdate(DevicePixelRect dirtyBounds);
     void updateLiveStrokePreview();
-    void applyLiveStrokeWorkResult(std::uint64_t generation, const CanvasLiveStrokeWorkResult &result);
+    void startLiveStrokePreviewWork(const CanvasLiveStrokeWorkRequest &request,
+                                    std::uint64_t generation,
+                                    std::uint64_t revision);
+    void startPendingLiveStrokePreviewWork();
+    void applyLiveStrokeWorkResult(std::uint64_t generation,
+                                   std::uint64_t revision,
+                                   const CanvasLiveStrokeWorkResult &result);
+    void preserveLiveStrokePreviewForCommit();
     void clearLiveStrokePreview();
+    void clearLiveStrokePreviewPixels();
     void commitStroke(const StrokeInput &stroke);
     void applyCommitStrokeWorkResult(std::uint64_t revision, const CanvasCommitStrokeWorkResult &result);
     void emitLiveStrokeActiveChangedIfNeeded(bool previousActive);
+    void noteInputState(const PointerEvent &event);
     BrushState currentBrushState() const;
     CanvasLiveStrokeWorkRequest currentLiveStrokeWorkRequest() const;
     CanvasCommitStrokeWorkRequest currentCommitStrokeWorkRequest(const StrokeInput &stroke) const;
@@ -132,18 +189,29 @@ private:
     RasterLayer m_liveRasterLayer;
     QThreadPool m_liveEventThreadPool;
     QThreadPool m_commitEventThreadPool;
+    InputNormalizer m_inputNormalizer;
     InputStrokeBuilder m_strokeBuilder;
     LiveStrokeBuffer m_liveStrokeBuffer;
     Stabilizer m_stabilizer{0.25};
     Rasterizer m_rasterizer{};
     CanvasViewport m_viewport{};
     DocumentPoint m_documentOrigin{};
+    CanvasLiveStrokeWorkRequest m_pendingLiveStrokeWorkRequest{};
     Types::Scalar m_zoom = 1.0;
     Types::Scalar m_devicePixelRatio = 1.0;
     DevicePixelRect m_liveStrokeDeviceDirtyBounds{};
     bool m_livePreviewEnabled = true;
     bool m_multithreadedEventsEnabled = true;
+    bool m_livePreviewWorkActive = false;
+    bool m_livePreviewWorkPending = false;
+    bool m_tabletPointerActive = false;
+    bool m_suppressMouseAfterTablet = false;
+    PointerDeviceKind m_lastInputDevice = PointerDeviceKind::Mouse;
+    Types::Scalar m_lastInputPressure = 1.0;
     std::uint64_t m_canvasEventRevision = 0;
     std::uint64_t m_livePreviewGeneration = 0;
+    std::uint64_t m_livePreviewRevision = 0;
+    std::uint64_t m_pendingLivePreviewGeneration = 0;
+    std::uint64_t m_pendingLivePreviewRevision = 0;
     std::uint32_t m_nextStrokeSeed = 1;
 };

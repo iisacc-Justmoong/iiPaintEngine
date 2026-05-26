@@ -46,6 +46,8 @@ LV.ApplicationWindow {
         && paintControls.width > 0
         && clearButton !== null
         && livePreviewToggle !== null
+        && pressureCurveGraph !== null
+        && stabilizerStrengthSlider !== null
 
     property int activeSwatchIndex: 0
     property color activeBrushColor: swatches[activeSwatchIndex].color
@@ -54,13 +56,43 @@ LV.ApplicationWindow {
     property real currentOpacity: 0.92
     property real currentHardness: 0.72
     property real currentSpacingRatio: 0.22
+    property real currentPressureCurveMinimum: 0.0
+    property real currentPressureCurveCenter: 0.5
+    property real currentPressureCurveMaximum: 1.0
+    property real currentStabilizerStrength: 0.25
     property real currentZoom: 1.0
+    property bool flowArgumentEnabled: true
+    property bool opacityArgumentEnabled: true
+    property bool hardnessArgumentEnabled: true
+    property bool spacingArgumentEnabled: true
 
     function applyBrushSettings() {
         demoCanvas.setBrush(currentBrushSize, activeBrushColor, currentFlow, currentOpacity)
+        demoCanvas.brushFlowEnabled = flowArgumentEnabled
+        demoCanvas.brushOpacityEnabled = opacityArgumentEnabled
         demoCanvas.brushHardness = currentHardness
+        demoCanvas.brushHardnessEnabled = hardnessArgumentEnabled
         demoCanvas.brushSpacingRatio = currentSpacingRatio
+        demoCanvas.brushSpacingEnabled = spacingArgumentEnabled
+        demoCanvas.pressureCurveMinimum = currentPressureCurveMinimum
+        demoCanvas.pressureCurveCenter = currentPressureCurveCenter
+        demoCanvas.pressureCurveMaximum = currentPressureCurveMaximum
+        demoCanvas.stabilizerStrength = currentStabilizerStrength
         demoCanvas.livePreviewEnabled = livePreviewToggle.checked
+    }
+
+    function clamp01(value) {
+        return Math.max(0, Math.min(1, value))
+    }
+
+    function setPressureCurve(minimum, center, maximum) {
+        var nextMinimum = clamp01(minimum)
+        var nextMaximum = Math.max(clamp01(maximum), nextMinimum)
+        var nextCenter = Math.max(nextMinimum, Math.min(clamp01(center), nextMaximum))
+        currentPressureCurveMinimum = nextMinimum
+        currentPressureCurveCenter = nextCenter
+        currentPressureCurveMaximum = nextMaximum
+        applyBrushSettings()
     }
 
     function chooseSwatch(index) {
@@ -112,6 +144,15 @@ LV.ApplicationWindow {
                 style: body
                 color: "#aab6c2"
                 Layout.preferredWidth: 110
+                Layout.alignment: Qt.AlignVCenter
+            }
+
+            LV.Label {
+                objectName: "inputPressureLabel"
+                text: demoCanvas.inputDevice + " " + Math.round(demoCanvas.inputPressure * 100) + "%"
+                style: body
+                color: demoCanvas.inputDevice === "tablet" ? "#f5a524" : "#8fa0b2"
+                Layout.preferredWidth: 120
                 Layout.alignment: Qt.AlignVCenter
             }
 
@@ -240,6 +281,8 @@ LV.ApplicationWindow {
                     model: root.swatches.length
 
                     Rectangle {
+                        required property int index
+
                         width: Math.floor((paintControls.width - 32 - 40) / 6)
                         height: width
                         radius: 6
@@ -276,8 +319,15 @@ LV.ApplicationWindow {
                 0.05
                 to: 1
                 value: root.currentFlow
+                toggleVisible: true
+                toggleObjectName: "flowArgumentToggle"
+                toggleChecked: root.flowArgumentEnabled
                 onMoved: function (value) {
                     root.currentFlow = value
+                    root.applyBrushSettings()
+                }
+                onToggleChanged: function (checked) {
+                    root.flowArgumentEnabled = checked
                     root.applyBrushSettings()
                 }
             }
@@ -289,8 +339,15 @@ LV.ApplicationWindow {
                 0.05
                 to: 1
                 value: root.currentOpacity
+                toggleVisible: true
+                toggleObjectName: "opacityArgumentToggle"
+                toggleChecked: root.opacityArgumentEnabled
                 onMoved: function (value) {
                     root.currentOpacity = value
+                    root.applyBrushSettings()
+                }
+                onToggleChanged: function (checked) {
+                    root.opacityArgumentEnabled = checked
                     root.applyBrushSettings()
                 }
             }
@@ -302,21 +359,60 @@ LV.ApplicationWindow {
                 0.05
                 to: 1
                 value: root.currentHardness
+                toggleVisible: true
+                toggleObjectName: "hardnessArgumentToggle"
+                toggleChecked: root.hardnessArgumentEnabled
                 onMoved: function (value) {
                     root.currentHardness = value
+                    root.applyBrushSettings()
+                }
+                onToggleChanged: function (checked) {
+                    root.hardnessArgumentEnabled = checked
                     root.applyBrushSettings()
                 }
             }
 
             BrushSlider {
+                objectName: "spacingSlider"
                 width: parent.width
                 label: "Spacing"
                 valueText: Math.round(root.currentSpacingRatio * 100) + "%"
-                0.05
-                to: 0.8
+                0
+                to: 1
                 value: root.currentSpacingRatio
+                toggleVisible: true
+                toggleObjectName: "spacingArgumentToggle"
+                toggleChecked: root.spacingArgumentEnabled
                 onMoved: function (value) {
                     root.currentSpacingRatio = value
+                    root.applyBrushSettings()
+                }
+                onToggleChanged: function (checked) {
+                    root.spacingArgumentEnabled = checked
+                    root.applyBrushSettings()
+                }
+            }
+
+            PressureCurveEditor {
+                id: pressureCurveGraph
+                objectName: "pressureCurveGraph"
+                width: parent.width
+                minimum: root.currentPressureCurveMinimum
+                center: root.currentPressureCurveCenter
+                maximum: root.currentPressureCurveMaximum
+            }
+
+            BrushSlider {
+                id: stabilizerStrengthSlider
+                objectName: "stabilizerStrengthSlider"
+                width: parent.width
+                label: "Stabilizer"
+                valueText: Math.round(root.currentStabilizerStrength * 100) + "%"
+                0
+                to: 1
+                value: root.currentStabilizerStrength
+                onMoved: function (value) {
+                    root.currentStabilizerStrength = value
                     root.applyBrushSettings()
                 }
             }
@@ -339,6 +435,8 @@ LV.ApplicationWindow {
         Repeater {
             model: Math.max(0, Math.ceil(canvasFrame.width / 32))
             Rectangle {
+                required property int index
+
                 x: index * 32
                 y: 0
                 width: 1
@@ -351,6 +449,8 @@ LV.ApplicationWindow {
         Repeater {
             model: Math.max(0, Math.ceil(canvasFrame.height / 32))
             Rectangle {
+                required property int index
+
                 x: 0
                 y: index * 32
                 width: canvasFrame.width
@@ -372,11 +472,197 @@ LV.ApplicationWindow {
             brushColor: root.activeBrushColor
             brushSize: root.currentBrushSize
             brushFlow: root.currentFlow
+            brushFlowEnabled: root.flowArgumentEnabled
             brushOpacity: root.currentOpacity
+            brushOpacityEnabled: root.opacityArgumentEnabled
             brushHardness: root.currentHardness
+            brushHardnessEnabled: root.hardnessArgumentEnabled
             brushSpacingRatio: root.currentSpacingRatio
+            brushSpacingEnabled: root.spacingArgumentEnabled
+            pressureCurveMinimum: root.currentPressureCurveMinimum
+            pressureCurveCenter: root.currentPressureCurveCenter
+            pressureCurveMaximum: root.currentPressureCurveMaximum
+            stabilizerStrength: root.currentStabilizerStrength
             livePreviewEnabled: livePreviewToggle.checked
             multithreadedEventsEnabled: true
+        }
+    }
+
+    component PressureCurveEditor: Item {
+        id: curveRoot
+
+        property real minimum: 0.0
+        property real center: 0.5
+        property real maximum: 1.0
+
+        height: 138
+
+        onMinimumChanged: graphCanvas.requestPaint()
+        onCenterChanged: graphCanvas.requestPaint()
+        onMaximumChanged: graphCanvas.requestPaint()
+
+        LV.Label {
+            x: 0
+            y: 0
+            width: curveRoot.width
+            height: 18
+            text: "Pressure Curve"
+            style: caption
+            color: "#c7d2df"
+        }
+
+        Canvas {
+            id: graphCanvas
+            x: 0
+            y: 20
+            width: curveRoot.width
+            height: 72
+
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.reset()
+                ctx.clearRect(0, 0, width, height)
+                ctx.strokeStyle = "#33404d"
+                ctx.lineWidth = 1
+                ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
+
+                var minY = height * (1.0 - curveRoot.minimum)
+                var centerX = width * 0.5
+                var centerY = height * (1.0 - curveRoot.center)
+                var maxY = height * (1.0 - curveRoot.maximum)
+
+                ctx.beginPath()
+                ctx.moveTo(0, minY)
+                ctx.lineTo(centerX, centerY)
+                ctx.lineTo(width, maxY)
+                ctx.strokeStyle = "#f2f5f8"
+                ctx.lineWidth = 3
+                ctx.stroke()
+
+                ctx.fillStyle = "#1e88ff"
+                ctx.beginPath()
+                ctx.arc(0, minY, 5, 0, Math.PI * 2)
+                ctx.fill()
+                ctx.beginPath()
+                ctx.arc(centerX, centerY, 6, 0, Math.PI * 2)
+                ctx.fill()
+                ctx.beginPath()
+                ctx.arc(width, maxY, 5, 0, Math.PI * 2)
+                ctx.fill()
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                property int activeHandle: 1
+
+                function valueFromY(yValue) {
+                    return root.clamp01(1.0 - yValue / Math.max(1, height))
+                }
+
+                function pickHandle(xValue) {
+                    var centerDistance = Math.abs(xValue - width * 0.5)
+                    var minimumDistance = Math.abs(xValue)
+                    var maximumDistance = Math.abs(xValue - width)
+                    if (minimumDistance <= centerDistance && minimumDistance <= maximumDistance)
+                        return 0
+                    if (maximumDistance <= centerDistance)
+                        return 2
+                    return 1
+                }
+
+                function applyHandle(mouse) {
+                    var nextValue = valueFromY(mouse.y)
+                    if (activeHandle === 0)
+                        root.setPressureCurve(nextValue, root.currentPressureCurveCenter, root.currentPressureCurveMaximum)
+                    else if (activeHandle === 1)
+                        root.setPressureCurve(root.currentPressureCurveMinimum, nextValue, root.currentPressureCurveMaximum)
+                    else
+                        root.setPressureCurve(root.currentPressureCurveMinimum, root.currentPressureCurveCenter, nextValue)
+                }
+
+                onPressed: function (mouse) {
+                    activeHandle = pickHandle(mouse.x)
+                    applyHandle(mouse)
+                }
+                onPositionChanged: function (mouse) {
+                    if (pressed)
+                        applyHandle(mouse)
+                }
+            }
+        }
+
+        Row {
+            x: 0
+            y: 96
+            width: curveRoot.width
+            height: 40
+            spacing: 8
+
+            CurveMiniSlider {
+                objectName: "pressureCurveMinimumSlider"
+                width: Math.max(1, (parent.width - 16) / 3)
+                label: "Min"
+                value: root.currentPressureCurveMinimum
+                onMoved: function (value) {
+                    root.setPressureCurve(value, root.currentPressureCurveCenter, root.currentPressureCurveMaximum)
+                }
+            }
+
+            CurveMiniSlider {
+                objectName: "pressureCurveCenterSlider"
+                width: Math.max(1, (parent.width - 16) / 3)
+                label: "Center"
+                value: root.currentPressureCurveCenter
+                onMoved: function (value) {
+                    root.setPressureCurve(root.currentPressureCurveMinimum, value, root.currentPressureCurveMaximum)
+                }
+            }
+
+            CurveMiniSlider {
+                objectName: "pressureCurveMaximumSlider"
+                width: Math.max(1, (parent.width - 16) / 3)
+                label: "Max"
+                value: root.currentPressureCurveMaximum
+                onMoved: function (value) {
+                    root.setPressureCurve(root.currentPressureCurveMinimum, root.currentPressureCurveCenter, value)
+                }
+            }
+        }
+    }
+
+    component CurveMiniSlider: Item {
+        id: miniRoot
+
+        property string label: ""
+        property real from: 0
+        property real to: 1
+        property alias value: slider.value
+
+        signal moved(real value)
+
+        height: 40
+
+        LV.Label {
+            x: 0
+            y: 0
+            width: miniRoot.width
+            height: 14
+            text: miniRoot.label
+            style: caption
+            color: "#8fa0b2"
+            horizontalAlignment: Text.AlignHCenter
+        }
+
+        QC.Slider {
+            id: slider
+            x: 0
+            y: 16
+            width: miniRoot.width
+            height: 22
+            miniRoot.from
+            to: miniRoot.to
+            onMoved: miniRoot.moved(value)
         }
     }
 
@@ -387,16 +673,23 @@ LV.ApplicationWindow {
         property string valueText: ""
         property real from: 0
         property real to: 1
+        property bool toggleVisible: false
+        property bool toggleChecked: true
+        property string toggleObjectName: ""
         property alias value: slider.value
 
         signal moved(real value)
 
-        height: 46
+        signal toggleChanged(bool checked)
+
+        readonly property int toggleSlotWidth: toggleVisible ? 54 : 0
+
+        height: 48
 
         LV.Label {
             x: 0
             y: 0
-            width: sliderRoot.width * 0.55
+            width: Math.max(1, sliderRoot.width * 0.45)
             height: 18
             text: sliderRoot.label
             style: caption
@@ -404,14 +697,25 @@ LV.ApplicationWindow {
         }
 
         LV.Label {
-            x: sliderRoot.width * 0.55
+            x: Math.round(sliderRoot.width * 0.45)
             y: 0
-            width: sliderRoot.width * 0.45
+            width: Math.max(1, sliderRoot.width - x - sliderRoot.toggleSlotWidth)
             height: 18
             text: sliderRoot.valueText
             style: caption
             color: "#8fa0b2"
             horizontalAlignment: Text.AlignRight
+        }
+
+        LV.ToggleSwitch {
+            objectName: sliderRoot.toggleObjectName
+            visible: sliderRoot.toggleVisible
+            x: Math.round(sliderRoot.width - width)
+            y: -2
+            width: 42
+            height: 22
+            checked: sliderRoot.toggleChecked
+            onCheckedChanged: sliderRoot.toggleChanged(checked)
         }
 
         QC.Slider {

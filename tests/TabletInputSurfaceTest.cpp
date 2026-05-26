@@ -96,6 +96,73 @@ int main()
         return 1;
     }
 
+    TabletState penRelease = penDown;
+    penRelease.contact = false;
+    penRelease.primaryButtonDown = false;
+    penRelease.barrelButtonDown = false;
+    penRelease.pressure = 0.0;
+    penRelease.time = 2.5;
+    const PointerEvent releaseEvent = normalizeTabletPointerEvent(normalizer,
+                                                                  penRelease,
+                                                                  PointerEventPhase::Release);
+    const InputStrokeBuildResult completedPenStroke = appendPointerEvent(builder, releaseEvent);
+    if (releaseEvent.hovering
+            || hasDeviceState(releaseEvent.deviceState, PointerDeviceStateHover)
+            || !completedPenStroke.strokeCompleted
+            || builder.active) {
+        return 1;
+    }
+
+    InputStrokeBuilder lateContactBuilder;
+    TabletState lateContactMove = penDown;
+    lateContactMove.documentPosition = {12.0, 22.0};
+    lateContactMove.primaryButtonDown = false;
+    lateContactMove.barrelButtonDown = false;
+    lateContactMove.pressure = 0.4;
+    lateContactMove.time = 3.0;
+    const PointerEvent lateContactMoveEvent = normalizeTabletPointerEvent(normalizer,
+                                                                         lateContactMove,
+                                                                         PointerEventPhase::Move);
+    const InputStrokeBuildResult lateContactMoveResult = appendPointerEvent(lateContactBuilder,
+                                                                           lateContactMoveEvent);
+    if (lateContactMoveResult.strokeCompleted
+            || !lateContactBuilder.active
+            || lateContactBuilder.points.size() != 1
+            || !nearlyEqual(lateContactBuilder.points.front().pressure, 0.375)) {
+        return 1;
+    }
+
+    InputNormalizer graphNormalizer = normalizer;
+    graphNormalizer.pressureMin = 0.0;
+    graphNormalizer.pressureMax = 1.0;
+    graphNormalizer.pressureCurveMinimum = 0.2;
+    graphNormalizer.pressureCurveCenter = 0.6;
+    graphNormalizer.pressureCurveMaximum = 0.9;
+    TabletState graphPen = penDown;
+    graphPen.pressure = 0.25;
+    const PointerEvent graphPenEvent = normalizeTabletPointerEvent(graphNormalizer,
+                                                                   graphPen,
+                                                                   PointerEventPhase::Move);
+    if (!nearlyEqual(graphPenEvent.pressure, 0.4)) {
+        return 1;
+    }
+
+    TabletState lateContactRelease = lateContactMove;
+    lateContactRelease.contact = false;
+    lateContactRelease.primaryButtonDown = false;
+    lateContactRelease.pressure = 0.0;
+    lateContactRelease.time = 3.2;
+    const PointerEvent lateContactReleaseEvent = normalizeTabletPointerEvent(normalizer,
+                                                                            lateContactRelease,
+                                                                            PointerEventPhase::Release);
+    const InputStrokeBuildResult lateContactCompleted = appendPointerEvent(lateContactBuilder,
+                                                                          lateContactReleaseEvent);
+    if (!lateContactCompleted.strokeCompleted
+            || lateContactBuilder.active
+            || lateContactCompleted.stroke.points.size() != 2) {
+        return 1;
+    }
+
     TabletState eraserDown = penDown;
     eraserDown.tool = TabletToolKind::Eraser;
     eraserDown.eraser = true;
