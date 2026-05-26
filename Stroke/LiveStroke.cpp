@@ -37,7 +37,8 @@ DevicePixelRect dirtyBoundsForSamples(const std::vector<RasterSample> &samples)
 
 LiveStrokeFrame makeLiveStrokeFrame(const StrokeInput &rawInput,
                                     const BrushState &brush,
-                                    const Stabilizer &stabilizer)
+                                    const Stabilizer &stabilizer,
+                                    bool projectSamples)
 {
     LiveStrokeFrame frame;
     frame.active = !rawInput.points.empty();
@@ -66,8 +67,10 @@ LiveStrokeFrame makeLiveStrokeFrame(const StrokeInput &rawInput,
         frame.cursorPreviewPosition = frame.displayedInput.points.back().position;
         frame.cursorPreviewPositionValid = true;
     }
-    frame.samples = projectBrushDabs(frame.dabs, brush.rasterizer);
-    frame.dirtyBounds = dirtyBoundsForSamples(frame.samples);
+    if (projectSamples) {
+        frame.samples = projectBrushDabs(frame.dabs, brush.rasterizer);
+        frame.dirtyBounds = dirtyBoundsForSamples(frame.samples);
+    }
     return frame;
 }
 

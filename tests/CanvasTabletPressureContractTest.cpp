@@ -1,4 +1,5 @@
 #include <QColor>
+#include <QElapsedTimer>
 #include <QEvent>
 #include <QGuiApplication>
 #include <QImage>
@@ -93,6 +94,19 @@ int paintedPixelCount(const QImage &image)
     return count;
 }
 
+bool waitForCommittedStroke(QGuiApplication &app, PaintCanvasItem &canvas)
+{
+    QElapsedTimer timer;
+    timer.start();
+    while (timer.elapsed() < 1000) {
+        app.processEvents(QEventLoop::AllEvents, 10);
+        if (canvas.strokeCount() == 1 && !canvas.liveStrokeActive()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 QImage renderSinglePressureDab(QGuiApplication &app, qreal pressure)
 {
     TabletTestCanvas canvas;
@@ -116,9 +130,8 @@ QImage renderSinglePressureDab(QGuiApplication &app, qreal pressure)
                                        Qt::NoButton,
                                        Qt::NoButton);
     canvas.event(&release);
-    app.processEvents();
 
-    if (canvas.strokeCount() != 1) {
+    if (!waitForCommittedStroke(app, canvas)) {
         return {};
     }
 
@@ -160,9 +173,8 @@ QImage renderSinglePressureDabWithSynthesizedMouse(QGuiApplication &app, qreal p
                                                                             Qt::LeftButton,
                                                                             Qt::NoButton);
     canvas.mouseReleaseEvent(mouseRelease.get());
-    app.processEvents();
 
-    if (canvas.strokeCount() != 1) {
+    if (!waitForCommittedStroke(app, canvas)) {
         return {};
     }
 
@@ -199,9 +211,8 @@ QImage renderTabletStrokeStartedByPressureMove(QGuiApplication &app)
                                                Qt::NoButton,
                                                Qt::NoButton);
     canvas.event(&pressureRelease);
-    app.processEvents();
 
-    if (canvas.strokeCount() != 1) {
+    if (!waitForCommittedStroke(app, canvas)) {
         return {};
     }
 
@@ -229,9 +240,8 @@ QImage renderSynthesizedMouseFallback(QGuiApplication &app)
                                                                             Qt::LeftButton,
                                                                             Qt::NoButton);
     canvas.mouseReleaseEvent(mouseRelease.get());
-    app.processEvents();
 
-    if (canvas.strokeCount() != 1) {
+    if (!waitForCommittedStroke(app, canvas)) {
         return {};
     }
 
@@ -261,9 +271,8 @@ QImage renderSynthesizedMousePressureDab(QGuiApplication &app, qreal pressure)
                                                                             Qt::NoButton,
                                                                             0.0);
     canvas.mouseReleaseEvent(mouseRelease.get());
-    app.processEvents();
 
-    if (canvas.strokeCount() != 1) {
+    if (!waitForCommittedStroke(app, canvas)) {
         return {};
     }
 
@@ -307,7 +316,7 @@ int main(int argc, char **argv)
                                        Qt::NoButton);
     canvas.event(&release);
 
-    if (canvas.strokeCount() != 1) {
+    if (!waitForCommittedStroke(app, canvas)) {
         return 1;
     }
 

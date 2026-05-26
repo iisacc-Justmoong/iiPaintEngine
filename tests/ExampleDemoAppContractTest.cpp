@@ -72,6 +72,7 @@ int main(int argc, char **argv)
     const QObject *pressureCurveCenterSlider = root->findChild<QObject *>(QStringLiteral("pressureCurveCenterSlider"));
     const QObject *pressureCurveMaximumSlider = root->findChild<QObject *>(QStringLiteral("pressureCurveMaximumSlider"));
     const QObject *stabilizerStrengthSlider = root->findChild<QObject *>(QStringLiteral("stabilizerStrengthSlider"));
+    const QObject *previewFrameIntervalSlider = root->findChild<QObject *>(QStringLiteral("previewFrameIntervalSlider"));
     const QObject *inputPressureLabel = root->findChild<QObject *>(QStringLiteral("inputPressureLabel"));
     if (root->objectName() != QStringLiteral("iiPaintEngineExampleWindow")
             || canvas == nullptr
@@ -88,6 +89,7 @@ int main(int argc, char **argv)
             || pressureCurveCenterSlider == nullptr
             || pressureCurveMaximumSlider == nullptr
             || stabilizerStrengthSlider == nullptr
+            || previewFrameIntervalSlider == nullptr
             || inputPressureLabel == nullptr
             || !root->property("demoReady").toBool()) {
         delete root;
@@ -102,6 +104,7 @@ int main(int argc, char **argv)
             || canvas->pressureCurveCenter() != 0.5
             || canvas->pressureCurveMaximum() != 1.0
             || canvas->stabilizerStrength() != 0.25
+            || canvas->livePreviewFrameIntervalMs() != 8
             || canvas->zoom() != 1.0
             || !canvas->livePreviewEnabled()
             || !canvas->multithreadedEventsEnabled()
@@ -126,7 +129,9 @@ int main(int argc, char **argv)
             || pressureCurveMaximumSlider->property("from").toReal() != 0.0
             || pressureCurveMaximumSlider->property("to").toReal() != 1.0
             || stabilizerStrengthSlider->property("from").toReal() != 0.0
-            || stabilizerStrengthSlider->property("to").toReal() != 1.0) {
+            || stabilizerStrengthSlider->property("to").toReal() != 1.0
+            || previewFrameIntervalSlider->property("from").toReal() != 0.0
+            || previewFrameIntervalSlider->property("to").toReal() != 33.0) {
         delete root;
         return 1;
     }
@@ -135,11 +140,13 @@ int main(int argc, char **argv)
             || !root->setProperty("currentPressureCurveCenter", 0.6)
             || !root->setProperty("currentPressureCurveMaximum", 0.9)
             || !root->setProperty("currentStabilizerStrength", 0.75)
+            || !root->setProperty("currentLivePreviewFrameIntervalMs", 12)
             || !QMetaObject::invokeMethod(root, "applyBrushSettings")
             || canvas->pressureCurveMinimum() != 0.2
             || canvas->pressureCurveCenter() != 0.6
             || canvas->pressureCurveMaximum() != 0.9
-            || canvas->stabilizerStrength() != 0.75) {
+            || canvas->stabilizerStrength() != 0.75
+            || canvas->livePreviewFrameIntervalMs() != 12) {
         delete root;
         return 1;
     }

@@ -55,6 +55,8 @@ int main()
     liveRequest.brush = makeBrush();
     liveRequest.stabilizer = Stabilizer{0.25};
     liveRequest.projection = makeProjection();
+    liveRequest.sourceLayer = makeRasterLayer(2048, 2048, 0xFFFF0000U);
+    liveRequest.sourceLayerEnabled = false;
 
     auto liveFuture = std::async(std::launch::async, [mainThread, liveRequest]() {
         const CanvasLiveStrokeWorkResult result = runCanvasLiveStrokeWork(liveRequest);
@@ -65,7 +67,18 @@ int main()
             || !liveResult.frame.active
             || liveResult.frame.rawInput.points.size() != liveRequest.rawInput.points.size()
             || liveResult.samples.empty()
+            || !liveResult.frame.samples.empty()
             || isEmpty(liveResult.dirtyBounds)) {
+        return 1;
+    }
+
+    CanvasLiveStrokeWorkRequest dryRequest = liveRequest;
+    dryRequest.sourceLayerEnabled = false;
+    const CanvasLiveStrokeWorkResult dryResult = runCanvasLiveStrokeWork(dryRequest);
+    dryRequest.sourceLayerEnabled = true;
+    const CanvasLiveStrokeWorkResult enabledSourceResult = runCanvasLiveStrokeWork(dryRequest);
+    if (dryResult.samples.size() != enabledSourceResult.samples.size()
+            || brushNeedsSourceLayer(dryRequest.brush)) {
         return 1;
     }
 
@@ -74,6 +87,7 @@ int main()
     commitRequest.brush = makeBrush();
     commitRequest.stabilizer = Stabilizer{0.25};
     commitRequest.projection = makeProjection();
+    commitRequest.sourceLayerEnabled = false;
 
     auto commitFuture = std::async(std::launch::async, [mainThread, commitRequest]() {
         const CanvasCommitStrokeWorkResult result = runCanvasCommitStrokeWork(commitRequest);

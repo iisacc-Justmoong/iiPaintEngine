@@ -1,15 +1,15 @@
 #include <QElapsedTimer>
 #include <QGuiApplication>
-#include <QImage>
 #include <QMouseEvent>
-#include <QPainter>
 #include <QPointF>
+
+#include <iostream>
 
 #include "QtAdapter/PaintCanvasItem.h"
 
 namespace {
 
-class PointerTestCanvas : public PaintCanvasItem {
+class PipelineSeparationTestCanvas : public PaintCanvasItem {
 public:
     using PaintCanvasItem::mouseMoveEvent;
     using PaintCanvasItem::mousePressEvent;
@@ -28,11 +28,6 @@ QMouseEvent mouseEvent(QEvent::Type type,
                        button,
                        buttons,
                        Qt::NoModifier};
-}
-
-int alphaAt(const QImage &image, int x, int y)
-{
-    return qAlpha(image.pixel(x, y));
 }
 
 bool waitForCommittedStroke(QGuiApplication &app, PaintCanvasItem &canvas)
@@ -56,45 +51,47 @@ int main(int argc, char **argv)
 
     QGuiApplication app(argc, argv);
 
-    PointerTestCanvas canvas;
-    canvas.setWidth(120);
-    canvas.setHeight(90);
-    canvas.setCanvasDevicePixelRatio(2.0);
+    PipelineSeparationTestCanvas canvas;
+    canvas.setWidth(160);
+    canvas.setHeight(96);
+    canvas.setCanvasDevicePixelRatio(1.0);
     canvas.setMultithreadedEventsEnabled(false);
-    canvas.setBrush(5.0, QColor{"#101318"}, 1.0, 1.0);
-    canvas.setBrushSpacingRatio(0.25);
+    canvas.setLivePreviewEnabled(true);
+    canvas.setLivePreviewFrameIntervalMs(16);
+    canvas.setBrush(16.0, QColor{"#101318"}, 1.0, 1.0);
 
     QMouseEvent press = mouseEvent(QEvent::MouseButtonPress,
-                                   QPointF{20.0, 30.0},
+                                   QPointF{24.0, 36.0},
                                    Qt::LeftButton,
                                    Qt::LeftButton);
     canvas.mousePressEvent(&press);
 
-    QMouseEvent move = mouseEvent(QEvent::MouseMove,
-                                  QPointF{21.0, 30.0},
-                                  Qt::NoButton,
-                                  Qt::LeftButton);
-    canvas.mouseMoveEvent(&move);
+    for (int index = 1; index <= 24; ++index) {
+        QMouseEvent move = mouseEvent(QEvent::MouseMove,
+                                      QPointF{24.0 + static_cast<qreal>(index), 36.0},
+                                      Qt::NoButton,
+                                      Qt::LeftButton);
+        canvas.mouseMoveEvent(&move);
+    }
+
+    if (canvas.liveStrokeActive() || canvas.strokeCount() != 0) {
+        std::cerr << "input event synchronously touched render or document state\n";
+        return 1;
+    }
 
     QMouseEvent release = mouseEvent(QEvent::MouseButtonRelease,
-                                     QPointF{22.0, 30.0},
+                                     QPointF{48.0, 36.0},
                                      Qt::LeftButton,
                                      Qt::NoButton);
     canvas.mouseReleaseEvent(&release);
 
-    if (!waitForCommittedStroke(app, canvas)) {
+    if (canvas.liveStrokeActive() || canvas.strokeCount() != 0) {
+        std::cerr << "stroke release synchronously committed document state\n";
         return 1;
     }
 
-    QImage rendered{120, 90, QImage::Format_ARGB32_Premultiplied};
-    rendered.fill(Qt::transparent);
-    QPainter painter{&rendered};
-    canvas.paint(&painter);
-    painter.end();
-
-    if (alphaAt(rendered, 20, 30) == 0
-            || alphaAt(rendered, 22, 30) == 0
-            || alphaAt(rendered, 40, 60) != 0) {
+    if (!waitForCommittedStroke(app, canvas)) {
+        std::cerr << "deferred stroke commit did not complete\n";
         return 1;
     }
 

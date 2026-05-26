@@ -278,8 +278,12 @@ touch gesture는 centroid, translation, scale, rotation, finger count를 가진 
 같은 상위 경계에서 사용할 수 있다. `InputNormalizer`의 `pressureEnabled`, `tiltEnabled`, `rotationEnabled`, `hoverEnabled`,
 `barrelButtonEnabled`, `eraserEnabled`, `touchGestureEnabled`가 false이면 해당 장치 기능은 neutral 값으로 정규화되어 stroke 입력 인자로 전달되지
 않는다.
-`PaintCanvasItem`은 현재 Qt 마우스 이벤트와 tablet 이벤트를 `PointerEvent`로 만들고, press/move는 live preview job을 만들며 release가 하나의
-`StrokeInput`을 완료하면 commit job을 만든다. tablet press/move/release는 먼저 `TabletState`로 옮긴 뒤 `InputNormalizer`를 통해
+`PaintCanvasItem`은 현재 Qt 마우스 이벤트와 tablet 이벤트를 `PointerEvent`로 만들고, press/move는 raw sample만 `InputStrokeBuilder`에
+가볍게 누적한다. live preview job은 입력 이벤트마다 직접 만들지 않고 `livePreviewFrameIntervalMs` frame tick에서 현재까지 쌓인 raw stroke snapshot을
+묶어 만든다. release가 하나의
+`StrokeInput`을 완료하면 즉시 레이어나 문서를 바꾸지 않고 pending commit request에 넣는다. 실제 commit job과 stroke count/document 상태 변경은 다음
+commit frame에서 시작되고, worker result가 GUI thread에 적용될 때만 발생한다. tablet press/move/release는 먼저 `TabletState`로 옮긴 뒤
+`InputNormalizer`를 통해
 `PointerDeviceKind::Tablet` 이벤트가 되며, pressure, tilt, rotation, eraser/barrel 상태를 stroke sample에 보존한다. 따라서 실제 펜 필압
 jitter가
 기본 brush dynamics의 size, flow, opacity 입력으로 전달된다. hardness는 tablet pressure와 무관하다. tablet tip contact는 `Qt::LeftButton`
@@ -300,10 +304,17 @@ QML에서 직접 바꾸는 사용자 설정용 API이다.
 캔버스 이벤트의 무거운 계산은 `CanvasEventWork` 값 타입 job으로 분리한다. worker thread는 raw input, brush state, stabilizer, raster projection
 snapshot만 받아 `LiveStrokeFrame`, `StrokeCommand`, `RasterSample`, dirty bounds를 계산한다. `PaintCanvasItem`의 `RasterLayer`,
 `LiveStrokeBuffer`, QML property, `update(rect)` 호출은 GUI thread에서만 변경한다. live preview와 commit은 서로 다른 worker queue를 사용하고
-각 queue는 순서를 보존하기 위해 1개 thread로 시작한다. live preview는 실행 중인 job 1개와 최신 pending snapshot 1개만 유지해 move event가
+각 queue는 순서를 보존하기 위해 1개 thread로 시작한다. 입력 단계는 모든 raw sample을 보존하고, 처리 단계는 timer frame마다 그 sample 묶음을
+resampling/dab placement/projection으로 바꾼다. stroke 종료도 문서 이벤트를 직접 발생시키지 않고 pending commit queue에 request를 넣은 뒤 commit
+frame에서
+worker job으로 넘어간다. live preview는 실행 중인 job 1개와 최신 pending snapshot 1개만 유지해 move event가
 많아져도 오래된 frame들이 queue에 쌓이지 않는다. 같은 live revision에서 끝난 frame은 최신 generation보다 조금 뒤처져도 화면에 반영하고, 이어서 최신 pending
 snapshot을 다시 투영한다. release 시에는 live work만 무효화하고 live layer 픽셀은 commit 결과가 committed layer에 적용될 때까지 유지해 handoff 중
 빈 프레임이 보이지 않게 한다. viewport/size/clear/release가 바뀌면 revision과 live generation으로 오래된 결과를 버린다.
+dry brush의 live/commit request는 source `RasterLayer`를 복사하지 않는다. smudge, pickup, mixer처럼 source canvas sampling이 필요한
+brush만
+`sourceLayerEnabled`를 켜고 snapshot을 전달한다. worker 경로에서는 dab 배치와 device projection을 한 번만 수행하며, `PaintCanvasItem`은 stroke
+event 중 QObject child나 QQuickItem child를 동적으로 붙이지 않는다.
 
 ## QML API
 
@@ -335,6 +346,7 @@ Iipe.Canvas {
     brushHardness: 0.8
     brushHardnessEnabled: true
     livePreviewEnabled: true
+    livePreviewFrameIntervalMs: 8
     multithreadedEventsEnabled: true
 }
 ```
@@ -345,7 +357,8 @@ Iipe.Canvas {
 `brushOpacity`,
 `brushOpacityEnabled`, `brushHardness`, `brushHardnessEnabled`,
 `pressureCurveMinimum`, `pressureCurveCenter`, `pressureCurveMaximum`, `stabilizerStrength`,
-`setBrush(size, color, flow, opacity)`를 제공한다. 편집/상태 API는 `clear()`, `livePreviewEnabled`, `multithreadedEventsEnabled`,
+`setBrush(size, color, flow, opacity)`를 제공한다. 편집/상태 API는 `clear()`, `livePreviewEnabled`, `livePreviewFrameIntervalMs`,
+`multithreadedEventsEnabled`,
 `liveStrokeActive`, `strokeCount`, `inputDevice`, `inputPressure`를 제공한다. `inputDevice`와 `inputPressure`는 마지막으로 수신한
 pointer event가
 mouse/tablet/touch 중 무엇이었고 pressure가 어떤 값으로 들어왔는지 예제와 디버깅 UI에서 읽기 위한 read-only 상태이다.
@@ -454,3 +467,11 @@ SDR clamp 계약을 검사한다.
 bounds가 stroke dirty region으로 묶이는지 검사한다.
 `iiPaintEngineCanvasEventThreading` 테스트는 live/commit 캔버스 이벤트 계산이 Qt 객체 없이 값 타입 worker job으로 실행되고, 별도 thread에서 만든 sample과
 dirty bounds를 GUI 적용 단계로 넘길 수 있는지 검사한다.
+`iiPaintEngineCanvasEventLoopLoadContract` 테스트는 120개 move event 뒤에도 `PaintCanvasItem`의 QObject/QQuickItem child 수가 증가하지
+않는지
+검사한다. `iiPaintEngineCanvasInputBatchingContract` 테스트는 입력 이벤트 burst가 즉시 live render work로 바뀌지 않고 frame tick 뒤에 한 번의
+preview 처리로 묶이는지 검사한다. `iiPaintEngineCanvasStrokePipelineSeparationContract` 테스트는 stroke release가 즉시 문서 commit/stroke
+count 변경으로
+이어지지 않고 deferred commit frame 뒤에만 반영되는지 검사한다. `iiPaintEngineCanvasEventThreading`은 dry brush worker request가 source
+layer 복사 없이
+projection하는 계약도 함께 검사한다.

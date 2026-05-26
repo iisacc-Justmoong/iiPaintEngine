@@ -12,6 +12,7 @@
 #include <QPointer>
 #include <QRect>
 #include <QTabletEvent>
+#include <QTimerEvent>
 
 #include <algorithm>
 #include <cstddef>
@@ -194,6 +195,8 @@ PaintCanvasItem::PaintCanvasItem(QQuickItem *parent)
 
 PaintCanvasItem::~PaintCanvasItem()
 {
+    cancelLiveStrokePreviewFrame();
+    cancelStrokeCommitFrame();
     m_liveEventThreadPool.waitForDone();
     m_commitEventThreadPool.waitForDone();
 }
@@ -529,7 +532,7 @@ void PaintCanvasItem::setStabilizerStrength(qreal value)
     m_stabilizer.smoothing = nextStrength;
     invalidatePendingCanvasEventWork();
     if (m_strokeBuilder.active && m_livePreviewEnabled) {
-        updateLiveStrokePreview();
+        requestLiveStrokePreviewFrame();
     }
     emit strokeSettingsChanged();
 }
@@ -549,9 +552,30 @@ void PaintCanvasItem::setLivePreviewEnabled(bool enabled)
     m_livePreviewEnabled = enabled;
     if (!m_livePreviewEnabled) {
         clearLiveStrokePreview();
+    } else if (m_strokeBuilder.active) {
+        requestLiveStrokePreviewFrame();
     }
     emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
     emit livePreviewEnabledChanged();
+}
+
+int PaintCanvasItem::livePreviewFrameIntervalMs() const
+{
+    return m_livePreviewFrameIntervalMs;
+}
+
+void PaintCanvasItem::setLivePreviewFrameIntervalMs(int value)
+{
+    const int nextInterval = std::clamp(value, 0, 1000);
+    if (m_livePreviewFrameIntervalMs == nextInterval) {
+        return;
+    }
+
+    m_livePreviewFrameIntervalMs = nextInterval;
+    if (m_livePreviewFrameTimer.isActive()) {
+        m_livePreviewFrameTimer.start(m_livePreviewFrameIntervalMs, Qt::PreciseTimer, this);
+    }
+    emit livePreviewFrameIntervalMsChanged();
 }
 
 bool PaintCanvasItem::multithreadedEventsEnabled() const
@@ -567,6 +591,7 @@ void PaintCanvasItem::setMultithreadedEventsEnabled(bool enabled)
 
     m_multithreadedEventsEnabled = enabled;
     if (!m_multithreadedEventsEnabled) {
+        cancelLiveStrokePreviewFrame();
         ++m_livePreviewGeneration;
         ++m_livePreviewRevision;
         m_livePreviewWorkPending = false;
@@ -583,7 +608,7 @@ bool PaintCanvasItem::liveStrokeActive() const
 
 int PaintCanvasItem::strokeCount() const
 {
-    return static_cast<int>(m_nextStrokeSeed - 1);
+    return m_committedStrokeCount;
 }
 
 QString PaintCanvasItem::inputDevice() const
@@ -622,7 +647,9 @@ void PaintCanvasItem::clear()
     clearRasterLayer(m_rasterLayer);
     clearLiveStrokePreview();
     resetInputStrokeBuilder(m_strokeBuilder);
+    m_pendingCommitStrokeWorkRequests.clear();
     m_nextStrokeSeed = 1;
+    m_committedStrokeCount = 0;
     emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
     emit strokeCountChanged();
     update();
@@ -699,6 +726,27 @@ bool PaintCanvasItem::event(QEvent *event)
     }
 
     return QQuickPaintedItem::event(event);
+}
+
+void PaintCanvasItem::timerEvent(QTimerEvent *event)
+{
+    if (m_livePreviewFrameTimer.isActive()
+            && event->timerId() == m_livePreviewFrameTimer.timerId()) {
+        m_livePreviewFrameTimer.stop();
+        processLiveStrokePreviewFrame();
+        event->accept();
+        return;
+    }
+
+    if (m_commitStrokeFrameTimer.isActive()
+            && event->timerId() == m_commitStrokeFrameTimer.timerId()) {
+        m_commitStrokeFrameTimer.stop();
+        processStrokeCommitFrame();
+        event->accept();
+        return;
+    }
+
+    QQuickPaintedItem::timerEvent(event);
 }
 
 void PaintCanvasItem::mousePressEvent(QMouseEvent *event)
@@ -802,11 +850,9 @@ void PaintCanvasItem::handleMousePointerEvent(QMouseEvent *event, PointerEventPh
     const InputStrokeBuildResult result = appendPointerEvent(m_strokeBuilder, pointerEvent);
     if (result.strokeCompleted) {
         preserveLiveStrokePreviewForCommit();
-        commitStroke(result.stroke);
-        ++m_nextStrokeSeed;
-        emit strokeCountChanged();
+        enqueueStrokeCommit(result.stroke);
     } else if (m_strokeBuilder.active && m_livePreviewEnabled) {
-        updateLiveStrokePreview();
+        requestLiveStrokePreviewFrame();
     }
     emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
 }
@@ -821,11 +867,9 @@ void PaintCanvasItem::handleTabletPointerEvent(QTabletEvent *event, PointerEvent
     const InputStrokeBuildResult result = appendPointerEvent(m_strokeBuilder, pointerEvent);
     if (result.strokeCompleted) {
         preserveLiveStrokePreviewForCommit();
-        commitStroke(result.stroke);
-        ++m_nextStrokeSeed;
-        emit strokeCountChanged();
+        enqueueStrokeCommit(result.stroke);
     } else if (m_strokeBuilder.active && m_livePreviewEnabled) {
-        updateLiveStrokePreview();
+        requestLiveStrokePreviewFrame();
     }
     emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
 }
@@ -959,6 +1003,66 @@ void PaintCanvasItem::requestTextureUpdate(DevicePixelRect dirtyBounds)
     update(qRectFromDeviceRect(clipped, m_devicePixelRatio));
 }
 
+void PaintCanvasItem::requestLiveStrokePreviewFrame()
+{
+    if (!m_livePreviewEnabled || !m_strokeBuilder.active || m_livePreviewFrameTimer.isActive()) {
+        return;
+    }
+
+    m_livePreviewFrameTimer.start(m_livePreviewFrameIntervalMs, Qt::PreciseTimer, this);
+}
+
+void PaintCanvasItem::processLiveStrokePreviewFrame()
+{
+    if (!m_livePreviewEnabled || !m_strokeBuilder.active) {
+        return;
+    }
+
+    updateLiveStrokePreview();
+}
+
+void PaintCanvasItem::cancelLiveStrokePreviewFrame()
+{
+    if (m_livePreviewFrameTimer.isActive()) {
+        m_livePreviewFrameTimer.stop();
+    }
+}
+
+void PaintCanvasItem::enqueueStrokeCommit(const StrokeInput &stroke)
+{
+    m_pendingCommitStrokeWorkRequests.push_back(currentCommitStrokeWorkRequest(stroke));
+    ++m_nextStrokeSeed;
+    requestStrokeCommitFrame();
+}
+
+void PaintCanvasItem::requestStrokeCommitFrame()
+{
+    if (m_pendingCommitStrokeWorkRequests.empty() || m_commitStrokeFrameTimer.isActive()) {
+        return;
+    }
+
+    m_commitStrokeFrameTimer.start(0, Qt::PreciseTimer, this);
+}
+
+void PaintCanvasItem::processStrokeCommitFrame()
+{
+    if (m_pendingCommitStrokeWorkRequests.empty()) {
+        return;
+    }
+
+    const CanvasCommitStrokeWorkRequest request = m_pendingCommitStrokeWorkRequests.front();
+    m_pendingCommitStrokeWorkRequests.pop_front();
+    startCommitStrokeWork(request);
+    requestStrokeCommitFrame();
+}
+
+void PaintCanvasItem::cancelStrokeCommitFrame()
+{
+    if (m_commitStrokeFrameTimer.isActive()) {
+        m_commitStrokeFrameTimer.stop();
+    }
+}
+
 void PaintCanvasItem::updateLiveStrokePreview()
 {
     const CanvasLiveStrokeWorkRequest request = currentLiveStrokeWorkRequest();
@@ -1057,6 +1161,7 @@ void PaintCanvasItem::applyLiveStrokeWorkResult(std::uint64_t generation,
 
 void PaintCanvasItem::preserveLiveStrokePreviewForCommit()
 {
+    cancelLiveStrokePreviewFrame();
     ++m_livePreviewGeneration;
     ++m_livePreviewRevision;
     m_livePreviewWorkPending = false;
@@ -1064,6 +1169,7 @@ void PaintCanvasItem::preserveLiveStrokePreviewForCommit()
 
 void PaintCanvasItem::clearLiveStrokePreview()
 {
+    cancelLiveStrokePreviewFrame();
     ++m_livePreviewGeneration;
     ++m_livePreviewRevision;
     m_livePreviewWorkPending = false;
@@ -1079,9 +1185,8 @@ void PaintCanvasItem::clearLiveStrokePreviewPixels()
     requestTextureUpdate(previousDirtyBounds);
 }
 
-void PaintCanvasItem::commitStroke(const StrokeInput &stroke)
+void PaintCanvasItem::startCommitStrokeWork(const CanvasCommitStrokeWorkRequest &request)
 {
-    const CanvasCommitStrokeWorkRequest request = currentCommitStrokeWorkRequest(stroke);
     const std::uint64_t revision = m_canvasEventRevision;
     if (!m_multithreadedEventsEnabled) {
         applyCommitStrokeWorkResult(revision, runCanvasCommitStrokeWork(request));
@@ -1118,6 +1223,8 @@ void PaintCanvasItem::applyCommitStrokeWorkResult(std::uint64_t revision,
     const DevicePixelRect previousLiveDirtyBounds = m_liveStrokeDeviceDirtyBounds;
     clearLiveStrokePreviewPixels();
     requestTextureUpdate(uniteDevicePixelRects(result.dirtyBounds, previousLiveDirtyBounds));
+    ++m_committedStrokeCount;
+    emit strokeCountChanged();
     emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
 }
 
@@ -1148,28 +1255,37 @@ BrushState PaintCanvasItem::currentBrushState() const
 
 CanvasLiveStrokeWorkRequest PaintCanvasItem::currentLiveStrokeWorkRequest() const
 {
-    return CanvasLiveStrokeWorkRequest{
-            activeStrokeInput(m_strokeBuilder),
-            currentBrushState(),
-            m_stabilizer,
-            currentRasterProjection(),
-            m_rasterLayer,
-    };
+    CanvasLiveStrokeWorkRequest request;
+    request.rawInput = activeStrokeInput(m_strokeBuilder);
+    request.brush = currentBrushState();
+    request.stabilizer = m_stabilizer;
+    request.projection = currentRasterProjection();
+    request.sourceLayerEnabled = brushNeedsSourceLayer(request.brush);
+    if (request.sourceLayerEnabled) {
+        request.sourceLayer = m_rasterLayer;
+    }
+    return request;
 }
 
 CanvasCommitStrokeWorkRequest PaintCanvasItem::currentCommitStrokeWorkRequest(const StrokeInput &stroke) const
 {
-    return CanvasCommitStrokeWorkRequest{
-            stroke,
-            currentBrushState(),
-            m_stabilizer,
-            currentRasterProjection(),
-            m_rasterLayer,
-    };
+    CanvasCommitStrokeWorkRequest request;
+    request.rawInput = stroke;
+    request.brush = currentBrushState();
+    request.stabilizer = m_stabilizer;
+    request.projection = currentRasterProjection();
+    request.sourceLayerEnabled = brushNeedsSourceLayer(request.brush);
+    if (request.sourceLayerEnabled) {
+        request.sourceLayer = m_rasterLayer;
+    }
+    return request;
 }
 
 void PaintCanvasItem::invalidatePendingCanvasEventWork()
 {
+    cancelLiveStrokePreviewFrame();
+    cancelStrokeCommitFrame();
+    m_pendingCommitStrokeWorkRequests.clear();
     ++m_canvasEventRevision;
     ++m_livePreviewGeneration;
     ++m_livePreviewRevision;

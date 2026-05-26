@@ -565,5 +565,32 @@ target_link_libraries(iiPaintEngineCanvasEventThreadingTests PRIVATE
 add_test(NAME iiPaintEngineCanvasEventThreading
         COMMAND iiPaintEngineCanvasEventThreadingTests)
 
+add_executable(iiPaintEngineCanvasEventLoopLoadContractTests
+        tests/CanvasEventLoopLoadContractTest.cpp)
+
+target_link_libraries(iiPaintEngineCanvasEventLoopLoadContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineCanvasEventLoopLoadContract
+        COMMAND iiPaintEngineCanvasEventLoopLoadContractTests)
+
+add_executable(iiPaintEngineCanvasInputBatchingContractTests
+        tests/CanvasInputBatchingContractTest.cpp)
+
+target_link_libraries(iiPaintEngineCanvasInputBatchingContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineCanvasInputBatchingContract
+        COMMAND iiPaintEngineCanvasInputBatchingContractTests)
+
+add_executable(iiPaintEngineCanvasStrokePipelineSeparationContractTests
+        tests/CanvasStrokePipelineSeparationContractTest.cpp)
+
+target_link_libraries(iiPaintEngineCanvasStrokePipelineSeparationContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineCanvasStrokePipelineSeparationContract
+        COMMAND iiPaintEngineCanvasStrokePipelineSeparationContractTests)
+
 add_test(NAME iiPaintEngineDependencyBoundary
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/DependencyBoundaryTest.cmake)

@@ -48,6 +48,7 @@ LV.ApplicationWindow {
         && livePreviewToggle !== null
         && pressureCurveGraph !== null
         && stabilizerStrengthSlider !== null
+        && previewFrameIntervalSlider !== null
 
     property int activeSwatchIndex: 0
     property color activeBrushColor: swatches[activeSwatchIndex].color
@@ -60,6 +61,7 @@ LV.ApplicationWindow {
     property real currentPressureCurveCenter: 0.5
     property real currentPressureCurveMaximum: 1.0
     property real currentStabilizerStrength: 0.25
+    property int currentLivePreviewFrameIntervalMs: 8
     property real currentZoom: 1.0
     property bool flowArgumentEnabled: true
     property bool opacityArgumentEnabled: true
@@ -78,6 +80,7 @@ LV.ApplicationWindow {
         demoCanvas.pressureCurveCenter = currentPressureCurveCenter
         demoCanvas.pressureCurveMaximum = currentPressureCurveMaximum
         demoCanvas.stabilizerStrength = currentStabilizerStrength
+        demoCanvas.livePreviewFrameIntervalMs = currentLivePreviewFrameIntervalMs
         demoCanvas.livePreviewEnabled = livePreviewToggle.checked
     }
 
@@ -416,6 +419,21 @@ LV.ApplicationWindow {
                     root.applyBrushSettings()
                 }
             }
+
+            BrushSlider {
+                id: previewFrameIntervalSlider
+                objectName: "previewFrameIntervalSlider"
+                width: parent.width
+                label: "Frame"
+                valueText: root.currentLivePreviewFrameIntervalMs + " ms"
+                0
+                to: 33
+                value: root.currentLivePreviewFrameIntervalMs
+                onMoved: function (value) {
+                    root.currentLivePreviewFrameIntervalMs = Math.round(value)
+                    root.applyBrushSettings()
+                }
+            }
         }
     }
 
@@ -483,6 +501,7 @@ LV.ApplicationWindow {
             pressureCurveCenter: root.currentPressureCurveCenter
             pressureCurveMaximum: root.currentPressureCurveMaximum
             stabilizerStrength: root.currentStabilizerStrength
+            livePreviewFrameIntervalMs: root.currentLivePreviewFrameIntervalMs
             livePreviewEnabled: livePreviewToggle.checked
             multithreadedEventsEnabled: true
         }

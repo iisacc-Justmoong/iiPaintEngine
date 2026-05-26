@@ -56,6 +56,7 @@ Iipe.Canvas {
     pressureCurveMaximum: 0.9
     stabilizerStrength: 0.4
     livePreviewEnabled: true
+    livePreviewFrameIntervalMs: 12
     multithreadedEventsEnabled: true
 }
 )",
@@ -100,6 +101,7 @@ Iipe.Canvas {
             || canvas->pressureCurveMaximum() != 0.9
             || canvas->stabilizerStrength() != 0.4
             || !canvas->livePreviewEnabled()
+            || canvas->livePreviewFrameIntervalMs() != 12
             || !canvas->multithreadedEventsEnabled()
             || canvas->liveStrokeActive()
             || canvas->strokeCount() != 0
@@ -186,6 +188,18 @@ Iipe.Canvas {
 
     canvas->setMultithreadedEventsEnabled(false);
     if (canvas->multithreadedEventsEnabled()) {
+        delete object;
+        return 1;
+    }
+
+    canvas->setLivePreviewFrameIntervalMs(-4);
+    if (canvas->livePreviewFrameIntervalMs() != 0) {
+        delete object;
+        return 1;
+    }
+
+    canvas->setLivePreviewFrameIntervalMs(2500);
+    if (canvas->livePreviewFrameIntervalMs() != 1000) {
         delete object;
         return 1;
     }

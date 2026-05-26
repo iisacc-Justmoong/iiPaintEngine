@@ -19,6 +19,7 @@ struct CanvasLiveStrokeWorkRequest {
     Stabilizer stabilizer;
     RasterProjection projection;
     RasterLayer sourceLayer;
+    bool sourceLayerEnabled = false;
 };
 
 struct CanvasLiveStrokeWorkResult {
@@ -33,6 +34,7 @@ struct CanvasCommitStrokeWorkRequest {
     Stabilizer stabilizer;
     RasterProjection projection;
     RasterLayer sourceLayer;
+    bool sourceLayerEnabled = false;
 };
 
 struct CanvasCommitStrokeWorkResult {
@@ -44,3 +46,5 @@ struct CanvasCommitStrokeWorkResult {
 CanvasLiveStrokeWorkResult runCanvasLiveStrokeWork(const CanvasLiveStrokeWorkRequest &request);
 
 CanvasCommitStrokeWorkResult runCanvasCommitStrokeWork(const CanvasCommitStrokeWorkRequest &request);
+
+bool brushNeedsSourceLayer(const BrushState &brush);

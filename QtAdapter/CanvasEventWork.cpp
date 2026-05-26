@@ -32,24 +32,36 @@ RasterSourceSampler sourceSamplerForLayer(const RasterLayer &layer)
 
 } // namespace
 
+bool brushNeedsSourceLayer(const BrushState &brush)
+{
+    return brush.material.simulation.enabled
+            && brush.material.simulation.model != BrushSimulationModel::Dry;
+}
+
 CanvasLiveStrokeWorkResult runCanvasLiveStrokeWork(const CanvasLiveStrokeWorkRequest &request)
 {
     CanvasLiveStrokeWorkResult result;
-    result.frame = makeLiveStrokeFrame(request.rawInput, request.brush, request.stabilizer);
+    result.frame = makeLiveStrokeFrame(request.rawInput, request.brush, request.stabilizer, false);
     if (!result.frame.active) {
         return result;
     }
 
-    const RasterSourceSampler sourceSampler = sourceSamplerForLayer(request.sourceLayer);
-    result.samples = projectBrushDabs(result.frame.dabs,
-                                      request.brush.rasterizer,
-                                      request.projection,
-                                      sourceSampler,
-                                      request.brush.material);
+    if (request.sourceLayerEnabled && brushNeedsSourceLayer(request.brush)) {
+        const RasterSourceSampler sourceSampler = sourceSamplerForLayer(request.sourceLayer);
+        result.samples = projectBrushDabs(result.frame.dabs,
+                                          request.brush.rasterizer,
+                                          request.projection,
+                                          sourceSampler,
+                                          request.brush.material);
+    } else {
+        result.samples = projectBrushDabs(result.frame.dabs,
+                                          request.brush.rasterizer,
+                                          request.projection,
+                                          request.brush.material);
+    }
     result.dirtyBounds = makeDirtyRegion(deviceBoundsForBrushDabs(result.frame.dabs,
                                                                   request.brush.rasterizer,
                                                                   request.projection)).bounds;
-    result.frame.samples = result.samples;
     result.frame.dirtyBounds = result.dirtyBounds;
     return result;
 }
@@ -58,12 +70,19 @@ CanvasCommitStrokeWorkResult runCanvasCommitStrokeWork(const CanvasCommitStrokeW
 {
     CanvasCommitStrokeWorkResult result;
     result.command = makeStrokeCommand(request.rawInput, request.brush, request.stabilizer);
-    const RasterSourceSampler sourceSampler = sourceSamplerForLayer(request.sourceLayer);
-    result.samples = projectBrushDabs(result.command.dabs,
-                                      result.command.brush.rasterizer,
-                                      request.projection,
-                                      sourceSampler,
-                                      result.command.brush.material);
+    if (request.sourceLayerEnabled && brushNeedsSourceLayer(result.command.brush)) {
+        const RasterSourceSampler sourceSampler = sourceSamplerForLayer(request.sourceLayer);
+        result.samples = projectBrushDabs(result.command.dabs,
+                                          result.command.brush.rasterizer,
+                                          request.projection,
+                                          sourceSampler,
+                                          result.command.brush.material);
+    } else {
+        result.samples = projectBrushDabs(result.command.dabs,
+                                          result.command.brush.rasterizer,
+                                          request.projection,
+                                          result.command.brush.material);
+    }
     result.dirtyBounds = makeDirtyRegion(deviceBoundsForBrushDabs(result.command.dabs,
                                                                   result.command.brush.rasterizer,
                                                                   request.projection)).bounds;

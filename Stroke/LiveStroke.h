@@ -31,7 +31,8 @@ struct LiveStrokeBuffer {
 
 LiveStrokeFrame makeLiveStrokeFrame(const StrokeInput &rawInput,
                                     const BrushState &brush,
-                                    const Stabilizer &stabilizer);
+                                    const Stabilizer &stabilizer,
+                                    bool projectSamples = true);
 
 void updateLiveStrokeBuffer(LiveStrokeBuffer &buffer,
                             const StrokeInput &rawInput,
