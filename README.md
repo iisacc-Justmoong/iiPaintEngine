@@ -148,6 +148,14 @@ before/after patch payload가 파일 컨테이너 구현 전에 먼저 보존되
 persistent value를
 읽을 수 있다.
 
+앱/문서 조작 경계는 `DocumentAdapter`, `LayerListModel`, `PaintEngineController`가 맡는다. 세 타입은 Qt 객체가 아니라 복사 가능한 값 타입이며,
+`DocumentAdapter`는 현재 `DocumentArchive`와 active canvas index를 들고 `new/load/save`, active layer 선택, 레이어 이름/가시성/opacity
+변경,
+stroke commit을 문서 모델에 반영하는 free function API를 제공한다. `commitStrokeToActiveDocumentLayer`는 `StrokeCommand`를 active
+layer의 `DrawingSurface`에 적용하고 같은 command를 `Canvas::strokes`와 `HistoryStack`에도 남긴 뒤 `Canvas::surface` composite를 갱신한다.
+`LayerListModel`은 `LayerStack`을 앱 UI가 바로 읽을 수 있는 flat row 목록으로 투영하고, `PaintEngineController`는 문서 생성/열기/저장,
+레이어 추가/선택, stroke commit 뒤 layer list refresh까지 묶는 상위 앱 API이다.
+
 `HistoryStack`은 부가 로그가 아니라 undo/redo의 중심 operation journal이다. `Command`는 command kind, scope, transaction id,
 coalescing key, dirty bounds, target id와 함께 before/after `CommandPatch` payload를 가진다. payload는 inline bytes 또는 asset
 reference로
@@ -379,6 +387,28 @@ brush color, brush size, flow, opacity, hardness, spacing, 각 stroke 인자 ena
 필압/브러시 설정 UI의 공개 API를 검증한다.
 `iiPaintEngineExampleDemoContract` 테스트는 예제 QML을 실제 엔진으로 로드하고 `Example/bin` 실행 파일 산출 계약을 함께 검사한다.
 
+## 설치
+
+`install.sh`는 `build/`를 사용해 동적 라이브러리를 빌드하고 기본 prefix인 `~/.local/iiPaintEngine`에 설치한다. macOS host에서는 기본적으로
+`macos,ios,android,wasm` 플랫폼 설치를 시도하며, 필수 Qt/LVRS/toolchain이 없는 cross platform은 자동 기본 설치에서는 건너뛰고 명시 요청 시에는
+오류로 중단한다. host 플랫폼은 root prefix와 `platforms/<platform>` mirror에 함께 설치된다.
+
+```sh
+./install.sh
+IIPAINTENGINE_INSTALL_PLATFORMS=macos ./install.sh
+```
+
+설치 후 CMake 소비자는 아래처럼 가져온다.
+
+```cmake
+find_package(iiPaintEngine CONFIG REQUIRED)
+target_link_libraries(app PRIVATE iiPaintEngine::iiPaintEngine)
+```
+
+macOS 산출물은 `~/.local/iiPaintEngine/lib/libiiPaintEngine.dylib`, Linux/Android 산출물은 각 prefix의 `lib/libiiPaintEngine.so`,
+Windows 산출물은 `bin/iiPaintEngine.dll`이다. WASM 빌드는 Qt Core의 Emscripten runtime symbol을 위해 embind 링크 옵션을 포함한다.
+플랫폼별 package config는 `~/.local/iiPaintEngine/platforms/<platform>` 아래에도 설치된다.
+
 ## 검증
 
 빌드 디렉터리는 `build/`만 사용한다.
@@ -397,6 +427,11 @@ ctest --test-dir build --output-on-failure
 `iiPaintEngineDocumentSerializerContract` 테스트는 `DocumentArchive`가 레이어, brush source, stroke command, color space
 profile, asset, history
 command를 문자열 payload로 저장하고 다시 열 수 있는지 검사한다.
+`iiPaintEngineAppDocumentApiContract` 테스트는 `PaintEngineController`/`DocumentAdapter`/`LayerListModel`을 통해 새 문서 생성,
+레이어 조작, active layer stroke commit, history 기록, archive 저장/열기까지 앱/문서 API 경계에서 왕복되는지 검사한다.
+`iiPaintEngineInstallLayoutContract` 테스트는 `install.sh`, CMake install/export 규칙, `iiPaintEngineConfig.cmake` 플랫폼
+dispatch,
+README 설치 문서가 같은 `~/.local/iiPaintEngine` 동적 라이브러리 설치 계약을 가리키는지 검사한다.
 `iiPaintEngineCanvasQmlApi` 테스트는 `registerIipeQmlTypes()`로 `iipe.Canvas`를 등록하고 QML에서 viewport, brush, live preview,
 clear API와 마지막 입력 상태 read-only API를 하나의 객체로 사용할 수 있는지 검사한다.
 `iiPaintEngineCanvasTabletPressureContract` 테스트는 Qt tablet event의 pressure jitter가 실제 canvas stroke의 농도, dab size, brush

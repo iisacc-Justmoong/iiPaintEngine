@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.31)
-project(iiPaintEngine LANGUAGES CXX)
+project(iiPaintEngine VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 if (APPLE AND NOT Qt6_DIR)
     file(GLOB _qt_macos_roots LIST_DIRECTORIES true "$ENV{HOME}/Qt/*/macos")
@@ -49,6 +52,13 @@ if (APPLE)
 endif ()
 
 set(CMAKE_AUTOMOC ON)
+
+option(IIPAINTENGINE_BUILD_SHARED "Build iiPaintEngine as a shared library." ON)
+
+set(IIPAINTENGINE_LIBRARY_TYPE STATIC)
+if (IIPAINTENGINE_BUILD_SHARED)
+    set(IIPAINTENGINE_LIBRARY_TYPE SHARED)
+endif ()
 
 set(IIPAINTENGINE_SOURCES
         library.cpp
@@ -204,17 +214,74 @@ set(IIPAINTENGINE_SOURCES
         Core/Types.h
         Core/Geometry.h)
 
-add_library(iiPaintEngine SHARED
+add_library(iiPaintEngine ${IIPAINTENGINE_LIBRARY_TYPE}
         ${IIPAINTENGINE_SOURCES})
 
 target_include_directories(iiPaintEngine PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR})
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine>)
 
 target_link_libraries(iiPaintEngine PUBLIC
         Qt6::Core
         Qt6::Gui
         Qt6::Qml
         Qt6::Quick)
+
+if (COMMAND qt_import_plugins)
+    qt_import_plugins(iiPaintEngine NO_DEFAULT)
+endif ()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    target_link_options(iiPaintEngine PRIVATE "--bind")
+endif ()
+
+install(TARGETS iiPaintEngine
+        EXPORT iiPaintEngineTargets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+install(FILES library.h
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine)
+
+install(DIRECTORY
+        Brush
+        Canvas
+        Color
+        Core
+        Document
+        Filter
+        History
+        Input
+        Layer
+        QtAdapter
+        Render
+        Selection
+        Stroke
+        Tool
+        Transform
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine
+        FILES_MATCHING PATTERN "*.h")
+
+install(EXPORT iiPaintEngineTargets
+        FILE iiPaintEngineTargets.cmake
+        NAMESPACE iiPaintEngine::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiPaintEngine)
+
+configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/iiPaintEngineConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/iiPaintEngineConfig.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiPaintEngine)
+
+write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/iiPaintEngineConfigVersion.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion)
+
+install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/iiPaintEngineConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/iiPaintEngineConfigVersion.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiPaintEngine)
 
 set(IIPAINTENGINE_EXAMPLE_BIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Example/bin")
 
@@ -287,6 +354,24 @@ target_link_libraries(iiPaintEngineDocumentSerializerContractTests PRIVATE
 
 add_test(NAME iiPaintEngineDocumentSerializerContract
         COMMAND iiPaintEngineDocumentSerializerContractTests)
+
+add_executable(iiPaintEngineAppDocumentApiContractTests
+        tests/AppDocumentApiContractTest.cpp)
+
+target_link_libraries(iiPaintEngineAppDocumentApiContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineAppDocumentApiContract
+        COMMAND iiPaintEngineAppDocumentApiContractTests)
+
+add_executable(iiPaintEngineInstallLayoutContractTests
+        tests/InstallLayoutContractTest.cpp)
+
+target_compile_definitions(iiPaintEngineInstallLayoutContractTests PRIVATE
+        IIPAINTENGINE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+
+add_test(NAME iiPaintEngineInstallLayoutContract
+        COMMAND iiPaintEngineInstallLayoutContractTests)
 
 add_executable(iiPaintEngineCanvasQmlApiTests
         tests/CanvasQmlApiTest.cpp)

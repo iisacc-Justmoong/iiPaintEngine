@@ -1,0 +1,95 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+function(_iiPaintEngine_detect_target_platform out_var)
+    if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        set(${out_var} "ios" PARENT_SCOPE)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
+        set(${out_var} "android" PARENT_SCOPE)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+        set(${out_var} "wasm" PARENT_SCOPE)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        set(${out_var} "macos" PARENT_SCOPE)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        set(${out_var} "linux" PARENT_SCOPE)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        set(${out_var} "windows" PARENT_SCOPE)
+    else()
+        set(${out_var} "" PARENT_SCOPE)
+    endif()
+endfunction()
+
+_iiPaintEngine_detect_target_platform(_iiPaintEngineTargetPlatform)
+
+get_filename_component(_iiPaintEngineCurrentPrefixName "${PACKAGE_PREFIX_DIR}" NAME)
+get_filename_component(_iiPaintEngineCurrentPrefixParent "${PACKAGE_PREFIX_DIR}" DIRECTORY)
+get_filename_component(_iiPaintEngineCurrentPrefixParentName "${_iiPaintEngineCurrentPrefixParent}" NAME)
+set(_iiPaintEngineInPlatformPrefix FALSE)
+if(_iiPaintEngineCurrentPrefixParentName STREQUAL "platforms")
+    set(_iiPaintEngineInPlatformPrefix TRUE)
+endif()
+
+if(NOT _iiPaintEngineTargetPlatform STREQUAL ""
+        AND NOT (_iiPaintEngineInPlatformPrefix
+            AND _iiPaintEngineCurrentPrefixName STREQUAL _iiPaintEngineTargetPlatform))
+    if(_iiPaintEngineInPlatformPrefix)
+        set(_iiPaintEnginePlatformConfig
+            "${_iiPaintEngineCurrentPrefixParent}/${_iiPaintEngineTargetPlatform}/lib/cmake/iiPaintEngine/iiPaintEngineConfig.cmake")
+    else()
+        set(_iiPaintEnginePlatformConfig
+            "${PACKAGE_PREFIX_DIR}/platforms/${_iiPaintEngineTargetPlatform}/lib/cmake/iiPaintEngine/iiPaintEngineConfig.cmake")
+    endif()
+    if(EXISTS "${_iiPaintEnginePlatformConfig}")
+        include("${_iiPaintEnginePlatformConfig}")
+        return()
+    elseif(_iiPaintEngineTargetPlatform STREQUAL "ios"
+            OR _iiPaintEngineTargetPlatform STREQUAL "android"
+            OR _iiPaintEngineTargetPlatform STREQUAL "wasm")
+        message(FATAL_ERROR
+            "iiPaintEngine ${_iiPaintEngineTargetPlatform} package was not found at ${_iiPaintEnginePlatformConfig}. "
+            "Run iiPaintEngine install.sh so it installs the platforms/${_iiPaintEngineTargetPlatform} package.")
+    endif()
+endif()
+
+set(_iiPaintEngineDependencyPrefixes)
+if(_iiPaintEngineTargetPlatform STREQUAL "macos")
+    list(APPEND _iiPaintEngineDependencyPrefixes "$ENV{HOME}/Qt/6.8.3/macos")
+elseif(_iiPaintEngineTargetPlatform STREQUAL "linux")
+    list(APPEND _iiPaintEngineDependencyPrefixes "$ENV{HOME}/Qt/6.8.3/gcc_64")
+elseif(_iiPaintEngineTargetPlatform STREQUAL "windows")
+    list(APPEND _iiPaintEngineDependencyPrefixes "$ENV{HOME}/Qt/6.8.3/mingw_64")
+elseif(_iiPaintEngineTargetPlatform STREQUAL "ios")
+    list(APPEND _iiPaintEngineDependencyPrefixes
+        "$ENV{HOME}/Qt/6.8.3/ios"
+        "$ENV{HOME}/Qt/6.8.3/macos")
+elseif(_iiPaintEngineTargetPlatform STREQUAL "android")
+    list(APPEND _iiPaintEngineDependencyPrefixes
+        "$ENV{HOME}/Qt/6.8.3/android_arm64_v8a"
+        "$ENV{HOME}/Qt/6.8.3/macos")
+elseif(_iiPaintEngineTargetPlatform STREQUAL "wasm")
+    list(APPEND _iiPaintEngineDependencyPrefixes
+        "$ENV{HOME}/Qt/6.8.3/wasm_multithread"
+        "$ENV{HOME}/Qt/6.8.3/wasm_singlethread"
+        "$ENV{HOME}/Qt/6.8.3/macos")
+endif()
+
+list(REVERSE _iiPaintEngineDependencyPrefixes)
+foreach(_iiPaintEngineDependencyPrefix IN LISTS _iiPaintEngineDependencyPrefixes)
+    if(EXISTS "${_iiPaintEngineDependencyPrefix}")
+        list(PREPEND CMAKE_PREFIX_PATH "${_iiPaintEngineDependencyPrefix}")
+    endif()
+endforeach()
+
+unset(_iiPaintEngineDependencyPrefix)
+unset(_iiPaintEngineDependencyPrefixes)
+unset(_iiPaintEnginePlatformConfig)
+unset(_iiPaintEngineInPlatformPrefix)
+unset(_iiPaintEngineCurrentPrefixParentName)
+unset(_iiPaintEngineCurrentPrefixParent)
+unset(_iiPaintEngineCurrentPrefixName)
+unset(_iiPaintEngineTargetPlatform)
+
+find_dependency(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick)
+
+include("${CMAKE_CURRENT_LIST_DIR}/iiPaintEngineTargets.cmake")

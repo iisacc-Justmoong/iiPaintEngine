@@ -214,6 +214,7 @@ static_assert(blueprintStruct<ToolStateMachine>);
 
 static_assert(blueprintStruct<PaintEngineController>);
 static_assert(blueprintStruct<DocumentAdapter>);
+static_assert(blueprintStruct<LayerListRow>);
 static_assert(blueprintStruct<LayerListModel>);
 static_assert(publiclyInheritsQuickItem<PaintCanvasItem>);
 static_assert(publiclyInheritsQObject<PaintCanvasItem>);
