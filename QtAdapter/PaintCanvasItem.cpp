@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cmath>
 #include <memory>
+#include <utility>
 
 #include "Layer/RasterLayer.h"
 #include "Input/PressureInput.h"
@@ -74,6 +75,23 @@ void clearRasterLayerRect(RasterLayer &layer, DevicePixelRect dirtyBounds)
             layer.pixels[rowStart + static_cast<std::size_t>(x)] = 0x00000000U;
         }
     }
+}
+
+QImage imageFromRasterLayer(const RasterLayer &layer)
+{
+    if (layer.width <= 0 || layer.height <= 0) {
+        return {};
+    }
+
+    QImage image(layer.width, layer.height, QImage::Format_ARGB32);
+    for (Types::Pixel y = 0; y < layer.height; ++y) {
+        for (Types::Pixel x = 0; x < layer.width; ++x) {
+            const auto index = static_cast<std::size_t>(y) * static_cast<std::size_t>(layer.width)
+                    + static_cast<std::size_t>(x);
+            image.setPixel(x, y, static_cast<QRgb>(layer.pixels[index]));
+        }
+    }
+    return image;
 }
 
 Types::Pixel itemPixelSize(qreal value, Types::Scalar devicePixelRatio)
@@ -642,8 +660,9 @@ void PaintCanvasItem::paint(QPainter *painter)
 void PaintCanvasItem::clear()
 {
     const bool wasLiveStrokeActive = liveStrokeActive();
-    invalidatePendingCanvasEventWork();
     ensureRasterLayerSize();
+    recordRasterChange();
+    invalidatePendingCanvasEventWork();
     clearRasterLayer(m_rasterLayer);
     clearLiveStrokePreview();
     resetInputStrokeBuilder(m_strokeBuilder);
@@ -704,6 +723,103 @@ void PaintCanvasItem::setBrush(qreal size, const QColor &color, qreal flow, qrea
     setBrushColor(color);
     setBrushFlow(flow);
     setBrushOpacity(opacity);
+}
+
+bool PaintCanvasItem::resetRasterCanvas(Types::Pixel width,
+                                        Types::Pixel height,
+                                        std::uint32_t clearArgb)
+{
+    if (width <= 0 || height <= 0) {
+        return false;
+    }
+
+    ensureRasterLayerSize();
+    recordRasterChange();
+
+    RasterSnapshot snapshot;
+    snapshot.width = width;
+    snapshot.height = height;
+    snapshot.pixels.assign(static_cast<std::size_t>(width) * static_cast<std::size_t>(height), clearArgb);
+    snapshot.nextStrokeSeed = 1;
+    snapshot.committedStrokeCount = 0;
+    restoreRasterSnapshot(snapshot);
+    return true;
+}
+
+bool PaintCanvasItem::replaceRasterCanvas(const QImage &image)
+{
+    if (image.isNull() || image.width() <= 0 || image.height() <= 0) {
+        return false;
+    }
+
+    ensureRasterLayerSize();
+    recordRasterChange();
+
+    const QImage converted = image.convertToFormat(QImage::Format_ARGB32);
+    RasterSnapshot snapshot;
+    snapshot.width = converted.width();
+    snapshot.height = converted.height();
+    snapshot.pixels.reserve(static_cast<std::size_t>(snapshot.width)
+                            * static_cast<std::size_t>(snapshot.height));
+    for (Types::Pixel y = 0; y < snapshot.height; ++y) {
+        for (Types::Pixel x = 0; x < snapshot.width; ++x) {
+            snapshot.pixels.push_back(static_cast<std::uint32_t>(converted.pixel(x, y)));
+        }
+    }
+    snapshot.nextStrokeSeed = 1;
+    snapshot.committedStrokeCount = 0;
+    restoreRasterSnapshot(snapshot);
+    return true;
+}
+
+bool PaintCanvasItem::saveRasterCanvasToFile(const QString &filePath)
+{
+    if (filePath.isEmpty()) {
+        return false;
+    }
+
+    ensureRasterLayerSize();
+    const QImage image = imageFromRasterLayer(m_rasterLayer);
+    if (image.isNull()) {
+        return false;
+    }
+    return image.save(filePath);
+}
+
+bool PaintCanvasItem::undoRasterChange()
+{
+    if (m_undoRasterSnapshots.empty()) {
+        return false;
+    }
+
+    RasterSnapshot previous = std::move(m_undoRasterSnapshots.back());
+    m_undoRasterSnapshots.pop_back();
+    m_redoRasterSnapshots.push_back(captureRasterSnapshot());
+    restoreRasterSnapshot(previous);
+    return true;
+}
+
+bool PaintCanvasItem::redoRasterChange()
+{
+    if (m_redoRasterSnapshots.empty()) {
+        return false;
+    }
+
+    RasterSnapshot next = std::move(m_redoRasterSnapshots.back());
+    m_redoRasterSnapshots.pop_back();
+    m_undoRasterSnapshots.push_back(captureRasterSnapshot());
+    restoreRasterSnapshot(next);
+    return true;
+}
+
+bool PaintCanvasItem::canUndoRasterChange() const
+{
+    return !m_undoRasterSnapshots.empty();
+}
+
+bool PaintCanvasItem::canRedoRasterChange() const
+{
+    return !m_redoRasterSnapshots.empty();
 }
 
 bool PaintCanvasItem::event(QEvent *event)
@@ -1218,6 +1334,7 @@ void PaintCanvasItem::applyCommitStrokeWorkResult(std::uint64_t revision,
         return;
     }
 
+    recordRasterChange();
     paintRasterSamples(m_rasterLayer, result.samples);
     const bool wasLiveStrokeActive = liveStrokeActive();
     const DevicePixelRect previousLiveDirtyBounds = m_liveStrokeDeviceDirtyBounds;
@@ -1291,4 +1408,53 @@ void PaintCanvasItem::invalidatePendingCanvasEventWork()
     ++m_livePreviewRevision;
     m_livePreviewWorkPending = false;
     m_commitEventThreadPool.clear();
+}
+
+PaintCanvasItem::RasterSnapshot PaintCanvasItem::captureRasterSnapshot() const
+{
+    RasterSnapshot snapshot;
+    snapshot.width = m_rasterLayer.width;
+    snapshot.height = m_rasterLayer.height;
+    snapshot.pixels = m_rasterLayer.pixels;
+    snapshot.nextStrokeSeed = m_nextStrokeSeed;
+    snapshot.committedStrokeCount = m_committedStrokeCount;
+    return snapshot;
+}
+
+void PaintCanvasItem::recordRasterChange()
+{
+    m_undoRasterSnapshots.push_back(captureRasterSnapshot());
+    m_redoRasterSnapshots.clear();
+}
+
+void PaintCanvasItem::restoreRasterSnapshot(const RasterSnapshot &snapshot)
+{
+    const bool wasLiveStrokeActive = liveStrokeActive();
+    const int previousStrokeCount = m_committedStrokeCount;
+
+    invalidatePendingCanvasEventWork();
+    setWidth(snapshot.width);
+    setHeight(snapshot.height);
+
+    m_rasterLayer = makeRasterLayer(snapshot.width, snapshot.height);
+    const auto expectedPixelCount = static_cast<std::size_t>(snapshot.width)
+            * static_cast<std::size_t>(snapshot.height);
+    if (snapshot.pixels.size() == expectedPixelCount) {
+        m_rasterLayer.pixels = snapshot.pixels;
+    }
+    m_liveRasterLayer = makeRasterLayer(snapshot.width, snapshot.height);
+    clearLiveStrokeBuffer(m_liveStrokeBuffer);
+    m_liveStrokeDeviceDirtyBounds = {};
+    resetInputStrokeBuilder(m_strokeBuilder);
+    m_pendingCommitStrokeWorkRequests.clear();
+    m_nextStrokeSeed = snapshot.nextStrokeSeed;
+    m_committedStrokeCount = snapshot.committedStrokeCount;
+
+    updateViewportGeometry();
+    emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
+    if (previousStrokeCount != m_committedStrokeCount) {
+        emit strokeCountChanged();
+    }
+    emit viewportChanged();
+    update();
 }

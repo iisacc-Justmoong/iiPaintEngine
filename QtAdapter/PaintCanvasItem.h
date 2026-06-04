@@ -12,6 +12,7 @@
 
 #include <deque>
 #include <cstdint>
+#include <vector>
 
 #include "Canvas/CanvasViewport.h"
 #include "Input/InputNormalizer.h"
@@ -27,6 +28,7 @@
 class QMouseEvent;
 class QPainter;
 class QEvent;
+class QImage;
 class QTabletEvent;
 class QTimerEvent;
 
@@ -161,7 +163,25 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
 
+    bool resetRasterCanvas(Types::Pixel width,
+                           Types::Pixel height,
+                           std::uint32_t clearArgb = 0x00000000U);
+    bool replaceRasterCanvas(const QImage &image);
+    bool saveRasterCanvasToFile(const QString &filePath);
+    bool undoRasterChange();
+    bool redoRasterChange();
+    bool canUndoRasterChange() const;
+    bool canRedoRasterChange() const;
+
 private:
+    struct RasterSnapshot {
+        Types::Pixel width = 0;
+        Types::Pixel height = 0;
+        std::vector<std::uint32_t> pixels;
+        std::uint32_t nextStrokeSeed = 1;
+        int committedStrokeCount = 0;
+    };
+
     void ensureRasterLayerSize();
     void updateViewportGeometry();
     bool shouldIgnoreMousePointerEvent(QMouseEvent *event);
@@ -200,6 +220,9 @@ private:
     CanvasLiveStrokeWorkRequest currentLiveStrokeWorkRequest() const;
     CanvasCommitStrokeWorkRequest currentCommitStrokeWorkRequest(const StrokeInput &stroke) const;
     void invalidatePendingCanvasEventWork();
+    RasterSnapshot captureRasterSnapshot() const;
+    void recordRasterChange();
+    void restoreRasterSnapshot(const RasterSnapshot &snapshot);
 
     RasterLayer m_rasterLayer;
     RasterLayer m_liveRasterLayer;
@@ -235,4 +258,6 @@ private:
     std::uint64_t m_pendingLivePreviewRevision = 0;
     std::uint32_t m_nextStrokeSeed = 1;
     int m_committedStrokeCount = 0;
+    std::vector<RasterSnapshot> m_undoRasterSnapshots;
+    std::vector<RasterSnapshot> m_redoRasterSnapshots;
 };

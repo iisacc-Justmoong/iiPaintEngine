@@ -24,8 +24,8 @@ aggregate 초기화를 지원하는 단순 `struct` 청사진으로 둔다. 엔�
 - Transform: `AffineTransform`, `TransformState`
 - Filter: `FilterNode`, `FilterPipeline`
 - Tool: `FillOperation`, `GradientOperation`, `EraserOperation`, `ToolState`, `ToolStateMachine`
-- QtAdapter: `PaintCanvasItem`, `CanvasEventWork`, `registerIipeQmlTypes`, `PaintEngineController`, `DocumentAdapter`,
-  `LayerListModel`
+- QtAdapter: `PaintCanvasItem`, `CanvasAdapter`, `CanvasEventWork`, `registerIipeQmlTypes`,
+  `PaintEngineController`, `DocumentAdapter`, `LayerListModel`
 
 `PaintCanvasItem`은 QML/QQuickItem 연동을 위한 마우스 입력 경계와 화면 페인트 경계를 제공한다. 그 외 모든 객체는 생성자를 제공하지 않고 공개 필드만 유지하는 경량 값 타입으로 시작한다.
 
@@ -326,8 +326,8 @@ event 중 QObject child나 QQuickItem child를 동적으로 붙이지 않는다.
 
 ## QML API
 
-QML에서는 `registerIipeQmlTypes()`를 한 번 호출한 뒤 `iipe` 모듈의 `Canvas` 타입 하나를 사용한다. QML import alias는 대문자 식별자를 써야 하므로, namespace
-표기가 필요하면 `import iipe 1.0 as Iipe` 뒤 `Iipe.Canvas`로 사용한다.
+QML에서는 `registerIipeQmlTypes()`를 한 번 호출한 뒤 `iipe` 모듈을 가져온다. 기본 엔진 화면은 `Canvas` 타입이다. QML import alias는 대문자 식별자를
+써야 하므로, namespace 표기가 필요하면 `import iipe 1.0 as Iipe` 뒤 `Iipe.Canvas`로 사용한다.
 
 ```qml
 import QtQuick 2.15
@@ -359,7 +359,7 @@ Iipe.Canvas {
 }
 ```
 
-`Canvas`는 현재 QML 단일 진입점이다. viewport API는 `documentX`, `documentY`, `zoom`, `canvasDevicePixelRatio`,
+`Canvas`는 엔진 중심 QML 진입점이다. viewport API는 `documentX`, `documentY`, `zoom`, `canvasDevicePixelRatio`,
 `setDocumentViewport(x, y, zoom)`, `resetView()`, `panBy(dx, dy)`, `zoomAt(viewX, viewY, factor)`를 제공한다. 브러시 API는
 `brushColor`, `brushSize`, `brushSpacing`, `brushSpacingRatio`, `brushSpacingEnabled`, `brushFlow`, `brushFlowEnabled`,
 `brushOpacity`,
@@ -373,8 +373,32 @@ mouse/tablet/touch 중 무엇이었고 pressure가 어떤 값으로 들어왔는
 `canvasDevicePixelRatio`가 1보다 크면 내부 raster layer는 device pixel 크기로 유지하고, 화면 페인트 단계에서 QImage device pixel ratio를 적용한다.
 따라서 QML pointer의 논리 좌표와 실제 stroke 표시 위치는 같은 지점에 남아야 한다. 이 계약은 `iiPaintEngineCanvasPointerAlignment` 테스트가 고정한다.
 
-QML은 `Canvas` 하나만 직접 다룬다. `InputStrokeBuilder`, `LiveStrokeBuffer`, `StrokeCommand`, `RasterProjection`, `DirtyRegion`,
-`LayerStack` 같은 내부 구조는 C++ 엔진 경계 안에 남긴다.
+앱 통합층에서 `newCanvas/openRaster/saveToFile/undo/redo/toolMode`처럼 문서 조작과 도구 상태를 한 QML 객체에서 기대하는 경우에는 `CanvasAdapter`를 사용한다.
+`CanvasAdapter`는 `PaintCanvasItem`을 상속하는 범용 어댑터이며 기존 `Canvas` API를 변경하지 않고 앱 친화적인 조작 명칭만 추가한다.
+
+```qml
+import QtQuick 2.15
+import iipe 1.0 as Iipe
+
+Iipe.CanvasAdapter {
+    id: canvas
+    anchors.fill: parent
+    toolMode: "brush"
+
+    Component.onCompleted: {
+        newCanvas(1024, 768)
+    }
+}
+```
+
+`CanvasAdapter`는 `newCanvas(width, height)`, `openRaster(path)`, `saveToFile(path)`, `undo()`, `redo()`, `toolMode`,
+`canUndo`,
+`canRedo`를 제공한다. `openRaster`와 `saveToFile`은 local file path 또는 `file://` URL을 받으며, 별도 이미지 입출력 라이브러리를 추가하지 않고 이미 사용하는
+Qt Gui의 `QImage` 포맷 처리를 사용한다. `toolMode`는 앱의 현재 도구 문자열을 보존하는 어댑터 상태이며, 엔진 내부 stroke pipeline의 기본 입력 경계는
+계속 `PaintCanvasItem`에 남는다.
+
+QML은 `Canvas` 또는 `CanvasAdapter`만 직접 다룬다. `InputStrokeBuilder`, `LiveStrokeBuffer`, `StrokeCommand`, `RasterProjection`,
+`DirtyRegion`, `LayerStack` 같은 내부 구조는 C++ 엔진 경계 안에 남긴다.
 
 ## Example
 
@@ -434,6 +458,8 @@ dispatch,
 README 설치 문서가 같은 `~/.local/iiPaintEngine` 동적 라이브러리 설치 계약을 가리키는지 검사한다.
 `iiPaintEngineCanvasQmlApi` 테스트는 `registerIipeQmlTypes()`로 `iipe.Canvas`를 등록하고 QML에서 viewport, brush, live preview,
 clear API와 마지막 입력 상태 read-only API를 하나의 객체로 사용할 수 있는지 검사한다.
+`iiPaintEngineCanvasAdapterContract` 테스트는 `iipe.CanvasAdapter`가 범용 `newCanvas/openRaster/saveToFile/undo/redo/toolMode`
+계약을 제공하고, Qt `QImage` 기반 raster open/save와 adapter-level undo/redo가 같은 QML 타입에서 왕복되는지 검사한다.
 `iiPaintEngineCanvasTabletPressureContract` 테스트는 Qt tablet event의 pressure jitter가 실제 canvas stroke의 농도, dab size, brush
 dynamics로
 전달되고, button flag 없이 pressure만 있는 tablet contact도 stroke로 인정되며, pressure 0의 tablet press 뒤 첫 pressure move가 stroke를

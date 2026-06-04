@@ -201,6 +201,8 @@ set(IIPAINTENGINE_SOURCES
         Tool/ToolStateMachine.h
         QtAdapter/PaintCanvasItem.cpp
         QtAdapter/PaintCanvasItem.h
+        QtAdapter/CanvasAdapter.cpp
+        QtAdapter/CanvasAdapter.h
         QtAdapter/CanvasEventWork.cpp
         QtAdapter/CanvasEventWork.h
         QtAdapter/IipeQmlTypes.cpp
@@ -382,6 +384,16 @@ target_link_libraries(iiPaintEngineCanvasQmlApiTests PRIVATE
 
 add_test(NAME iiPaintEngineCanvasQmlApi
         COMMAND iiPaintEngineCanvasQmlApiTests)
+
+add_executable(iiPaintEngineCanvasAdapterContractTests
+        tests/CanvasAdapterContractTest.cpp)
+
+target_link_libraries(iiPaintEngineCanvasAdapterContractTests PRIVATE
+        iiPaintEngine
+        Qt6::Qml)
+
+add_test(NAME iiPaintEngineCanvasAdapterContract
+        COMMAND iiPaintEngineCanvasAdapterContractTests)
 
 add_executable(iiPaintEngineExampleDemoContractTests
         tests/ExampleDemoAppContractTest.cpp)
@@ -679,3 +691,10 @@ add_test(NAME iiPaintEngineCanvasStrokePipelineSeparationContract
 
 add_test(NAME iiPaintEngineDependencyBoundary
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/DependencyBoundaryTest.cmake)
+
+if (APPLE)
+    get_property(IIPAINTENGINE_TEST_NAMES DIRECTORY PROPERTY TESTS)
+    set_tests_properties(${IIPAINTENGINE_TEST_NAMES} PROPERTIES
+            ENVIRONMENT_MODIFICATION
+            "DYLD_LIBRARY_PATH=path_list_prepend:$<TARGET_FILE_DIR:iiPaintEngine>")
+endif ()
