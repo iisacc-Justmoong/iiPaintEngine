@@ -7,6 +7,7 @@
 #include <QtQml/qqml.h>
 
 #include "QtAdapter/CanvasAdapter.h"
+#include "QtAdapter/CanvasBrushConfig.h"
 #include "QtAdapter/PaintCanvasItem.h"
 
 void registerIipeQmlTypes()
@@ -16,6 +17,7 @@ void registerIipeQmlTypes()
         return;
     }
 
+    qRegisterMetaType<CanvasBrushConfig>("CanvasBrushConfig");
     qmlRegisterType<PaintCanvasItem>("iipe", 1, 0, "Canvas");
     qmlRegisterType<CanvasAdapter>("iipe", 1, 0, "CanvasAdapter");
     registered = true;

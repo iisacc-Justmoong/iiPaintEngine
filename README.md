@@ -24,7 +24,7 @@ aggregate 초기화를 지원하는 단순 `struct` 청사진으로 둔다. 엔�
 - Transform: `AffineTransform`, `TransformState`
 - Filter: `FilterNode`, `FilterPipeline`
 - Tool: `FillOperation`, `GradientOperation`, `EraserOperation`, `ToolState`, `ToolStateMachine`
-- QtAdapter: `PaintCanvasItem`, `CanvasAdapter`, `CanvasEventWork`, `registerIipeQmlTypes`,
+- QtAdapter: `PaintCanvasItem`, `CanvasAdapter`, `CanvasBrushConfig`, `CanvasEventWork`, `registerIipeQmlTypes`,
   `PaintEngineController`, `DocumentAdapter`, `LayerListModel`
 
 `PaintCanvasItem`은 QML/QQuickItem 연동을 위한 마우스 입력 경계와 화면 페인트 경계를 제공한다. 그 외 모든 객체는 생성자를 제공하지 않고 공개 필드만 유지하는 경량 값 타입으로 시작한다.
@@ -396,6 +396,10 @@ Iipe.CanvasAdapter {
 `canRedo`를 제공한다. `openRaster`와 `saveToFile`은 local file path 또는 `file://` URL을 받으며, 별도 이미지 입출력 라이브러리를 추가하지 않고 이미 사용하는
 Qt Gui의 `QImage` 포맷 처리를 사용한다. `toolMode`는 앱의 현재 도구 문자열을 보존하는 어댑터 상태이며, 엔진 내부 stroke pipeline의 기본 입력 경계는
 계속 `PaintCanvasItem`에 남는다.
+브러시 UI가 필요한 값은 `CanvasBrushConfig`로 묶어서 `CanvasAdapter::brushConfig`와 `setBrushConfig(config)`로 왕복한다. 이 config는 color,
+size, flow, opacity, hardness, spacing ratio, 각 stroke 인자 enabled 상태, pressure curve, stabilizer strength만 담는다.
+앱은 이 값 계약을 통해 브러시 패널과 preset UI를 만들 수 있지만, 내부 구현 타입인 `Rasterizer`, `BrushDynamics`, `BrushMaterial`, `StrokeCommand`를 직접
+소유하지 않는다.
 
 QML은 `Canvas` 또는 `CanvasAdapter`만 직접 다룬다. `InputStrokeBuilder`, `LiveStrokeBuffer`, `StrokeCommand`, `RasterProjection`,
 `DirtyRegion`, `LayerStack` 같은 내부 구조는 C++ 엔진 경계 안에 남긴다.
@@ -459,7 +463,8 @@ README 설치 문서가 같은 `~/.local/iiPaintEngine` 동적 라이브러리 �
 `iiPaintEngineCanvasQmlApi` 테스트는 `registerIipeQmlTypes()`로 `iipe.Canvas`를 등록하고 QML에서 viewport, brush, live preview,
 clear API와 마지막 입력 상태 read-only API를 하나의 객체로 사용할 수 있는지 검사한다.
 `iiPaintEngineCanvasAdapterContract` 테스트는 `iipe.CanvasAdapter`가 범용 `newCanvas/openRaster/saveToFile/undo/redo/toolMode`
-계약을 제공하고, Qt `QImage` 기반 raster open/save와 adapter-level undo/redo가 같은 QML 타입에서 왕복되는지 검사한다.
+계약을 제공하고, Qt `QImage` 기반 raster open/save, adapter-level undo/redo, `CanvasBrushConfig` 기반 브러시 설정 facade가 같은 QML 타입에서
+왕복되는지 검사한다.
 `iiPaintEngineCanvasTabletPressureContract` 테스트는 Qt tablet event의 pressure jitter가 실제 canvas stroke의 농도, dab size, brush
 dynamics로
 전달되고, button flag 없이 pressure만 있는 tablet contact도 stroke로 인정되며, pressure 0의 tablet press 뒤 첫 pressure move가 stroke를

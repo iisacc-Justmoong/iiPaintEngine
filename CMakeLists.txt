@@ -203,6 +203,7 @@ set(IIPAINTENGINE_SOURCES
         QtAdapter/PaintCanvasItem.h
         QtAdapter/CanvasAdapter.cpp
         QtAdapter/CanvasAdapter.h
+        QtAdapter/CanvasBrushConfig.h
         QtAdapter/CanvasEventWork.cpp
         QtAdapter/CanvasEventWork.h
         QtAdapter/IipeQmlTypes.cpp

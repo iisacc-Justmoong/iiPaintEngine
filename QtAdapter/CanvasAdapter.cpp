@@ -32,6 +32,8 @@ QString normalizedToolMode(const QString &mode)
 CanvasAdapter::CanvasAdapter(QQuickItem *parent)
     : PaintCanvasItem(parent)
 {
+    connect(this, &PaintCanvasItem::brushChanged, this, &CanvasAdapter::brushConfigChanged);
+    connect(this, &PaintCanvasItem::strokeSettingsChanged, this, &CanvasAdapter::brushConfigChanged);
     connect(this, &PaintCanvasItem::strokeCountChanged, this, &CanvasAdapter::undoRedoChanged);
 }
 
@@ -49,6 +51,44 @@ void CanvasAdapter::setToolMode(const QString &mode)
 
     m_toolMode = nextMode;
     emit toolModeChanged();
+}
+
+CanvasBrushConfig CanvasAdapter::brushConfig() const
+{
+    CanvasBrushConfig config;
+    config.color = brushColor();
+    config.size = brushSize();
+    config.flow = brushFlow();
+    config.opacity = brushOpacity();
+    config.hardness = brushHardness();
+    config.spacingRatio = brushSpacingRatio();
+    config.flowEnabled = brushFlowEnabled();
+    config.opacityEnabled = brushOpacityEnabled();
+    config.hardnessEnabled = brushHardnessEnabled();
+    config.spacingEnabled = brushSpacingEnabled();
+    config.pressureCurveMinimum = pressureCurveMinimum();
+    config.pressureCurveCenter = pressureCurveCenter();
+    config.pressureCurveMaximum = pressureCurveMaximum();
+    config.stabilizerStrength = stabilizerStrength();
+    return config;
+}
+
+void CanvasAdapter::setBrushConfig(const CanvasBrushConfig &config)
+{
+    setBrushSize(config.size);
+    setBrushColor(config.color);
+    setBrushFlow(config.flow);
+    setBrushOpacity(config.opacity);
+    setBrushHardness(config.hardness);
+    setBrushSpacingRatio(config.spacingRatio);
+    setBrushFlowEnabled(config.flowEnabled);
+    setBrushOpacityEnabled(config.opacityEnabled);
+    setBrushHardnessEnabled(config.hardnessEnabled);
+    setBrushSpacingEnabled(config.spacingEnabled);
+    setPressureCurveMinimum(config.pressureCurveMinimum);
+    setPressureCurveMaximum(config.pressureCurveMaximum);
+    setPressureCurveCenter(config.pressureCurveCenter);
+    setStabilizerStrength(config.stabilizerStrength);
 }
 
 bool CanvasAdapter::canUndo() const

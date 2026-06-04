@@ -6,11 +6,13 @@
 
 #include <QString>
 
+#include "QtAdapter/CanvasBrushConfig.h"
 #include "QtAdapter/PaintCanvasItem.h"
 
 class CanvasAdapter : public PaintCanvasItem {
     Q_OBJECT
     Q_PROPERTY(QString toolMode READ toolMode WRITE setToolMode NOTIFY toolModeChanged)
+    Q_PROPERTY(CanvasBrushConfig brushConfig READ brushConfig WRITE setBrushConfig NOTIFY brushConfigChanged)
     Q_PROPERTY(bool canUndo READ canUndo NOTIFY undoRedoChanged)
     Q_PROPERTY(bool canRedo READ canRedo NOTIFY undoRedoChanged)
 
@@ -19,6 +21,9 @@ public:
 
     QString toolMode() const;
     void setToolMode(const QString &mode);
+
+    CanvasBrushConfig brushConfig() const;
+    Q_INVOKABLE void setBrushConfig(const CanvasBrushConfig &config);
 
     bool canUndo() const;
     bool canRedo() const;
@@ -31,6 +36,7 @@ public:
 
 signals:
     void toolModeChanged();
+    void brushConfigChanged();
     void undoRedoChanged();
 
 private:

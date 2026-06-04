@@ -8,9 +8,11 @@
 #include <QTemporaryDir>
 
 #include <iostream>
+#include <type_traits>
 
-#include "QtAdapter/IipeQmlTypes.h"
 #include "QtAdapter/CanvasAdapter.h"
+#include "QtAdapter/CanvasBrushConfig.h"
+#include "QtAdapter/IipeQmlTypes.h"
 
 namespace {
 
@@ -54,6 +56,8 @@ QImage savedImage(const QString &path)
 
 int main(int argc, char **argv)
 {
+    static_assert(!std::is_base_of_v<QObject, CanvasBrushConfig>);
+
     qputenv("QT_QPA_PLATFORM", "offscreen");
     QGuiApplication app(argc, argv);
 
@@ -98,6 +102,8 @@ Iipe.CanvasAdapter {
             || !hasMethod(metaObject, "saveToFile(QString)")
             || !hasMethod(metaObject, "undo()")
             || !hasMethod(metaObject, "redo()")
+            || !hasMethod(metaObject, "setBrushConfig(CanvasBrushConfig)")
+            || metaObject->indexOfProperty("brushConfig") < 0
             || metaObject->indexOfProperty("toolMode") < 0) {
         delete object;
         return 3;
@@ -107,6 +113,48 @@ Iipe.CanvasAdapter {
     if (canvas->toolMode() != QStringLiteral("eraser")) {
         delete object;
         return 4;
+    }
+
+    CanvasBrushConfig brush;
+    brush.color = QColor{"#557799"};
+    brush.size = 23.0;
+    brush.flow = 0.42;
+    brush.opacity = 0.64;
+    brush.hardness = 0.71;
+    brush.spacingRatio = 0.33;
+    brush.flowEnabled = false;
+    brush.opacityEnabled = false;
+    brush.hardnessEnabled = false;
+    brush.spacingEnabled = false;
+    brush.pressureCurveMinimum = 0.2;
+    brush.pressureCurveCenter = 0.6;
+    brush.pressureCurveMaximum = 0.8;
+    brush.stabilizerStrength = 0.44;
+    canvas->setBrushConfig(brush);
+
+    const CanvasBrushConfig appliedBrush = canvas->brushConfig();
+    if (appliedBrush.color != QColor{"#557799"}
+            || appliedBrush.size != 23.0
+            || appliedBrush.flow != 0.42
+            || appliedBrush.opacity != 0.64
+            || appliedBrush.hardness != 0.71
+            || appliedBrush.spacingRatio != 0.33
+            || appliedBrush.flowEnabled
+            || appliedBrush.opacityEnabled
+            || appliedBrush.hardnessEnabled
+            || appliedBrush.spacingEnabled
+            || appliedBrush.pressureCurveMinimum != 0.2
+            || appliedBrush.pressureCurveCenter != 0.6
+            || appliedBrush.pressureCurveMaximum != 0.8
+            || appliedBrush.stabilizerStrength != 0.44
+            || canvas->brushSize() != 23.0
+            || canvas->brushColor() != QColor{"#557799"}
+            || canvas->brushFlowEnabled()
+            || canvas->brushOpacityEnabled()
+            || canvas->brushHardnessEnabled()
+            || canvas->brushSpacingEnabled()) {
+        delete object;
+        return 15;
     }
 
     if (!invokeNewCanvas(canvas, 12, 10)
