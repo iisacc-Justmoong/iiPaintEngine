@@ -1,9 +1,11 @@
 #include <QElapsedTimer>
+#include <QDir>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QMetaObject>
 #include <QQmlComponent>
 #include <QQmlEngine>
+#include <QProcess>
 
 #include <iostream>
 
@@ -27,6 +29,16 @@ void printQmlErrors(const QQmlComponent &component)
     std::cerr << component.errorString().toStdString() << '\n';
 }
 
+bool executableHasRpath(const QString &executablePath, const QString &rpath)
+{
+    QProcess otool;
+    otool.start(QStringLiteral("/usr/bin/otool"), {QStringLiteral("-l"), executablePath});
+    if (!otool.waitForFinished(3000) || otool.exitStatus() != QProcess::NormalExit || otool.exitCode() != 0) {
+        return false;
+    }
+    return QString::fromUtf8(otool.readAllStandardOutput()).contains(rpath);
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -41,6 +53,18 @@ int main(int argc, char **argv)
     if (!qmlFile.isFile() || !executableFile.isFile() || !executableFile.isExecutable()) {
         return 1;
     }
+#if defined(__APPLE__)
+    const QString executablePath = executableFile.absoluteFilePath();
+    if (executablePath.contains(QStringLiteral(".app/Contents/MacOS/"))
+            || executableFile.fileName() != QStringLiteral("iiPaintEngineExample")
+            || executableFile.dir().dirName() != QStringLiteral("bin")) {
+        return 1;
+    }
+    if (QString::fromUtf8(IIPAINTENGINE_LVRS_LIBRARY_DIR).isEmpty()
+            || !executableHasRpath(executablePath, QString::fromUtf8(IIPAINTENGINE_LVRS_LIBRARY_DIR))) {
+        return 1;
+    }
+#endif
 
     QQmlEngine engine;
     engine.addImportPath(QStringLiteral("qrc:/qt/qml"));

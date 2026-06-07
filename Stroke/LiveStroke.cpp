@@ -54,6 +54,8 @@ LiveStrokeFrame makeLiveStrokeFrame(const StrokeInput &rawInput,
     frame.displayedInput = resampleStrokeInput(frame.displayedInput, brush.resampler);
 
     frame.displayedCurve = makeStrokeCurve(frame.displayedInput);
+    frame.rawGeometry = describeStrokeGeometry(frame.rawInput);
+    frame.displayedGeometry = describeStrokeGeometry(frame.displayedCurve);
     frame.dabs = placeBrushDabs(frame.displayedCurve,
                                 brush.rasterizer,
                                 brush.dynamics,

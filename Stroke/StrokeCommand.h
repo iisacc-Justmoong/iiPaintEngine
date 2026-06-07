@@ -13,6 +13,7 @@
 #include "Stroke/Rasterizer.h"
 #include "Stroke/Stabilizer.h"
 #include "Stroke/StrokeCurve.h"
+#include "Stroke/StrokeGeometry.h"
 #include "Stroke/StrokeInput.h"
 #include "Stroke/StrokeResampler.h"
 
@@ -22,6 +23,8 @@ struct StrokePath {
     StrokeInput rawInput;
     StrokeInput renderedInput;
     StrokeCurve renderedCurve;
+    StrokeGeometryReport rawGeometry;
+    StrokeGeometryReport renderedGeometry;
 };
 
 struct BrushState {

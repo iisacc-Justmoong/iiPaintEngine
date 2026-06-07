@@ -27,6 +27,17 @@ endif ()
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Svg Network)
 find_package(LVRS CONFIG REQUIRED)
 
+set(IIPAINTENGINE_LVRS_LIBRARY_DIR "")
+if (TARGET LVRS::LVRS)
+    get_target_property(IIPAINTENGINE_LVRS_LIBRARY LVRS::LVRS IMPORTED_LOCATION)
+    if (NOT IIPAINTENGINE_LVRS_LIBRARY)
+        get_target_property(IIPAINTENGINE_LVRS_LIBRARY LVRS::LVRS IMPORTED_LOCATION_RELEASE)
+    endif ()
+    if (IIPAINTENGINE_LVRS_LIBRARY)
+        get_filename_component(IIPAINTENGINE_LVRS_LIBRARY_DIR "${IIPAINTENGINE_LVRS_LIBRARY}" DIRECTORY)
+    endif ()
+endif ()
+
 if (COMMAND qt_policy)
     qt_policy(SET QTP0004 NEW)
 endif ()
@@ -61,6 +72,7 @@ if (IIPAINTENGINE_BUILD_SHARED)
 endif ()
 
 set(IIPAINTENGINE_SOURCES
+        iiPaintEngine
         library.cpp
         Core/EngineConfig.cpp
         Core/EngineConfig.h
@@ -139,6 +151,8 @@ set(IIPAINTENGINE_SOURCES
         Stroke/StrokePoint.h
         Stroke/Stroke.cpp
         Stroke/Stroke.h
+        Stroke/StrokeGeometry.cpp
+        Stroke/StrokeGeometry.h
         Stroke/StrokeCommand.cpp
         Stroke/StrokeCommand.h
         Stroke/StrokeRepository.cpp
@@ -311,6 +325,11 @@ set_target_properties(iiPaintEngineExample PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${IIPAINTENGINE_EXAMPLE_BIN_DIR}"
         RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${IIPAINTENGINE_EXAMPLE_BIN_DIR}")
 
+if (APPLE AND IIPAINTENGINE_LVRS_LIBRARY_DIR)
+    set_property(TARGET iiPaintEngineExample APPEND PROPERTY
+            BUILD_RPATH "${IIPAINTENGINE_LVRS_LIBRARY_DIR}")
+endif ()
+
 enable_testing()
 
 add_executable(iiPaintEngineTests
@@ -376,6 +395,15 @@ target_compile_definitions(iiPaintEngineInstallLayoutContractTests PRIVATE
 add_test(NAME iiPaintEngineInstallLayoutContract
         COMMAND iiPaintEngineInstallLayoutContractTests)
 
+add_executable(iiPaintEnginePublicUmbrellaHeaderContractTests
+        tests/PublicUmbrellaHeaderContractTest.cpp)
+
+target_link_libraries(iiPaintEnginePublicUmbrellaHeaderContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEnginePublicUmbrellaHeaderContract
+        COMMAND iiPaintEnginePublicUmbrellaHeaderContractTests)
+
 add_executable(iiPaintEngineCanvasQmlApiTests
         tests/CanvasQmlApiTest.cpp)
 
@@ -411,7 +439,8 @@ target_link_libraries(iiPaintEngineExampleDemoContractTests PRIVATE
 target_compile_definitions(iiPaintEngineExampleDemoContractTests PRIVATE
         IIPAINTENGINE_EXAMPLE_MAIN_QML="${CMAKE_CURRENT_SOURCE_DIR}/Example/Main.qml"
         IIPAINTENGINE_EXAMPLE_EXECUTABLE="$<TARGET_FILE:iiPaintEngineExample>"
-        IIPAINTENGINE_LVRS_QML_IMPORT_PATH="${LVRS_QML_IMPORT_PATH}")
+        IIPAINTENGINE_LVRS_QML_IMPORT_PATH="${LVRS_QML_IMPORT_PATH}"
+        IIPAINTENGINE_LVRS_LIBRARY_DIR="${IIPAINTENGINE_LVRS_LIBRARY_DIR}")
 
 add_test(NAME iiPaintEngineExampleDemoContract
         COMMAND iiPaintEngineExampleDemoContractTests)
@@ -491,6 +520,15 @@ target_link_libraries(iiPaintEngineStrokePhysicalContractTests PRIVATE
 
 add_test(NAME iiPaintEngineStrokePhysicalContract
         COMMAND iiPaintEngineStrokePhysicalContractTests)
+
+add_executable(iiPaintEngineStrokeGeometryReportContractTests
+        tests/StrokeGeometryReportContractTest.cpp)
+
+target_link_libraries(iiPaintEngineStrokeGeometryReportContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineStrokeGeometryReportContract
+        COMMAND iiPaintEngineStrokeGeometryReportContractTests)
 
 add_executable(iiPaintEngineStabilizerAdvancedContractTests
         tests/StabilizerAdvancedContractTest.cpp)

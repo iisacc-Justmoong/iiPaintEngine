@@ -15,6 +15,8 @@ struct LiveStrokeFrame {
     StrokeInput rawInput;
     StrokeInput displayedInput;
     StrokeCurve displayedCurve;
+    StrokeGeometryReport rawGeometry;
+    StrokeGeometryReport displayedGeometry;
     std::vector<DabCommand> dabs;
     std::vector<DocumentRect> dabDirtyBounds;
     DocumentRect documentDirtyBounds{};

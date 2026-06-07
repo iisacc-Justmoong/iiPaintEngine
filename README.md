@@ -13,7 +13,8 @@ aggregate 초기화를 지원하는 단순 `struct` 청사진으로 둔다. 엔�
   `PremultipliedPixel`,
   `StrokeLayer`, `TextLayer`, `VectorLayer`
 - Stroke: `Stroke`, `StrokePoint`, `StrokeInput`, `Stabilizer`, `StrokeCurve`, `StrokeResampler`, `Rasterizer`,
-  `BrushDab`, `StrokePath`, `BrushState`, `StrokeCommand`, `StrokeRepository`, `LiveStrokeFrame`, `LiveStrokeBuffer`
+  `BrushDab`, `StrokeGeometryReport`, `StrokeGeometrySample`, `StrokeGeometrySegment`, `StrokePath`, `BrushState`,
+  `StrokeCommand`, `StrokeRepository`, `LiveStrokeFrame`, `LiveStrokeBuffer`
 - Brush: `BrushPreset`, `BrushMaterial`, `BrushPresetSerializer`, `BrushDynamics`, `BrushDynamicsInput`,
   `BrushDynamicsResult`, `BrushShape`, `BrushTip`, `BrushLibrary`, `BrushSnapshot`, `BrushResolve`
 - Render: `Renderer`, `RenderContext`, `DirtyRegion`, `Compositor`, `CpuRenderer`, `GpuRenderer`
@@ -188,6 +189,15 @@ subpixel 위치를 보존하며, 축소된 dab은 픽셀 영역을 샘플링해 
 velocity를 계산한다. dab의
 scale은 pressure, rotation은 tilt 또는 곡선 접선, 간격은 spacing/density와 velocity spacing 계수, alpha는 flow에 의해 결정된다.
 
+`StrokeGeometryReport`는 stroke를 렌더 결과가 아니라 document 좌표의 기하 객체로 해석한 파생 정보이다. `describeStrokeGeometry`는 원본 점 목록이나
+`StrokeCurve`에서 sample/segment 수, bounds, path length, chord length, straightness, 암묵 closing chord 기준 signed area,
+centroid와 길이 가중 centroid, segment별 heading/normal/velocity/pressure delta, sample별 normalized arc length, tangent,
+signed turn,
+curvature, pressure derivative, tilt magnitude, 전체 pressure/velocity/tilt 통계, inflection/cusp 수, principal axis와 spread를
+계산한다.
+이 계산은 선형대수와 polyline 지표만 사용하므로 외부 의존성을 추가하지 않는다. 유지보수 범위가 작은 순수 C++ 값 계산이며, 엔진의 고유 stroke model을 그대로 읽는
+도메인 로직이기 때문이다.
+
 입력 원본과 stroke command는 document coordinate로 저장한다. `CanvasViewport`는 document, view, device pixel 좌표 사이의 변환을 제공하고,
 `PaintCanvasItem`은 QML mouse 위치를 먼저 document 좌표로 변환한 뒤 `InputStrokeBuilder`에 넘긴다. 렌더링은 `RasterProjection`을 통해
 `projectBrushDabs` 호출 시점에만 viewport transform을 적용한다. 따라서 pan/zoom이 바뀌어도 raw stroke와 dab command는 그대로 두고 다시 투영할 수 있다.
@@ -239,6 +249,9 @@ shape/count/length/stiffness는 dab의 접촉 ellipse를 방향성 있게 늘리
 raw input과 rendered stroke는 분리한다. `StrokeCommand`는 `StrokePath::rawInput`에 사용자가 입력한 원본 사건열을 그대로 보존하고,
 `StrokePath::renderedInput`과 `StrokePath::renderedCurve`에 smoothing/interpolation 이후의 파생 데이터를 둔다. 브러시 알고리즘, 해상도, export
 조건이 바뀌어도 raw input에서 다시 재생할 수 있어야 한다.
+`StrokePath::rawGeometry`와 `StrokePath::renderedGeometry`는 같은 분리를 기하 정보에도 적용한다. raw geometry는 사용자 입력의 원래 path를 설명하고,
+rendered geometry는 안정화와 resampling 이후 실제 dab 배치에 쓰인 path를 설명한다. `LiveStrokeFrame`도 즉시 표시 중인 stroke에 대해
+`rawGeometry`와 `displayedGeometry`를 함께 내보낸다.
 
 `StrokeResampler`는 렌더 전용 path에서 Catmull-Rom 또는 linear interpolation을 수행한다. raw sample은 수정하지 않고, 보간된 sample에는 timestamp,
 velocity, pressure, tilt, device state, 누적 `arcLength`가 들어간다. `StrokeCommand`와 `LiveStrokeBuffer`는 stabilizing 이후
@@ -408,12 +421,14 @@ QML은 `Canvas` 또는 `CanvasAdapter`만 직접 다룬다. `InputStrokeBuilder`
 
 `Example/Main.qml`은 LVRS의 `ApplicationWindow`, control component와 `iipe.Canvas`를 함께 쓰는 데모 페인팅 앱이다.
 `iiPaintEngineExample`
-target은 LVRS bootstrapped QML 앱으로 실행되며, 빌드 산출물은 `Example/bin/iiPaintEngineExample`에 놓인다. 앱은 현재 공개된 canvas viewport,
+target은 LVRS bootstrapped QML 앱으로 실행된다. macOS 빌드 산출물은 Finder에서 더블클릭 가능한 raw 실행 파일
+`Example/bin/iiPaintEngineExample`에 놓인다. 이 실행 파일은 LVRS dylib 위치를 rpath로 가져 Finder/LaunchServices 환경에서도 실행된다. 앱은 현재 공개된
+canvas viewport,
 brush color, brush size, flow, opacity, hardness, spacing, 각 stroke 인자 enabled 토글, live preview, clear/reset view API와
 마지막 입력 pressure
 상태를 화면에서 바로 드러낸다. 필압 민감도는 min/center/max 그래프와 보조 슬라이더로 노출되고, 스태빌라이저 강도도 별도 슬라이더로 노출되어 사용자 맞춤형
 필압/브러시 설정 UI의 공개 API를 검증한다.
-`iiPaintEngineExampleDemoContract` 테스트는 예제 QML을 실제 엔진으로 로드하고 `Example/bin` 실행 파일 산출 계약을 함께 검사한다.
+`iiPaintEngineExampleDemoContract` 테스트는 예제 QML을 실제 엔진으로 로드하고 macOS raw 실행 파일 및 LVRS rpath 산출 계약을 함께 검사한다.
 
 ## 설치
 
@@ -485,6 +500,11 @@ rotation, touch gesture event surface, pressure graph curve와 입력 기능별 
 `iiPaintEngineHybridPaintingModel` 테스트는 샘플 velocity/tilt 보존, dab 배치, 브러시 투영, flow 누적과 opacity 상한 분리를 검사한다.
 `iiPaintEngineStrokePhysicalContract` 테스트는 raw/rendered stroke 분리, 누적 arc length 기반 spacing, deterministic seed,
 warm-up/taper, stroke dirty bounds를 검사한다.
+`iiPaintEngineStrokeGeometryReportContract` 테스트는 stroke geometry report가 bounds, length, area, centroid, segment
+heading/velocity,
+sample turn/curvature, pressure/tilt 통계, principal axis를 계산하고 `StrokeCommand`와 `LiveStrokeFrame`에 raw/rendered geometry를
+기록하는지
+검사한다.
 `iiPaintEngineStabilizerAdvancedContract` 테스트는 line smoothing, cusp 보존, prediction/latency compensation, adaptive
 resampling, cursor preview와 dab preview의 일치, taper shape 제어를 검사한다.
 `iiPaintEngineLiveStrokeRendering` 테스트는 pointer move 중 live buffer가 즉시 샘플을 만들고, 현재 tip을 raw 위치에 유지하며, release 뒤

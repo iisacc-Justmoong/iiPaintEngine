@@ -10,9 +10,7 @@
 #include <iostream>
 #include <type_traits>
 
-#include "QtAdapter/CanvasAdapter.h"
-#include "QtAdapter/CanvasBrushConfig.h"
-#include "QtAdapter/IipeQmlTypes.h"
+#include <iiPaintEngine>
 
 namespace {
 
@@ -57,6 +55,9 @@ QImage savedImage(const QString &path)
 int main(int argc, char **argv)
 {
     static_assert(!std::is_base_of_v<QObject, CanvasBrushConfig>);
+    static_assert(!std::is_base_of_v<QObject, CanvasViewportConfig>);
+    static_assert(!std::is_base_of_v<QObject, CanvasRuntimeConfig>);
+    static_assert(!std::is_base_of_v<QObject, CanvasStateSnapshot>);
 
     qputenv("QT_QPA_PLATFORM", "offscreen");
     QGuiApplication app(argc, argv);
@@ -103,7 +104,12 @@ Iipe.CanvasAdapter {
             || !hasMethod(metaObject, "undo()")
             || !hasMethod(metaObject, "redo()")
             || !hasMethod(metaObject, "setBrushConfig(CanvasBrushConfig)")
+            || !hasMethod(metaObject, "setViewportConfig(CanvasViewportConfig)")
+            || !hasMethod(metaObject, "setRuntimeConfig(CanvasRuntimeConfig)")
             || metaObject->indexOfProperty("brushConfig") < 0
+            || metaObject->indexOfProperty("viewportConfig") < 0
+            || metaObject->indexOfProperty("runtimeConfig") < 0
+            || metaObject->indexOfProperty("stateSnapshot") < 0
             || metaObject->indexOfProperty("toolMode") < 0) {
         delete object;
         return 3;
@@ -121,6 +127,7 @@ Iipe.CanvasAdapter {
     brush.flow = 0.42;
     brush.opacity = 0.64;
     brush.hardness = 0.71;
+    brush.spacing = 7.5;
     brush.spacingRatio = 0.33;
     brush.flowEnabled = false;
     brush.opacityEnabled = false;
@@ -138,6 +145,7 @@ Iipe.CanvasAdapter {
             || appliedBrush.flow != 0.42
             || appliedBrush.opacity != 0.64
             || appliedBrush.hardness != 0.71
+            || appliedBrush.spacing != 7.5
             || appliedBrush.spacingRatio != 0.33
             || appliedBrush.flowEnabled
             || appliedBrush.opacityEnabled
@@ -149,6 +157,7 @@ Iipe.CanvasAdapter {
             || appliedBrush.stabilizerStrength != 0.44
             || canvas->brushSize() != 23.0
             || canvas->brushColor() != QColor{"#557799"}
+            || canvas->brushSpacing() != 7.5
             || canvas->brushFlowEnabled()
             || canvas->brushOpacityEnabled()
             || canvas->brushHardnessEnabled()
@@ -157,12 +166,69 @@ Iipe.CanvasAdapter {
         return 15;
     }
 
+    CanvasViewportConfig viewport;
+    viewport.documentX = 3.5;
+    viewport.documentY = -4.25;
+    viewport.zoom = 2.5;
+    viewport.devicePixelRatio = 1.75;
+    viewport.viewWidth = 64.0;
+    viewport.viewHeight = 48.0;
+    canvas->setViewportConfig(viewport);
+
+    const CanvasViewportConfig appliedViewport = canvas->viewportConfig();
+    if (appliedViewport.documentX != 3.5
+            || appliedViewport.documentY != -4.25
+            || appliedViewport.zoom != 2.5
+            || appliedViewport.devicePixelRatio != 1.75
+            || appliedViewport.viewWidth != 64.0
+            || appliedViewport.viewHeight != 48.0
+            || canvas->documentX() != 3.5
+            || canvas->documentY() != -4.25
+            || canvas->zoom() != 2.5
+            || canvas->canvasDevicePixelRatio() != 1.75
+            || canvas->width() != 64.0
+            || canvas->height() != 48.0) {
+        delete object;
+        return 16;
+    }
+
+    CanvasRuntimeConfig runtime;
+    runtime.livePreviewEnabled = false;
+    runtime.livePreviewFrameIntervalMs = 17;
+    runtime.multithreadedEventsEnabled = false;
+    canvas->setRuntimeConfig(runtime);
+
+    const CanvasRuntimeConfig appliedRuntime = canvas->runtimeConfig();
+    if (appliedRuntime.livePreviewEnabled
+            || appliedRuntime.livePreviewFrameIntervalMs != 17
+            || appliedRuntime.multithreadedEventsEnabled
+            || canvas->livePreviewEnabled()
+            || canvas->livePreviewFrameIntervalMs() != 17
+            || canvas->multithreadedEventsEnabled()) {
+        delete object;
+        return 17;
+    }
+
     if (!invokeNewCanvas(canvas, 12, 10)
             || canvas->width() != 12.0
             || canvas->height() != 10.0
             || canvas->strokeCount() != 0) {
         delete object;
         return 5;
+    }
+
+    const CanvasStateSnapshot state = canvas->stateSnapshot();
+    if (state.liveStrokeActive
+            || state.strokeCount != 0
+            || state.inputDevice != QStringLiteral("mouse")
+            || state.inputPressure != 1.0
+            || !state.canUndo
+            || state.canRedo
+            || state.canvasWidth != 12.0
+            || state.canvasHeight != 10.0
+            || state.toolMode != QStringLiteral("eraser")) {
+        delete object;
+        return 18;
     }
 
     QTemporaryDir directory;

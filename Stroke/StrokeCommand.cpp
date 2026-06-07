@@ -11,9 +11,11 @@ StrokeCommand makeStrokeCommand(const StrokeInput &rawInput,
     StrokeCommand command;
     command.brush = brush;
     command.path.rawInput = rawInput;
+    command.path.rawGeometry = describeStrokeGeometry(command.path.rawInput);
     command.path.renderedInput = stabilizeStrokeInput(rawInput, stabilizer);
     command.path.renderedInput = resampleStrokeInput(command.path.renderedInput, brush.resampler);
     command.path.renderedCurve = makeStrokeCurve(command.path.renderedInput);
+    command.path.renderedGeometry = describeStrokeGeometry(command.path.renderedCurve);
     command.dabs = placeBrushDabs(command.path.renderedCurve,
                                   brush.rasterizer,
                                   brush.dynamics,
