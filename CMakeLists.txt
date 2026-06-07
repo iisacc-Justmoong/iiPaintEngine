@@ -440,8 +440,14 @@ target_link_libraries(iiPaintEngineExampleDemoContractTests PRIVATE
 target_compile_definitions(iiPaintEngineExampleDemoContractTests PRIVATE
         IIPAINTENGINE_EXAMPLE_MAIN_QML="${CMAKE_CURRENT_SOURCE_DIR}/Example/Main.qml"
         IIPAINTENGINE_EXAMPLE_EXECUTABLE="$<TARGET_FILE:iiPaintEngineExample>"
+        IIPAINTENGINE_EXAMPLE_DEMO_CONTRACT_EXECUTABLE="$<TARGET_FILE:iiPaintEngineExampleDemoContractTests>"
         IIPAINTENGINE_LVRS_QML_IMPORT_PATH="${LVRS_QML_IMPORT_PATH}"
         IIPAINTENGINE_LVRS_LIBRARY_DIR="${IIPAINTENGINE_LVRS_LIBRARY_DIR}")
+
+if (APPLE AND IIPAINTENGINE_LVRS_LIBRARY_DIR)
+    set_property(TARGET iiPaintEngineExampleDemoContractTests APPEND PROPERTY
+            BUILD_RPATH "${IIPAINTENGINE_LVRS_LIBRARY_DIR}")
+endif ()
 
 add_test(NAME iiPaintEngineExampleDemoContract
         COMMAND iiPaintEngineExampleDemoContractTests)

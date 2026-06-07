@@ -50,18 +50,25 @@ int main(int argc, char **argv)
 
     const QFileInfo qmlFile{QString::fromUtf8(IIPAINTENGINE_EXAMPLE_MAIN_QML)};
     const QFileInfo executableFile{QString::fromUtf8(IIPAINTENGINE_EXAMPLE_EXECUTABLE)};
-    if (!qmlFile.isFile() || !executableFile.isFile() || !executableFile.isExecutable()) {
+    const QFileInfo contractExecutableFile{QString::fromUtf8(IIPAINTENGINE_EXAMPLE_DEMO_CONTRACT_EXECUTABLE)};
+    if (!qmlFile.isFile()
+            || !executableFile.isFile()
+            || !executableFile.isExecutable()
+            || !contractExecutableFile.isFile()
+            || !contractExecutableFile.isExecutable()) {
         return 1;
     }
 #if defined(__APPLE__)
     const QString executablePath = executableFile.absoluteFilePath();
+    const QString contractExecutablePath = contractExecutableFile.absoluteFilePath();
     if (executablePath.contains(QStringLiteral(".app/Contents/MacOS/"))
             || executableFile.fileName() != QStringLiteral("iiPaintEngineExample")
             || executableFile.dir().dirName() != QStringLiteral("bin")) {
         return 1;
     }
     if (QString::fromUtf8(IIPAINTENGINE_LVRS_LIBRARY_DIR).isEmpty()
-            || !executableHasRpath(executablePath, QString::fromUtf8(IIPAINTENGINE_LVRS_LIBRARY_DIR))) {
+            || !executableHasRpath(executablePath, QString::fromUtf8(IIPAINTENGINE_LVRS_LIBRARY_DIR))
+            || !executableHasRpath(contractExecutablePath, QString::fromUtf8(IIPAINTENGINE_LVRS_LIBRARY_DIR))) {
         return 1;
     }
 #endif
