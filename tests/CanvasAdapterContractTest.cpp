@@ -231,6 +231,14 @@ Iipe.CanvasAdapter {
         return 18;
     }
 
+    viewport.documentX = 0.0;
+    viewport.documentY = 0.0;
+    viewport.zoom = 1.0;
+    viewport.devicePixelRatio = 1.0;
+    viewport.viewWidth = 12.0;
+    viewport.viewHeight = 10.0;
+    canvas->setViewportConfig(viewport);
+
     QTemporaryDir directory;
     if (!directory.isValid()) {
         delete object;

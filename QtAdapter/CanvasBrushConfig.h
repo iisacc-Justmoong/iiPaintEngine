@@ -14,6 +14,7 @@ struct CanvasBrushConfig {
     Q_PROPERTY(qreal flow MEMBER flow)
     Q_PROPERTY(qreal opacity MEMBER opacity)
     Q_PROPERTY(qreal hardness MEMBER hardness)
+    Q_PROPERTY(qreal spacing MEMBER spacing)
     Q_PROPERTY(qreal spacingRatio MEMBER spacingRatio)
     Q_PROPERTY(bool flowEnabled MEMBER flowEnabled)
     Q_PROPERTY(bool opacityEnabled MEMBER opacityEnabled)
@@ -30,6 +31,7 @@ public:
     qreal flow = 1.0;
     qreal opacity = 1.0;
     qreal hardness = 1.0;
+    qreal spacing = 1.0;
     qreal spacingRatio = 1.0;
     bool flowEnabled = true;
     bool opacityEnabled = true;

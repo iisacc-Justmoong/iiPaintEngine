@@ -25,8 +25,9 @@ aggregate 초기화를 지원하는 단순 `struct` 청사진으로 둔다. 엔�
 - Transform: `AffineTransform`, `TransformState`
 - Filter: `FilterNode`, `FilterPipeline`
 - Tool: `FillOperation`, `GradientOperation`, `EraserOperation`, `ToolState`, `ToolStateMachine`
-- QtAdapter: `PaintCanvasItem`, `CanvasAdapter`, `CanvasBrushConfig`, `CanvasEventWork`, `registerIipeQmlTypes`,
-  `PaintEngineController`, `DocumentAdapter`, `LayerListModel`
+- QtAdapter: `PaintCanvasItem`, `CanvasAdapter`, `CanvasBrushConfig`, `CanvasViewportConfig`, `CanvasRuntimeConfig`,
+  `CanvasStateSnapshot`, `CanvasEventWork`, `registerIipeQmlTypes`, `PaintEngineController`, `DocumentAdapter`,
+  `LayerListModel`
 
 `PaintCanvasItem`은 QML/QQuickItem 연동을 위한 마우스 입력 경계와 화면 페인트 경계를 제공한다. 그 외 모든 객체는 생성자를 제공하지 않고 공개 필드만 유지하는 경량 값 타입으로 시작한다.
 
@@ -405,12 +406,17 @@ Iipe.CanvasAdapter {
 ```
 
 `CanvasAdapter`는 `newCanvas(width, height)`, `openRaster(path)`, `saveToFile(path)`, `undo()`, `redo()`, `toolMode`,
-`canUndo`,
-`canRedo`를 제공한다. `openRaster`와 `saveToFile`은 local file path 또는 `file://` URL을 받으며, 별도 이미지 입출력 라이브러리를 추가하지 않고 이미 사용하는
+`canUndo`, `canRedo`, `brushConfig`, `viewportConfig`, `runtimeConfig`, `stateSnapshot`을 제공한다. `openRaster`와
+`saveToFile`은 local file path 또는 `file://` URL을 받으며, 별도 이미지 입출력 라이브러리를 추가하지 않고 이미 사용하는
 Qt Gui의 `QImage` 포맷 처리를 사용한다. `toolMode`는 앱의 현재 도구 문자열을 보존하는 어댑터 상태이며, 엔진 내부 stroke pipeline의 기본 입력 경계는
 계속 `PaintCanvasItem`에 남는다.
 브러시 UI가 필요한 값은 `CanvasBrushConfig`로 묶어서 `CanvasAdapter::brushConfig`와 `setBrushConfig(config)`로 왕복한다. 이 config는 color,
-size, flow, opacity, hardness, spacing ratio, 각 stroke 인자 enabled 상태, pressure curve, stabilizer strength만 담는다.
+size, flow, opacity, hardness, absolute spacing, spacing ratio, 각 stroke 인자 enabled 상태, pressure curve, stabilizer
+strength를 담는다. viewport UI는 `CanvasViewportConfig`로 document origin, zoom, device pixel ratio, view size를 왕복하고,
+runtime UI는 `CanvasRuntimeConfig`로 live preview, preview frame interval, multithreaded event 처리를 왕복한다.
+`CanvasStateSnapshot`은 live stroke 여부, stroke count, 마지막 입력 장치/pressure, undo/redo 가능 여부, canvas size, tool mode를
+read-only로
+제공한다.
 앱은 이 값 계약을 통해 브러시 패널과 preset UI를 만들 수 있지만, 내부 구현 타입인 `Rasterizer`, `BrushDynamics`, `BrushMaterial`, `StrokeCommand`를 직접
 소유하지 않는다.
 
@@ -448,6 +454,12 @@ find_package(iiPaintEngine CONFIG REQUIRED)
 target_link_libraries(app PRIVATE iiPaintEngine::iiPaintEngine)
 ```
 
+소비자 코드는 개별 모듈 헤더를 일일이 포함하지 않고 아래 단일 umbrella header로 공개 엔진 타입과 Qt adapter 타입을 사용할 수 있다.
+
+```cpp
+#include <iiPaintEngine>
+```
+
 macOS 산출물은 `~/.local/iiPaintEngine/lib/libiiPaintEngine.dylib`, Linux/Android 산출물은 각 prefix의 `lib/libiiPaintEngine.so`,
 Windows 산출물은 `bin/iiPaintEngine.dll`이다. WASM 빌드는 Qt Core의 Emscripten runtime symbol을 위해 embind 링크 옵션을 포함한다.
 플랫폼별 package config는 `~/.local/iiPaintEngine/platforms/<platform>` 아래에도 설치된다.
@@ -475,11 +487,14 @@ command를 문자열 payload로 저장하고 다시 열 수 있는지 검사한�
 `iiPaintEngineInstallLayoutContract` 테스트는 `install.sh`, CMake install/export 규칙, `iiPaintEngineConfig.cmake` 플랫폼
 dispatch,
 README 설치 문서가 같은 `~/.local/iiPaintEngine` 동적 라이브러리 설치 계약을 가리키는지 검사한다.
+`iiPaintEnginePublicUmbrellaHeaderContract` 테스트는 외부 C++ 소비자가 `#include <iiPaintEngine>` 하나로 Core, Document, Canvas,
+Layer, Stroke, Brush, Render, History, Input, Color, Selection, Transform, Filter, Tool, QtAdapter 공개 타입을 사용할 수 있는지
+검사한다.
 `iiPaintEngineCanvasQmlApi` 테스트는 `registerIipeQmlTypes()`로 `iipe.Canvas`를 등록하고 QML에서 viewport, brush, live preview,
 clear API와 마지막 입력 상태 read-only API를 하나의 객체로 사용할 수 있는지 검사한다.
 `iiPaintEngineCanvasAdapterContract` 테스트는 `iipe.CanvasAdapter`가 범용 `newCanvas/openRaster/saveToFile/undo/redo/toolMode`
-계약을 제공하고, Qt `QImage` 기반 raster open/save, adapter-level undo/redo, `CanvasBrushConfig` 기반 브러시 설정 facade가 같은 QML 타입에서
-왕복되는지 검사한다.
+계약을 제공하고, Qt `QImage` 기반 raster open/save, adapter-level undo/redo, `CanvasBrushConfig`/`CanvasViewportConfig`/
+`CanvasRuntimeConfig`/`CanvasStateSnapshot` 기반 facade가 같은 QML 타입에서 왕복되는지 검사한다.
 `iiPaintEngineCanvasTabletPressureContract` 테스트는 Qt tablet event의 pressure jitter가 실제 canvas stroke의 농도, dab size, brush
 dynamics로
 전달되고, button flag 없이 pressure만 있는 tablet contact도 stroke로 인정되며, pressure 0의 tablet press 뒤 첫 pressure move가 stroke를

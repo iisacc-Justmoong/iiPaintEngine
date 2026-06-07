@@ -217,6 +217,7 @@ set(IIPAINTENGINE_SOURCES
         QtAdapter/PaintCanvasItem.h
         QtAdapter/CanvasAdapter.cpp
         QtAdapter/CanvasAdapter.h
+        QtAdapter/CanvasApiConfig.h
         QtAdapter/CanvasBrushConfig.h
         QtAdapter/CanvasEventWork.cpp
         QtAdapter/CanvasEventWork.h
@@ -258,7 +259,7 @@ install(TARGETS iiPaintEngine
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-install(FILES library.h
+install(FILES library.h iiPaintEngine
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine)
 
 install(DIRECTORY

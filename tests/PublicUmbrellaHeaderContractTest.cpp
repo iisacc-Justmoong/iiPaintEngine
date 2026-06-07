@@ -32,10 +32,10 @@ int main()
     static_assert(isCompleteType<HistoryStack>());
     static_assert(isCompleteType<PointerEvent>());
     static_assert(isCompleteType<PaintColor>());
-    static_assert(isCompleteType<Selection>());
-    static_assert(isCompleteType<Transform>());
+    static_assert(isCompleteType<SelectionState>());
+    static_assert(isCompleteType<TransformState>());
     static_assert(isCompleteType<FilterPipeline>());
-    static_assert(isCompleteType<RasterEditTool>());
+    static_assert(isCompleteType<FillOperation>());
     static_assert(isCompleteType<CanvasAdapter>());
     static_assert(isCompleteType<CanvasBrushConfig>());
     static_assert(isCompleteType<CanvasViewportConfig>());

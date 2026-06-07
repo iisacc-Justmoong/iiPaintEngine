@@ -5,7 +5,10 @@
 #include "CanvasAdapter.h"
 
 #include <QImage>
+#include <QQuickItem>
 #include <QUrl>
+
+#include <algorithm>
 
 namespace {
 
@@ -34,7 +37,21 @@ CanvasAdapter::CanvasAdapter(QQuickItem *parent)
 {
     connect(this, &PaintCanvasItem::brushChanged, this, &CanvasAdapter::brushConfigChanged);
     connect(this, &PaintCanvasItem::strokeSettingsChanged, this, &CanvasAdapter::brushConfigChanged);
+    connect(this, &PaintCanvasItem::viewportChanged, this, &CanvasAdapter::viewportConfigChanged);
+    connect(this, &PaintCanvasItem::livePreviewEnabledChanged, this, &CanvasAdapter::runtimeConfigChanged);
+    connect(this, &PaintCanvasItem::livePreviewFrameIntervalMsChanged, this, &CanvasAdapter::runtimeConfigChanged);
+    connect(this, &PaintCanvasItem::multithreadedEventsEnabledChanged, this, &CanvasAdapter::runtimeConfigChanged);
+    connect(this, &PaintCanvasItem::liveStrokeActiveChanged, this, &CanvasAdapter::stateSnapshotChanged);
     connect(this, &PaintCanvasItem::strokeCountChanged, this, &CanvasAdapter::undoRedoChanged);
+    connect(this, &PaintCanvasItem::strokeCountChanged, this, &CanvasAdapter::stateSnapshotChanged);
+    connect(this, &PaintCanvasItem::inputStateChanged, this, &CanvasAdapter::stateSnapshotChanged);
+    connect(this, &PaintCanvasItem::viewportChanged, this, &CanvasAdapter::stateSnapshotChanged);
+    connect(this, &QQuickItem::widthChanged, this, &CanvasAdapter::viewportConfigChanged);
+    connect(this, &QQuickItem::heightChanged, this, &CanvasAdapter::viewportConfigChanged);
+    connect(this, &QQuickItem::widthChanged, this, &CanvasAdapter::stateSnapshotChanged);
+    connect(this, &QQuickItem::heightChanged, this, &CanvasAdapter::stateSnapshotChanged);
+    connect(this, &CanvasAdapter::toolModeChanged, this, &CanvasAdapter::stateSnapshotChanged);
+    connect(this, &CanvasAdapter::undoRedoChanged, this, &CanvasAdapter::stateSnapshotChanged);
 }
 
 QString CanvasAdapter::toolMode() const
@@ -61,6 +78,7 @@ CanvasBrushConfig CanvasAdapter::brushConfig() const
     config.flow = brushFlow();
     config.opacity = brushOpacity();
     config.hardness = brushHardness();
+    config.spacing = brushSpacing();
     config.spacingRatio = brushSpacingRatio();
     config.flowEnabled = brushFlowEnabled();
     config.opacityEnabled = brushOpacityEnabled();
@@ -80,6 +98,7 @@ void CanvasAdapter::setBrushConfig(const CanvasBrushConfig &config)
     setBrushFlow(config.flow);
     setBrushOpacity(config.opacity);
     setBrushHardness(config.hardness);
+    setBrushSpacing(config.spacing);
     setBrushSpacingRatio(config.spacingRatio);
     setBrushFlowEnabled(config.flowEnabled);
     setBrushOpacityEnabled(config.opacityEnabled);
@@ -89,6 +108,57 @@ void CanvasAdapter::setBrushConfig(const CanvasBrushConfig &config)
     setPressureCurveMaximum(config.pressureCurveMaximum);
     setPressureCurveCenter(config.pressureCurveCenter);
     setStabilizerStrength(config.stabilizerStrength);
+}
+
+CanvasViewportConfig CanvasAdapter::viewportConfig() const
+{
+    CanvasViewportConfig config;
+    config.documentX = documentX();
+    config.documentY = documentY();
+    config.zoom = zoom();
+    config.devicePixelRatio = canvasDevicePixelRatio();
+    config.viewWidth = width();
+    config.viewHeight = height();
+    return config;
+}
+
+void CanvasAdapter::setViewportConfig(const CanvasViewportConfig &config)
+{
+    setWidth(std::max<qreal>(0.0, config.viewWidth));
+    setHeight(std::max<qreal>(0.0, config.viewHeight));
+    setCanvasDevicePixelRatio(config.devicePixelRatio);
+    setDocumentViewport(config.documentX, config.documentY, config.zoom);
+}
+
+CanvasRuntimeConfig CanvasAdapter::runtimeConfig() const
+{
+    CanvasRuntimeConfig config;
+    config.livePreviewEnabled = livePreviewEnabled();
+    config.livePreviewFrameIntervalMs = livePreviewFrameIntervalMs();
+    config.multithreadedEventsEnabled = multithreadedEventsEnabled();
+    return config;
+}
+
+void CanvasAdapter::setRuntimeConfig(const CanvasRuntimeConfig &config)
+{
+    setLivePreviewEnabled(config.livePreviewEnabled);
+    setLivePreviewFrameIntervalMs(config.livePreviewFrameIntervalMs);
+    setMultithreadedEventsEnabled(config.multithreadedEventsEnabled);
+}
+
+CanvasStateSnapshot CanvasAdapter::stateSnapshot() const
+{
+    CanvasStateSnapshot snapshot;
+    snapshot.liveStrokeActive = liveStrokeActive();
+    snapshot.strokeCount = strokeCount();
+    snapshot.inputDevice = inputDevice();
+    snapshot.inputPressure = inputPressure();
+    snapshot.canUndo = canUndo();
+    snapshot.canRedo = canRedo();
+    snapshot.canvasWidth = width();
+    snapshot.canvasHeight = height();
+    snapshot.toolMode = toolMode();
+    return snapshot;
 }
 
 bool CanvasAdapter::canUndo() const

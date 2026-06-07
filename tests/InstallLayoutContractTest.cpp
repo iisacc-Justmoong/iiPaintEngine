@@ -104,6 +104,8 @@ int main()
                    "CMakeLists.txt must link Emscripten embind support for Qt WASM dependencies.");
     expectContains(cmakeLists, "install(TARGETS iiPaintEngine",
                    "CMakeLists.txt must install the iiPaintEngine library target.");
+    expectContains(cmakeLists, "install(FILES library.h iiPaintEngine",
+                   "CMakeLists.txt must install the extensionless umbrella header.");
     expectContains(cmakeLists, "EXPORT iiPaintEngineTargets",
                    "CMakeLists.txt must export iiPaintEngineTargets.");
     expectContains(cmakeLists, "NAMESPACE iiPaintEngine::",
@@ -130,6 +132,10 @@ int main()
                    "README.md must document CMake package loading.");
     expectContains(readme, "iiPaintEngine::iiPaintEngine",
                    "README.md must document the imported target.");
+    expectContains(readme, "#include <iiPaintEngine>",
+                   "README.md must document the single public umbrella include.");
+    expectContains(readme, "iiPaintEnginePublicUmbrellaHeaderContract",
+                   "README.md must document the umbrella header contract test.");
 
     return failures == 0 ? 0 : 1;
 }
