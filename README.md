@@ -452,6 +452,7 @@ brush color, brush size, flow, opacity, hardness, spacing, 각 stroke 인자 ena
 상태를 화면에서 바로 드러낸다. 필압 민감도는 min/center/max 그래프와 보조 슬라이더로 노출되고, 스태빌라이저 강도도 별도 슬라이더로 노출되어 사용자 맞춤형
 필압/브러시 설정 UI의 공개 API를 검증한다.
 예제의 `QC.Slider` 및 `BrushSlider` range는 qmlcache 컴파일이 통과하도록 항상 명시적인 `from`/`to` 속성으로 둔다.
+상단 `pragma ComponentBehavior: Bound`도 한 줄 선언으로 유지해 qmlcache가 `ComponentBehavior`를 독립 식별자로 파싱하지 않게 한다.
 `iiPaintEngineExampleDemoContract` 테스트는 예제 QML을 실제 엔진으로 로드하고 slider range, macOS raw 실행 파일 및 테스트 실행 파일의 LVRS rpath 산출
 계약을 함께 검사한다.
 

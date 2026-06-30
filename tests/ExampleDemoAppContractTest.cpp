@@ -1,5 +1,6 @@
 #include <QElapsedTimer>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QMetaObject>
@@ -56,6 +57,16 @@ int main(int argc, char **argv)
             || !executableFile.isExecutable()
             || !contractExecutableFile.isFile()
             || !contractExecutableFile.isExecutable()) {
+        return 1;
+    }
+
+    QFile qmlSource{qmlFile.absoluteFilePath()};
+    if (!qmlSource.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return 1;
+    }
+    const QByteArray qmlBytes = qmlSource.readAll();
+    if (!qmlBytes.startsWith("pragma ComponentBehavior: Bound\n")
+            || qmlBytes.contains("\npragma\nComponentBehavior: Bound")) {
         return 1;
     }
 #if defined(__APPLE__)
