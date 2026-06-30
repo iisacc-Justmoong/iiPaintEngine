@@ -165,6 +165,14 @@ DevicePixelRect deviceBoundsForBrushDab(const BrushDab &dab,
                                         const Rasterizer &rasterizer,
                                         const RasterProjection &projection);
 
+DevicePixelRect deviceBoundsForBrushDabsUnion(const std::vector<BrushDab> &dabs,
+                                              const Rasterizer &rasterizer,
+                                              const RasterProjection &projection);
+
+DevicePixelRect deviceBoundsForBrushDabsUnion(std::span<const BrushDab> dabs,
+                                              const Rasterizer &rasterizer,
+                                              const RasterProjection &projection);
+
 std::vector<DevicePixelRect> deviceBoundsForBrushDabs(const std::vector<BrushDab> &dabs,
                                                       const Rasterizer &rasterizer,
                                                       const RasterProjection &projection);

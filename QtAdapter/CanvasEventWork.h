@@ -28,7 +28,6 @@ struct CanvasLiveStrokeWorkRequest {
 struct CanvasLiveStrokeWorkResult {
     LiveStrokeFrame frame;
     std::vector<RasterSample> samples;
-    Rasterizer previewRasterizer;
     DevicePixelRect dirtyBounds{};
     DevicePixelRect fullDirtyBounds{};
     Types::Scalar renderedStrokeDistance = 0.0;

@@ -83,15 +83,14 @@ CanvasLiveStrokeWorkResult runCanvasLiveStrokeWork(const CanvasLiveStrokeWorkReq
 {
     CanvasLiveStrokeWorkResult result;
     const BrushState previewBrush = livePreviewBrushState(request.brush);
-    result.previewRasterizer = previewBrush.rasterizer;
     result.frame = makeLiveStrokeFrame(request.rawInput, previewBrush, request.stabilizer, false);
     if (!result.frame.active) {
         return result;
     }
 
-    result.fullDirtyBounds = makeDirtyRegion(deviceBoundsForBrushDabs(result.frame.dabs,
-                                                                      previewBrush.rasterizer,
-                                                                      request.projection)).bounds;
+    result.fullDirtyBounds = deviceBoundsForBrushDabsUnion(result.frame.dabs,
+                                                           previewBrush.rasterizer,
+                                                           request.projection);
     result.frame.dirtyBounds = result.fullDirtyBounds;
     if (!result.frame.dabs.empty()) {
         result.renderedStrokeDistance = result.frame.dabs.back().strokeDistance;
@@ -125,9 +124,9 @@ CanvasLiveStrokeWorkResult runCanvasLiveStrokeWork(const CanvasLiveStrokeWorkReq
                                           request.projection,
                                           previewBrush.material);
     }
-    result.dirtyBounds = makeDirtyRegion(deviceBoundsForBrushDabs(projectedDabs,
-                                                                  previewBrush.rasterizer,
-                                                                  request.projection)).bounds;
+    result.dirtyBounds = deviceBoundsForBrushDabsUnion(projectedDabs,
+                                                       previewBrush.rasterizer,
+                                                       request.projection);
     return result;
 }
 
@@ -149,8 +148,8 @@ CanvasCommitStrokeWorkResult runCanvasCommitStrokeWork(const CanvasCommitStrokeW
                                           request.projection,
                                           result.command.brush.material);
     }
-    result.dirtyBounds = makeDirtyRegion(deviceBoundsForBrushDabs(result.command.dabs,
-                                                                  result.command.brush.rasterizer,
-                                                                  request.projection)).bounds;
+    result.dirtyBounds = deviceBoundsForBrushDabsUnion(result.command.dabs,
+                                                       result.command.brush.rasterizer,
+                                                       request.projection);
     return result;
 }

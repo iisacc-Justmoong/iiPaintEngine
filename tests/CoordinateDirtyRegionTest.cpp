@@ -129,5 +129,15 @@ int main()
         return 1;
     }
 
+    const DevicePixelRect directBounds = deviceBoundsForBrushDabsUnion(command.dabs,
+                                                                       command.brush.rasterizer,
+                                                                       projection);
+    if (directBounds.origin.x != dirtyRegion.bounds.origin.x
+            || directBounds.origin.y != dirtyRegion.bounds.origin.y
+            || directBounds.width != dirtyRegion.bounds.width
+            || directBounds.height != dirtyRegion.bounds.height) {
+        return 1;
+    }
+
     return 0;
 }

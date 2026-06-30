@@ -15,6 +15,8 @@
 
 namespace {
 
+constexpr std::size_t maximumProjectedSampleReserve = 1'048'576;
+
 struct UnitColor {
     Types::Scalar red = 0.0;
     Types::Scalar green = 0.0;
@@ -40,9 +42,13 @@ std::size_t projectedSampleCapacity(std::span<const BrushDab> dabs, const Raster
     const Types::Pixel footprintHeight = rasterizer.brushHeight > 0
             ? rasterizer.brushHeight
             : std::max<Types::Pixel>(1, rasterizer.radius * 2 + 1);
-    return dabs.size()
-            * static_cast<std::size_t>(footprintWidth)
+    const std::size_t footprint = static_cast<std::size_t>(footprintWidth)
             * static_cast<std::size_t>(footprintHeight);
+    if (footprint == 0 || dabs.size() > maximumProjectedSampleReserve / footprint) {
+        return maximumProjectedSampleReserve;
+    }
+
+    return std::min(maximumProjectedSampleReserve, dabs.size() * footprint);
 }
 
 Types::Scalar materialProjectionMask(Types::Scalar maskAlpha,
@@ -338,6 +344,26 @@ DocumentRect uniteDocumentRects(DocumentRect lhs, DocumentRect rhs)
             {left, top},
             std::max<Types::Scalar>(0.0, right - left),
             std::max<Types::Scalar>(0.0, bottom - top),
+    };
+}
+
+DevicePixelRect uniteDeviceRects(DevicePixelRect lhs, DevicePixelRect rhs)
+{
+    if (lhs.width <= 0 || lhs.height <= 0) {
+        return rhs;
+    }
+    if (rhs.width <= 0 || rhs.height <= 0) {
+        return lhs;
+    }
+
+    const Types::Pixel left = std::min(lhs.origin.x, rhs.origin.x);
+    const Types::Pixel top = std::min(lhs.origin.y, rhs.origin.y);
+    const Types::Pixel right = std::max(lhs.origin.x + lhs.width, rhs.origin.x + rhs.width);
+    const Types::Pixel bottom = std::max(lhs.origin.y + lhs.height, rhs.origin.y + rhs.height);
+    return DevicePixelRect{
+            {left, top},
+            std::max<Types::Pixel>(0, right - left),
+            std::max<Types::Pixel>(0, bottom - top),
     };
 }
 
@@ -1379,6 +1405,26 @@ DevicePixelRect deviceBoundsForBrushDab(const BrushDab &dab,
                                         const RasterProjection &projection)
 {
     return deviceRectFromBounds(boundsForDab(projectedDab(dab, projection), rasterizer));
+}
+
+DevicePixelRect deviceBoundsForBrushDabsUnion(const std::vector<BrushDab> &dabs,
+                                              const Rasterizer &rasterizer,
+                                              const RasterProjection &projection)
+{
+    return deviceBoundsForBrushDabsUnion(std::span<const BrushDab>{dabs.data(), dabs.size()},
+                                         rasterizer,
+                                         projection);
+}
+
+DevicePixelRect deviceBoundsForBrushDabsUnion(std::span<const BrushDab> dabs,
+                                              const Rasterizer &rasterizer,
+                                              const RasterProjection &projection)
+{
+    DevicePixelRect bounds{};
+    for (const BrushDab &dab : dabs) {
+        bounds = uniteDeviceRects(bounds, deviceBoundsForBrushDab(dab, rasterizer, projection));
+    }
+    return bounds;
 }
 
 std::vector<DevicePixelRect> deviceBoundsForBrushDabs(const std::vector<BrushDab> &dabs,

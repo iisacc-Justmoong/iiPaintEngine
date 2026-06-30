@@ -310,9 +310,9 @@ touch gesture는 centroid, translation, scale, rotation, finger count를 가진 
 묶어 만든다. live preview worker는 interactive preview에만 최소 1 document unit의 dab 간격을 적용해 과도하게 촘촘한 brush spacing에서도 frame 중
 projection 작업량이 폭증하지 않게 하며, release 후 commit stroke는 사용자가 설정한 brush spacing을 그대로 보존한다. 이어지는 preview frame은 이전
 live stroke의 안정된 앞부분을 유지하고 겹침을 둔 후미 구간만 지운 뒤 새 samples를 덧칠하므로, 긴 stroke 입력 중 live layer 전체를 매번 다시 칠하지 않는다.
-projection/bounds API는 dab 배열 suffix를 `std::span<const BrushDab>`로 받아 증분 preview가 tail dabs를 별도 벡터로 복사하지 않으며, sample
-vector는 brush
-footprint 기준 용량을 미리 예약한다.
+projection/bounds API는 dab 배열 suffix를 `std::span<const BrushDab>`로 받아 증분 preview가 tail dabs를 별도 벡터로 복사하지 않는다. worker의
+dirty
+bounds는 rect vector를 만들지 않고 직접 union으로 계산하며, sample vector reserve는 brush footprint를 기준으로 하되 과도한 선점이 생기지 않게 상한을 둔다.
 wet/smudge처럼 source layer가 필요한 brush job은 raw stroke의 projected bounds를 넉넉히 inflate한 source patch만 worker request에 복사하고,
 `RasterSourceSampler::origin`으로 cropped layer의 local 좌표와 canvas device 좌표를 분리한다.
 release가 하나의

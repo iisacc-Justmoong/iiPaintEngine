@@ -18,7 +18,6 @@
 #include <cstddef>
 #include <cmath>
 #include <memory>
-#include <span>
 #include <utility>
 #include <vector>
 
@@ -241,6 +240,32 @@ QRect qRectFromDeviceRect(DevicePixelRect rect, Types::Scalar devicePixelRatio)
     const auto right = static_cast<int>(std::ceil(static_cast<Types::Scalar>(rect.origin.x + rect.width) / ratio));
     const auto bottom = static_cast<int>(std::ceil(static_cast<Types::Scalar>(rect.origin.y + rect.height) / ratio));
     return QRect(left, top, std::max(0, right - left), std::max(0, bottom - top));
+}
+
+DevicePixelRect deviceRectFromDocumentRect(DocumentRect rect, const RasterProjection &projection)
+{
+    if (rect.width <= 0.0 || rect.height <= 0.0) {
+        return {};
+    }
+
+    const Types::Scalar scale = std::max<Types::Scalar>(0.01, projection.scale);
+    const Types::Scalar left = static_cast<Types::Scalar>(projection.deviceOrigin.x)
+            + (rect.origin.x - projection.documentOrigin.x) * scale;
+    const Types::Scalar top = static_cast<Types::Scalar>(projection.deviceOrigin.y)
+            + (rect.origin.y - projection.documentOrigin.y) * scale;
+    const Types::Scalar right = static_cast<Types::Scalar>(projection.deviceOrigin.x)
+            + (rect.origin.x + rect.width - projection.documentOrigin.x) * scale;
+    const Types::Scalar bottom = static_cast<Types::Scalar>(projection.deviceOrigin.y)
+            + (rect.origin.y + rect.height - projection.documentOrigin.y) * scale;
+    const Types::Pixel pixelLeft = static_cast<Types::Pixel>(std::floor(left));
+    const Types::Pixel pixelTop = static_cast<Types::Pixel>(std::floor(top));
+    const Types::Pixel pixelRight = static_cast<Types::Pixel>(std::ceil(right));
+    const Types::Pixel pixelBottom = static_cast<Types::Pixel>(std::ceil(bottom));
+    return DevicePixelRect{
+            {pixelLeft, pixelTop},
+            std::max<Types::Pixel>(0, pixelRight - pixelLeft + 1),
+            std::max<Types::Pixel>(0, pixelBottom - pixelTop + 1),
+    };
 }
 
 std::uint32_t argbFromColor(const QColor &color)
@@ -1404,7 +1429,6 @@ void PaintCanvasItem::applyLiveStrokeWorkResult(std::uint64_t generation,
     m_liveStrokeBuffer.active = result.frame.active;
     m_liveStrokeDeviceDirtyBounds = result.frame.active ? result.fullDirtyBounds : DevicePixelRect{};
     m_liveStrokeRenderedDistance = result.frame.active ? result.renderedStrokeDistance : 0.0;
-    m_liveStrokePreviewRasterizer = result.previewRasterizer;
     m_liveStrokePreviewDestinationOut = samplesContainDestinationOut(result.samples);
     if (m_liveStrokeBuffer.active) {
         if (m_liveStrokePreviewDestinationOut) {
@@ -1443,7 +1467,6 @@ void PaintCanvasItem::clearLiveStrokePreviewPixels()
     clearRasterLayerRect(m_liveRasterLayer, previousDirtyBounds);
     m_liveStrokeDeviceDirtyBounds = {};
     m_liveStrokeRenderedDistance = 0.0;
-    m_liveStrokePreviewRasterizer = {};
     m_liveStrokePreviewDestinationOut = false;
     requestTextureUpdate(previousDirtyBounds);
 }
@@ -1470,6 +1493,11 @@ DevicePixelRect PaintCanvasItem::liveStrokeTailDeviceDirtyBounds(Types::Scalar s
     }
 
     const auto &dabs = m_liveStrokeBuffer.frame.dabs;
+    const auto &dabDirtyBounds = m_liveStrokeBuffer.frame.dabDirtyBounds;
+    if (dabDirtyBounds.size() != dabs.size()) {
+        return m_liveStrokeDeviceDirtyBounds;
+    }
+
     const auto firstDab = std::lower_bound(dabs.begin(),
                                            dabs.end(),
                                            startDistance,
@@ -1480,10 +1508,14 @@ DevicePixelRect PaintCanvasItem::liveStrokeTailDeviceDirtyBounds(Types::Scalar s
         return {};
     }
 
-    const std::span<const BrushDab> tailDabs{&*firstDab, static_cast<std::size_t>(dabs.end() - firstDab)};
-    return makeDirtyRegion(deviceBoundsForBrushDabs(tailDabs,
-                                                   m_liveStrokePreviewRasterizer,
-                                                   currentRasterProjection())).bounds;
+    DevicePixelRect tailBounds{};
+    const RasterProjection projection = currentRasterProjection();
+    const auto firstIndex = static_cast<std::size_t>(firstDab - dabs.begin());
+    for (std::size_t index = firstIndex; index < dabDirtyBounds.size(); ++index) {
+        tailBounds = uniteDevicePixelRects(tailBounds,
+                                           deviceRectFromDocumentRect(dabDirtyBounds[index], projection));
+    }
+    return tailBounds;
 }
 
 void PaintCanvasItem::startCommitStrokeWork(const CanvasCommitStrokeWorkRequest &request)

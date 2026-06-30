@@ -270,7 +270,6 @@ private:
     Types::Scalar m_devicePixelRatio = 1.0;
     Types::Scalar m_liveStrokeRenderedDistance = 0.0;
     DevicePixelRect m_liveStrokeDeviceDirtyBounds{};
-    Rasterizer m_liveStrokePreviewRasterizer{};
     int m_livePreviewFrameIntervalMs = 8;
     bool m_livePreviewEnabled = true;
     bool m_multithreadedEventsEnabled = true;
