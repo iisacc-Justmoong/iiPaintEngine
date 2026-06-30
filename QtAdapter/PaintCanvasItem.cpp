@@ -18,7 +18,9 @@
 #include <cstddef>
 #include <cmath>
 #include <memory>
+#include <span>
 #include <utility>
+#include <vector>
 
 #include "Layer/RasterLayer.h"
 #include "Input/PressureInput.h"
@@ -91,6 +93,80 @@ void clearRasterLayerRect(RasterLayer &layer, DevicePixelRect dirtyBounds)
             layer.pixels[rowStart + static_cast<std::size_t>(x)] = 0x00000000U;
         }
     }
+}
+
+RasterLayer copyRasterLayerRect(const RasterLayer &layer, DevicePixelRect bounds)
+{
+    const DevicePixelRect layerRect{{0, 0}, layer.width, layer.height};
+    const DevicePixelRect clipped = intersectDevicePixelRects(layerRect, bounds);
+    RasterLayer copy = makeRasterLayer(clipped.width, clipped.height);
+    if (isEmpty(clipped)) {
+        return copy;
+    }
+
+    for (Types::Pixel y = 0; y < clipped.height; ++y) {
+        const std::size_t sourceRow = static_cast<std::size_t>(clipped.origin.y + y)
+                * static_cast<std::size_t>(layer.width);
+        const std::size_t targetRow = static_cast<std::size_t>(y)
+                * static_cast<std::size_t>(copy.width);
+        for (Types::Pixel x = 0; x < clipped.width; ++x) {
+            copy.pixels[targetRow + static_cast<std::size_t>(x)] =
+                    layer.pixels[sourceRow + static_cast<std::size_t>(clipped.origin.x + x)];
+        }
+    }
+    return copy;
+}
+
+DevicePixelRect sourceLayerBoundsForStrokeInput(const StrokeInput &input,
+                                                const Rasterizer &rasterizer,
+                                                const RasterProjection &projection,
+                                                DevicePixelRect layerBounds)
+{
+    if (input.points.empty()) {
+        return {};
+    }
+
+    const Types::Scalar scale = std::max<Types::Scalar>(0.01, projection.scale);
+    Types::Scalar left = 0.0;
+    Types::Scalar top = 0.0;
+    Types::Scalar right = 0.0;
+    Types::Scalar bottom = 0.0;
+    bool hasPoint = false;
+    for (const StrokePoint &point : input.points) {
+        const Types::Scalar x = static_cast<Types::Scalar>(projection.deviceOrigin.x)
+                + (point.position.x - projection.documentOrigin.x) * scale;
+        const Types::Scalar y = static_cast<Types::Scalar>(projection.deviceOrigin.y)
+                + (point.position.y - projection.documentOrigin.y) * scale;
+        if (!hasPoint) {
+            left = right = x;
+            top = bottom = y;
+            hasPoint = true;
+        } else {
+            left = std::min(left, x);
+            top = std::min(top, y);
+            right = std::max(right, x);
+            bottom = std::max(bottom, y);
+        }
+    }
+
+    Types::Scalar brushDiameter = std::max<Types::Scalar>(
+            rasterizer.brushSize,
+            static_cast<Types::Scalar>(std::max<Types::Pixel>(1, rasterizer.radius * 2)));
+    brushDiameter = std::max<Types::Scalar>(brushDiameter,
+                                            static_cast<Types::Scalar>(rasterizer.brushWidth));
+    brushDiameter = std::max<Types::Scalar>(brushDiameter,
+                                            static_cast<Types::Scalar>(rasterizer.brushHeight));
+    const Types::Scalar padding = std::max<Types::Scalar>(8.0, brushDiameter * scale * 3.0);
+    const Types::Pixel cropLeft = static_cast<Types::Pixel>(std::floor(left - padding));
+    const Types::Pixel cropTop = static_cast<Types::Pixel>(std::floor(top - padding));
+    const Types::Pixel cropRight = static_cast<Types::Pixel>(std::ceil(right + padding));
+    const Types::Pixel cropBottom = static_cast<Types::Pixel>(std::ceil(bottom + padding));
+    const DevicePixelRect sourceBounds{
+            {cropLeft, cropTop},
+            std::max<Types::Pixel>(0, cropRight - cropLeft + 1),
+            std::max<Types::Pixel>(0, cropBottom - cropTop + 1),
+    };
+    return intersectDevicePixelRects(layerBounds, sourceBounds);
 }
 
 QImage imageFromRasterLayer(const RasterLayer &layer)
@@ -1319,11 +1395,16 @@ void PaintCanvasItem::applyLiveStrokeWorkResult(std::uint64_t generation,
 
     const bool wasLiveStrokeActive = liveStrokeActive();
     const DevicePixelRect previousDirtyBounds = m_liveStrokeDeviceDirtyBounds;
-    clearRasterLayerRect(m_liveRasterLayer, previousDirtyBounds);
+    const DevicePixelRect replacedDirtyBounds = result.incrementalPreview
+            ? liveStrokeTailDeviceDirtyBounds(result.incrementalPreviewStartDistance)
+            : previousDirtyBounds;
+    clearRasterLayerRect(m_liveRasterLayer, replacedDirtyBounds);
 
     m_liveStrokeBuffer.frame = result.frame;
     m_liveStrokeBuffer.active = result.frame.active;
-    m_liveStrokeDeviceDirtyBounds = result.frame.active ? result.dirtyBounds : DevicePixelRect{};
+    m_liveStrokeDeviceDirtyBounds = result.frame.active ? result.fullDirtyBounds : DevicePixelRect{};
+    m_liveStrokeRenderedDistance = result.frame.active ? result.renderedStrokeDistance : 0.0;
+    m_liveStrokePreviewRasterizer = result.previewRasterizer;
     m_liveStrokePreviewDestinationOut = samplesContainDestinationOut(result.samples);
     if (m_liveStrokeBuffer.active) {
         if (m_liveStrokePreviewDestinationOut) {
@@ -1333,7 +1414,7 @@ void PaintCanvasItem::applyLiveStrokeWorkResult(std::uint64_t generation,
         }
     }
 
-    requestTextureUpdate(uniteDevicePixelRects(previousDirtyBounds, m_liveStrokeDeviceDirtyBounds));
+    requestTextureUpdate(uniteDevicePixelRects(replacedDirtyBounds, result.dirtyBounds));
     emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
     startPendingLiveStrokePreviewWork();
 }
@@ -1361,8 +1442,48 @@ void PaintCanvasItem::clearLiveStrokePreviewPixels()
     clearLiveStrokeBuffer(m_liveStrokeBuffer);
     clearRasterLayerRect(m_liveRasterLayer, previousDirtyBounds);
     m_liveStrokeDeviceDirtyBounds = {};
+    m_liveStrokeRenderedDistance = 0.0;
+    m_liveStrokePreviewRasterizer = {};
     m_liveStrokePreviewDestinationOut = false;
     requestTextureUpdate(previousDirtyBounds);
+}
+
+Types::Scalar PaintCanvasItem::liveStrokeIncrementalStartDistance(const BrushState &brush) const
+{
+    if (!m_liveStrokeBuffer.active
+            || m_liveStrokeBuffer.frame.dabs.empty()
+            || m_liveStrokeRenderedDistance <= 0.0) {
+        return 0.0;
+    }
+
+    const Types::Scalar brushDiameter = brush.rasterizer.brushSize > 0.0
+            ? brush.rasterizer.brushSize
+            : std::max<Types::Scalar>(1.0, static_cast<Types::Scalar>(brush.rasterizer.radius) * 2.0);
+    const Types::Scalar overlapDistance = std::max<Types::Scalar>(4.0, brushDiameter * 2.0);
+    return std::max<Types::Scalar>(0.0, m_liveStrokeRenderedDistance - overlapDistance);
+}
+
+DevicePixelRect PaintCanvasItem::liveStrokeTailDeviceDirtyBounds(Types::Scalar startDistance) const
+{
+    if (!m_liveStrokeBuffer.active || m_liveStrokeBuffer.frame.dabs.empty()) {
+        return {};
+    }
+
+    const auto &dabs = m_liveStrokeBuffer.frame.dabs;
+    const auto firstDab = std::lower_bound(dabs.begin(),
+                                           dabs.end(),
+                                           startDistance,
+                                           [](const BrushDab &dab, Types::Scalar distance) {
+                                               return dab.strokeDistance + 0.000001 < distance;
+                                           });
+    if (firstDab == dabs.end()) {
+        return {};
+    }
+
+    const std::span<const BrushDab> tailDabs{&*firstDab, static_cast<std::size_t>(dabs.end() - firstDab)};
+    return makeDirtyRegion(deviceBoundsForBrushDabs(tailDabs,
+                                                   m_liveStrokePreviewRasterizer,
+                                                   currentRasterProjection())).bounds;
 }
 
 void PaintCanvasItem::startCommitStrokeWork(const CanvasCommitStrokeWorkRequest &request)
@@ -1448,7 +1569,16 @@ CanvasLiveStrokeWorkRequest PaintCanvasItem::currentLiveStrokeWorkRequest() cons
     request.projection = currentRasterProjection();
     request.sourceLayerEnabled = brushNeedsSourceLayer(request.brush);
     if (request.sourceLayerEnabled) {
-        request.sourceLayer = m_rasterLayer;
+        const DevicePixelRect sourceBounds = sourceLayerBoundsForStrokeInput(request.rawInput,
+                                                                            request.brush.rasterizer,
+                                                                            request.projection,
+                                                                            layerBounds());
+        request.sourceLayerOrigin = sourceBounds.origin;
+        request.sourceLayer = copyRasterLayerRect(m_rasterLayer, sourceBounds);
+    }
+    if (!request.sourceLayerEnabled && request.brush.rasterizer.blendMode == RasterBlendMode::SourceOver) {
+        request.incrementalPreviewStartDistance = liveStrokeIncrementalStartDistance(request.brush);
+        request.incrementalPreviewEnabled = request.incrementalPreviewStartDistance > 0.0;
     }
     return request;
 }
@@ -1462,7 +1592,12 @@ CanvasCommitStrokeWorkRequest PaintCanvasItem::currentCommitStrokeWorkRequest(co
     request.projection = currentRasterProjection();
     request.sourceLayerEnabled = brushNeedsSourceLayer(request.brush);
     if (request.sourceLayerEnabled) {
-        request.sourceLayer = m_rasterLayer;
+        const DevicePixelRect sourceBounds = sourceLayerBoundsForStrokeInput(request.rawInput,
+                                                                            request.brush.rasterizer,
+                                                                            request.projection,
+                                                                            layerBounds());
+        request.sourceLayerOrigin = sourceBounds.origin;
+        request.sourceLayer = copyRasterLayerRect(m_rasterLayer, sourceBounds);
     }
     return request;
 }
@@ -1476,6 +1611,7 @@ void PaintCanvasItem::invalidatePendingCanvasEventWork()
     ++m_livePreviewGeneration;
     ++m_livePreviewRevision;
     m_livePreviewWorkPending = false;
+    m_liveStrokeRenderedDistance = 0.0;
     m_commitEventThreadPool.clear();
 }
 

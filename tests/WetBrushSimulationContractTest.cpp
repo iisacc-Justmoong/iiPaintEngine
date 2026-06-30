@@ -53,11 +53,12 @@ std::uint32_t sampleRasterLayerArgb(const void *context, DevicePixelPoint positi
     return rasterLayerPixelAt(*layer, position);
 }
 
-RasterSourceSampler sourceSamplerForLayer(const RasterLayer &layer)
+RasterSourceSampler sourceSamplerForLayer(const RasterLayer &layer, DevicePixelPoint origin = {})
 {
     RasterSourceSampler sampler;
     sampler.context = &layer;
     sampler.sampleArgb = &sampleRasterLayerArgb;
+    sampler.origin = origin;
     sampler.width = layer.width;
     sampler.height = layer.height;
     return sampler;
@@ -101,6 +102,19 @@ int main()
     const RasterSample *smudged = sampleAt(smudgeSamples, {3, 1});
     if (smudged == nullptr || blueOf(smudged->argb) <= redOf(smudged->argb)) {
         return 10;
+    }
+
+    RasterLayer croppedSource = makeRasterLayer(2, 1);
+    croppedSource.pixels[1] = 0xFF0000FFU;
+    const RasterSourceSampler croppedSourceSampler = sourceSamplerForLayer(croppedSource, {2, 1});
+    const std::vector<RasterSample> croppedSmudgeSamples = projectBrushDabs({dab},
+                                                                            rasterizer,
+                                                                            RasterProjection{},
+                                                                            croppedSourceSampler,
+                                                                            smudgeMaterial);
+    const RasterSample *croppedSmudged = sampleAt(croppedSmudgeSamples, {3, 1});
+    if (croppedSmudged == nullptr || blueOf(croppedSmudged->argb) <= redOf(croppedSmudged->argb)) {
+        return 15;
     }
 
     BrushMaterial mixerMaterial;

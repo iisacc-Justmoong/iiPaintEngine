@@ -65,8 +65,18 @@ foreach (source_file IN LISTS source_files)
         if (content MATCHES "#include[ \t]*<Q[A-Za-z0-9_/\\.]+>"
                 OR content MATCHES "\\bQ_OBJECT\\b"
                 OR content MATCHES "\\bQObject\\b"
-                OR content MATCHES "\\bQQuickItem\\b")
+                OR content MATCHES "\\bQQuickItem\\b"
+                OR content MATCHES "\\bQQuickPaintedItem\\b"
+                OR content MATCHES "\\bQPainter\\b")
             message(FATAL_ERROR "${source_file} must not depend on Qt object or QML headers")
+        endif ()
+    endif ()
+
+    if (source_module STREQUAL "QtAdapter"
+            AND NOT source_file MATCHES "^QtAdapter/PaintCanvasItem\\.(h|cpp)$")
+        if (content MATCHES "\\bQQuickPaintedItem\\b"
+                OR content MATCHES "\\bQPainter\\b")
+            message(FATAL_ERROR "${source_file} must not depend on the painted-item renderer boundary")
         endif ()
     endif ()
 

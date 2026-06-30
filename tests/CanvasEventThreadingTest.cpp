@@ -82,6 +82,57 @@ int main()
         return 1;
     }
 
+    StrokeInput denseStroke;
+    denseStroke.points = {
+            {{0.0, 8.0}, 1.0, 0.0},
+            {{120.0, 8.0}, 1.0, 1.0},
+    };
+
+    CanvasLiveStrokeWorkRequest denseLiveRequest;
+    denseLiveRequest.rawInput = denseStroke;
+    denseLiveRequest.brush = makeBrush();
+    denseLiveRequest.brush.rasterizer.brushSize = 24.0;
+    denseLiveRequest.brush.rasterizer.radius = 12;
+    denseLiveRequest.brush.rasterizer.spacing = 0.0;
+    denseLiveRequest.brush.rasterizer.spacingRatio = 0.0;
+    denseLiveRequest.stabilizer = Stabilizer{0.0};
+    denseLiveRequest.projection = makeProjection();
+    denseLiveRequest.sourceLayerEnabled = false;
+
+    CanvasCommitStrokeWorkRequest denseCommitRequest;
+    denseCommitRequest.rawInput = denseStroke;
+    denseCommitRequest.brush = denseLiveRequest.brush;
+    denseCommitRequest.stabilizer = denseLiveRequest.stabilizer;
+    denseCommitRequest.projection = denseLiveRequest.projection;
+    denseCommitRequest.sourceLayerEnabled = false;
+
+    const CanvasLiveStrokeWorkResult denseLiveResult = runCanvasLiveStrokeWork(denseLiveRequest);
+    const CanvasCommitStrokeWorkResult denseCommitResult = runCanvasCommitStrokeWork(denseCommitRequest);
+    if (denseLiveResult.frame.dabs.empty()
+            || denseCommitResult.command.dabs.size() <= denseLiveResult.frame.dabs.size()
+            || denseLiveResult.samples.empty()
+            || denseCommitResult.samples.empty()
+            || isEmpty(denseLiveResult.fullDirtyBounds)
+            || isEmpty(denseLiveResult.dirtyBounds)
+            || isEmpty(denseCommitResult.dirtyBounds)) {
+        return 1;
+    }
+
+    CanvasLiveStrokeWorkRequest incrementalLiveRequest = denseLiveRequest;
+    incrementalLiveRequest.incrementalPreviewEnabled = true;
+    incrementalLiveRequest.incrementalPreviewStartDistance = 60.0;
+    const CanvasLiveStrokeWorkResult incrementalLiveResult = runCanvasLiveStrokeWork(incrementalLiveRequest);
+    if (!incrementalLiveResult.incrementalPreview
+            || incrementalLiveResult.incrementalPreviewStartDistance != 60.0
+            || incrementalLiveResult.samples.empty()
+            || incrementalLiveResult.samples.size() >= denseLiveResult.samples.size()
+            || isEmpty(incrementalLiveResult.dirtyBounds)
+            || isEmpty(incrementalLiveResult.fullDirtyBounds)
+            || incrementalLiveResult.fullDirtyBounds.width <= incrementalLiveResult.dirtyBounds.width
+            || incrementalLiveResult.renderedStrokeDistance <= incrementalLiveRequest.incrementalPreviewStartDistance) {
+        return 1;
+    }
+
     CanvasCommitStrokeWorkRequest commitRequest;
     commitRequest.rawInput = makeRawStroke();
     commitRequest.brush = makeBrush();

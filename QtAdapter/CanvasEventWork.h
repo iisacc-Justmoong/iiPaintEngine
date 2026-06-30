@@ -19,13 +19,21 @@ struct CanvasLiveStrokeWorkRequest {
     Stabilizer stabilizer;
     RasterProjection projection;
     RasterLayer sourceLayer;
+    DevicePixelPoint sourceLayerOrigin{};
+    Types::Scalar incrementalPreviewStartDistance = 0.0;
     bool sourceLayerEnabled = false;
+    bool incrementalPreviewEnabled = false;
 };
 
 struct CanvasLiveStrokeWorkResult {
     LiveStrokeFrame frame;
     std::vector<RasterSample> samples;
+    Rasterizer previewRasterizer;
     DevicePixelRect dirtyBounds{};
+    DevicePixelRect fullDirtyBounds{};
+    Types::Scalar renderedStrokeDistance = 0.0;
+    Types::Scalar incrementalPreviewStartDistance = 0.0;
+    bool incrementalPreview = false;
 };
 
 struct CanvasCommitStrokeWorkRequest {
@@ -34,6 +42,7 @@ struct CanvasCommitStrokeWorkRequest {
     Stabilizer stabilizer;
     RasterProjection projection;
     RasterLayer sourceLayer;
+    DevicePixelPoint sourceLayerOrigin{};
     bool sourceLayerEnabled = false;
 };
 

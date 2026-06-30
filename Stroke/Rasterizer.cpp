@@ -11,6 +11,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <span>
 
 namespace {
 
@@ -26,6 +27,23 @@ struct ProjectionContext {
     const BrushMaterial *material = nullptr;
     RasterProjection projection{};
 };
+
+std::size_t projectedSampleCapacity(std::span<const BrushDab> dabs, const Rasterizer &rasterizer)
+{
+    if (dabs.empty()) {
+        return 0;
+    }
+
+    const Types::Pixel footprintWidth = rasterizer.brushWidth > 0
+            ? rasterizer.brushWidth
+            : std::max<Types::Pixel>(1, rasterizer.radius * 2 + 1);
+    const Types::Pixel footprintHeight = rasterizer.brushHeight > 0
+            ? rasterizer.brushHeight
+            : std::max<Types::Pixel>(1, rasterizer.radius * 2 + 1);
+    return dabs.size()
+            * static_cast<std::size_t>(footprintWidth)
+            * static_cast<std::size_t>(footprintHeight);
+}
 
 Types::Scalar materialProjectionMask(Types::Scalar maskAlpha,
                                      const BrushDab &dab,
@@ -99,14 +117,18 @@ bool hasSourceLayer(const ProjectionContext &context)
 
 std::uint32_t sampledSourceArgb(const RasterSourceSampler &sourceSampler, DevicePixelPoint position)
 {
-    if (position.x < 0
-            || position.y < 0
-            || position.x >= sourceSampler.width
-            || position.y >= sourceSampler.height) {
+    const DevicePixelPoint localPosition{
+            position.x - sourceSampler.origin.x,
+            position.y - sourceSampler.origin.y,
+    };
+    if (localPosition.x < 0
+            || localPosition.y < 0
+            || localPosition.x >= sourceSampler.width
+            || localPosition.y >= sourceSampler.height) {
         return 0x00000000U;
     }
 
-    return sourceSampler.sampleArgb(sourceSampler.context, position);
+    return sourceSampler.sampleArgb(sourceSampler.context, localPosition);
 }
 
 std::uint32_t wetDabColorArgb(const BrushDab &dab,
@@ -1223,6 +1245,11 @@ std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
 
 std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs, const Rasterizer &rasterizer)
 {
+    return projectBrushDabs(std::span<const BrushDab>{dabs.data(), dabs.size()}, rasterizer);
+}
+
+std::vector<RasterSample> projectBrushDabs(std::span<const BrushDab> dabs, const Rasterizer &rasterizer)
+{
     return projectBrushDabs(dabs, rasterizer, RasterProjection{});
 }
 
@@ -1230,7 +1257,15 @@ std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs,
                                            const Rasterizer &rasterizer,
                                            const RasterProjection &projection)
 {
+    return projectBrushDabs(std::span<const BrushDab>{dabs.data(), dabs.size()}, rasterizer, projection);
+}
+
+std::vector<RasterSample> projectBrushDabs(std::span<const BrushDab> dabs,
+                                           const Rasterizer &rasterizer,
+                                           const RasterProjection &projection)
+{
     std::vector<RasterSample> samples;
+    samples.reserve(projectedSampleCapacity(dabs, rasterizer));
     ProjectionContext context;
     context.projection = projection;
     for (const BrushDab &dab : dabs) {
@@ -1245,7 +1280,19 @@ std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs,
                                            const RasterProjection &projection,
                                            const BrushMaterial &material)
 {
+    return projectBrushDabs(std::span<const BrushDab>{dabs.data(), dabs.size()},
+                            rasterizer,
+                            projection,
+                            material);
+}
+
+std::vector<RasterSample> projectBrushDabs(std::span<const BrushDab> dabs,
+                                           const Rasterizer &rasterizer,
+                                           const RasterProjection &projection,
+                                           const BrushMaterial &material)
+{
     std::vector<RasterSample> samples;
+    samples.reserve(projectedSampleCapacity(dabs, rasterizer));
     ProjectionContext context;
     context.material = &material;
     context.projection = projection;
@@ -1262,7 +1309,21 @@ std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs,
                                            const RasterSourceSampler &sourceSampler,
                                            const BrushMaterial &material)
 {
+    return projectBrushDabs(std::span<const BrushDab>{dabs.data(), dabs.size()},
+                            rasterizer,
+                            projection,
+                            sourceSampler,
+                            material);
+}
+
+std::vector<RasterSample> projectBrushDabs(std::span<const BrushDab> dabs,
+                                           const Rasterizer &rasterizer,
+                                           const RasterProjection &projection,
+                                           const RasterSourceSampler &sourceSampler,
+                                           const BrushMaterial &material)
+{
     std::vector<RasterSample> samples;
+    samples.reserve(projectedSampleCapacity(dabs, rasterizer));
     ProjectionContext context;
     context.sourceSampler = &sourceSampler;
     context.material = &material;
@@ -1321,6 +1382,15 @@ DevicePixelRect deviceBoundsForBrushDab(const BrushDab &dab,
 }
 
 std::vector<DevicePixelRect> deviceBoundsForBrushDabs(const std::vector<BrushDab> &dabs,
+                                                      const Rasterizer &rasterizer,
+                                                      const RasterProjection &projection)
+{
+    return deviceBoundsForBrushDabs(std::span<const BrushDab>{dabs.data(), dabs.size()},
+                                    rasterizer,
+                                    projection);
+}
+
+std::vector<DevicePixelRect> deviceBoundsForBrushDabs(std::span<const BrushDab> dabs,
                                                       const Rasterizer &rasterizer,
                                                       const RasterProjection &projection)
 {

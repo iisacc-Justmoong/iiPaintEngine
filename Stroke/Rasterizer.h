@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 #include <vector>
 
 #include "Core/PaintRect.h"
@@ -63,6 +64,7 @@ struct RasterSourceSampler {
 
     const void *context = nullptr;
     SampleArgb sampleArgb = nullptr;
+    DevicePixelPoint origin{};
     Types::Pixel width = 0;
     Types::Pixel height = 0;
 };
@@ -114,7 +116,13 @@ std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
 
 std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs, const Rasterizer &rasterizer);
 
+std::vector<RasterSample> projectBrushDabs(std::span<const BrushDab> dabs, const Rasterizer &rasterizer);
+
 std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs,
+                                           const Rasterizer &rasterizer,
+                                           const RasterProjection &projection);
+
+std::vector<RasterSample> projectBrushDabs(std::span<const BrushDab> dabs,
                                            const Rasterizer &rasterizer,
                                            const RasterProjection &projection);
 
@@ -123,7 +131,18 @@ std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs,
                                            const RasterProjection &projection,
                                            const BrushMaterial &material);
 
+std::vector<RasterSample> projectBrushDabs(std::span<const BrushDab> dabs,
+                                           const Rasterizer &rasterizer,
+                                           const RasterProjection &projection,
+                                           const BrushMaterial &material);
+
 std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs,
+                                           const Rasterizer &rasterizer,
+                                           const RasterProjection &projection,
+                                           const RasterSourceSampler &sourceSampler,
+                                           const BrushMaterial &material);
+
+std::vector<RasterSample> projectBrushDabs(std::span<const BrushDab> dabs,
                                            const Rasterizer &rasterizer,
                                            const RasterProjection &projection,
                                            const RasterSourceSampler &sourceSampler,
@@ -147,5 +166,9 @@ DevicePixelRect deviceBoundsForBrushDab(const BrushDab &dab,
                                         const RasterProjection &projection);
 
 std::vector<DevicePixelRect> deviceBoundsForBrushDabs(const std::vector<BrushDab> &dabs,
+                                                      const Rasterizer &rasterizer,
+                                                      const RasterProjection &projection);
+
+std::vector<DevicePixelRect> deviceBoundsForBrushDabs(std::span<const BrushDab> dabs,
                                                       const Rasterizer &rasterizer,
                                                       const RasterProjection &projection);

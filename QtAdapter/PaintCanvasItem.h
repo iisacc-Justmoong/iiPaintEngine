@@ -227,6 +227,8 @@ private:
     void preserveLiveStrokePreviewForCommit();
     void clearLiveStrokePreview();
     void clearLiveStrokePreviewPixels();
+    Types::Scalar liveStrokeIncrementalStartDistance(const BrushState &brush) const;
+    DevicePixelRect liveStrokeTailDeviceDirtyBounds(Types::Scalar startDistance) const;
     void enqueueStrokeCommit(const StrokeInput &stroke);
     void requestStrokeCommitFrame();
     void processStrokeCommitFrame();
@@ -266,7 +268,9 @@ private:
     std::deque<CanvasCommitStrokeWorkRequest> m_pendingCommitStrokeWorkRequests;
     Types::Scalar m_zoom = 1.0;
     Types::Scalar m_devicePixelRatio = 1.0;
+    Types::Scalar m_liveStrokeRenderedDistance = 0.0;
     DevicePixelRect m_liveStrokeDeviceDirtyBounds{};
+    Rasterizer m_liveStrokePreviewRasterizer{};
     int m_livePreviewFrameIntervalMs = 8;
     bool m_livePreviewEnabled = true;
     bool m_multithreadedEventsEnabled = true;

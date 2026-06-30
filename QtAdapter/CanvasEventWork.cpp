@@ -6,9 +6,14 @@
 
 #include "Render/DirtyRegion.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <span>
+#include <vector>
 
 namespace {
+
+constexpr Types::Scalar minimumLivePreviewDabSpacing = 1.0;
 
 std::uint32_t sampleRasterLayerArgb(const void *context, DevicePixelPoint position)
 {
@@ -20,14 +25,50 @@ std::uint32_t sampleRasterLayerArgb(const void *context, DevicePixelPoint positi
     return rasterLayerPixelAt(*layer, position);
 }
 
-RasterSourceSampler sourceSamplerForLayer(const RasterLayer &layer)
+RasterSourceSampler sourceSamplerForLayer(const RasterLayer &layer, DevicePixelPoint origin)
 {
     RasterSourceSampler sampler;
     sampler.context = &layer;
     sampler.sampleArgb = &sampleRasterLayerArgb;
+    sampler.origin = origin;
     sampler.width = layer.width;
     sampler.height = layer.height;
     return sampler;
+}
+
+BrushState livePreviewBrushState(const BrushState &brush)
+{
+    BrushState previewBrush = brush;
+    if (!previewBrush.rasterizer.spacingEnabled) {
+        return previewBrush;
+    }
+
+    if (previewBrush.rasterizer.brushSize > 0.0) {
+        const Types::Scalar minimumRatio = std::min<Types::Scalar>(
+                1.0,
+                minimumLivePreviewDabSpacing / previewBrush.rasterizer.brushSize);
+        previewBrush.rasterizer.spacingRatio = std::max(previewBrush.rasterizer.spacingRatio, minimumRatio);
+    } else {
+        previewBrush.rasterizer.spacing = std::max(previewBrush.rasterizer.spacing,
+                                                   minimumLivePreviewDabSpacing);
+    }
+    return previewBrush;
+}
+
+std::span<const BrushDab> brushDabsFromDistance(const std::vector<BrushDab> &dabs,
+                                                Types::Scalar startDistance)
+{
+    const auto firstDab = std::lower_bound(dabs.begin(),
+                                           dabs.end(),
+                                           startDistance,
+                                           [](const BrushDab &dab, Types::Scalar distance) {
+                                               return dab.strokeDistance < distance;
+                                           });
+    if (firstDab == dabs.end()) {
+        return {};
+    }
+
+    return std::span<const BrushDab>{&*firstDab, static_cast<std::size_t>(dabs.end() - firstDab)};
 }
 
 } // namespace
@@ -41,28 +82,52 @@ bool brushNeedsSourceLayer(const BrushState &brush)
 CanvasLiveStrokeWorkResult runCanvasLiveStrokeWork(const CanvasLiveStrokeWorkRequest &request)
 {
     CanvasLiveStrokeWorkResult result;
-    result.frame = makeLiveStrokeFrame(request.rawInput, request.brush, request.stabilizer, false);
+    const BrushState previewBrush = livePreviewBrushState(request.brush);
+    result.previewRasterizer = previewBrush.rasterizer;
+    result.frame = makeLiveStrokeFrame(request.rawInput, previewBrush, request.stabilizer, false);
     if (!result.frame.active) {
         return result;
     }
 
-    if (request.sourceLayerEnabled && brushNeedsSourceLayer(request.brush)) {
-        const RasterSourceSampler sourceSampler = sourceSamplerForLayer(request.sourceLayer);
-        result.samples = projectBrushDabs(result.frame.dabs,
-                                          request.brush.rasterizer,
+    result.fullDirtyBounds = makeDirtyRegion(deviceBoundsForBrushDabs(result.frame.dabs,
+                                                                      previewBrush.rasterizer,
+                                                                      request.projection)).bounds;
+    result.frame.dirtyBounds = result.fullDirtyBounds;
+    if (!result.frame.dabs.empty()) {
+        result.renderedStrokeDistance = result.frame.dabs.back().strokeDistance;
+    }
+
+    const bool canProjectIncrementally = request.incrementalPreviewEnabled
+            && request.incrementalPreviewStartDistance > 0.0
+            && !result.frame.dabs.empty();
+    const std::span<const BrushDab> incrementalDabs = canProjectIncrementally
+            ? brushDabsFromDistance(result.frame.dabs, request.incrementalPreviewStartDistance)
+            : std::span<const BrushDab>{};
+    const std::span<const BrushDab> projectedDabs = canProjectIncrementally
+            ? incrementalDabs
+            : std::span<const BrushDab>{result.frame.dabs.data(), result.frame.dabs.size()};
+    result.incrementalPreview = canProjectIncrementally;
+    result.incrementalPreviewStartDistance = canProjectIncrementally
+            ? request.incrementalPreviewStartDistance
+            : 0.0;
+
+    if (request.sourceLayerEnabled && brushNeedsSourceLayer(previewBrush)) {
+        const RasterSourceSampler sourceSampler = sourceSamplerForLayer(request.sourceLayer,
+                                                                       request.sourceLayerOrigin);
+        result.samples = projectBrushDabs(projectedDabs,
+                                          previewBrush.rasterizer,
                                           request.projection,
                                           sourceSampler,
-                                          request.brush.material);
+                                          previewBrush.material);
     } else {
-        result.samples = projectBrushDabs(result.frame.dabs,
-                                          request.brush.rasterizer,
+        result.samples = projectBrushDabs(projectedDabs,
+                                          previewBrush.rasterizer,
                                           request.projection,
-                                          request.brush.material);
+                                          previewBrush.material);
     }
-    result.dirtyBounds = makeDirtyRegion(deviceBoundsForBrushDabs(result.frame.dabs,
-                                                                  request.brush.rasterizer,
+    result.dirtyBounds = makeDirtyRegion(deviceBoundsForBrushDabs(projectedDabs,
+                                                                  previewBrush.rasterizer,
                                                                   request.projection)).bounds;
-    result.frame.dirtyBounds = result.dirtyBounds;
     return result;
 }
 
@@ -71,7 +136,8 @@ CanvasCommitStrokeWorkResult runCanvasCommitStrokeWork(const CanvasCommitStrokeW
     CanvasCommitStrokeWorkResult result;
     result.command = makeStrokeCommand(request.rawInput, request.brush, request.stabilizer);
     if (request.sourceLayerEnabled && brushNeedsSourceLayer(result.command.brush)) {
-        const RasterSourceSampler sourceSampler = sourceSamplerForLayer(request.sourceLayer);
+        const RasterSourceSampler sourceSampler = sourceSamplerForLayer(request.sourceLayer,
+                                                                       request.sourceLayerOrigin);
         result.samples = projectBrushDabs(result.command.dabs,
                                           result.command.brush.rasterizer,
                                           request.projection,
