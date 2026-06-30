@@ -199,7 +199,7 @@ int main()
     const StrokeCommand defaultSpacing = makeStrokeCommand(expressiveInput(), spacingDisabledBrush, Stabilizer{0.0});
     if (denseSpacing.dabs.empty()
             || defaultSpacing.dabs.empty()
-            || !(denseSpacing.dabs.size() > defaultSpacing.dabs.size())) {
+            || !(defaultSpacing.dabs.size() > denseSpacing.dabs.size())) {
         return 1;
     }
 

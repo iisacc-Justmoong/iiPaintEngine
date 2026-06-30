@@ -128,9 +128,10 @@ int main(int argc, char **argv)
     }
 
     if (canvas->brushSize() != 18.0
-            || canvas->brushFlow() != 0.78
-            || canvas->brushOpacity() != 0.92
-            || canvas->brushSpacingRatio() != 0.22
+            || canvas->brushFlow() != 1.0
+            || canvas->brushOpacity() != 1.0
+            || canvas->brushHardness() != 1.0
+            || canvas->brushSpacingRatio() != 0.0
             || canvas->pressureCurveMinimum() != 0.0
             || canvas->pressureCurveCenter() != 0.5
             || canvas->pressureCurveMaximum() != 1.0

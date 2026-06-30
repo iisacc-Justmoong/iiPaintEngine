@@ -31,8 +31,8 @@ public:
     qreal flow = 1.0;
     qreal opacity = 1.0;
     qreal hardness = 1.0;
-    qreal spacing = 1.0;
-    qreal spacingRatio = 1.0;
+    qreal spacing = 0.0;
+    qreal spacingRatio = 0.0;
     bool flowEnabled = true;
     bool opacityEnabled = true;
     bool hardnessEnabled = true;

@@ -59,6 +59,15 @@ int main(int argc, char **argv)
     static_assert(!std::is_base_of_v<QObject, CanvasRuntimeConfig>);
     static_assert(!std::is_base_of_v<QObject, CanvasStateSnapshot>);
 
+    const CanvasBrushConfig defaultBrushConfig;
+    if (defaultBrushConfig.flow != 1.0
+            || defaultBrushConfig.opacity != 1.0
+            || defaultBrushConfig.hardness != 1.0
+            || defaultBrushConfig.spacing != 0.0
+            || defaultBrushConfig.spacingRatio != 0.0) {
+        return 19;
+    }
+
     qputenv("QT_QPA_PLATFORM", "offscreen");
     QGuiApplication app(argc, argv);
 
@@ -97,6 +106,16 @@ Iipe.CanvasAdapter {
         return 2;
     }
 
+    const CanvasBrushConfig initialBrush = canvas->brushConfig();
+    if (initialBrush.flow != 1.0
+            || initialBrush.opacity != 1.0
+            || initialBrush.hardness != 1.0
+            || initialBrush.spacing != 0.0
+            || initialBrush.spacingRatio != 0.0) {
+        delete object;
+        return 20;
+    }
+
     const QMetaObject *metaObject = canvas->metaObject();
     if (!hasMethod(metaObject, "newCanvas(int,int)")
             || !hasMethod(metaObject, "openRaster(QString)")
@@ -116,7 +135,12 @@ Iipe.CanvasAdapter {
     }
 
     canvas->setToolMode(QStringLiteral("eraser"));
-    if (canvas->toolMode() != QStringLiteral("eraser")) {
+    if (canvas->toolMode() != QStringLiteral("eraser") || !canvas->eraserMode()) {
+        delete object;
+        return 4;
+    }
+    canvas->setToolMode(QStringLiteral("brush"));
+    if (canvas->toolMode() != QStringLiteral("brush") || canvas->eraserMode()) {
         delete object;
         return 4;
     }
@@ -226,7 +250,7 @@ Iipe.CanvasAdapter {
             || state.canRedo
             || state.canvasWidth != 12.0
             || state.canvasHeight != 10.0
-            || state.toolMode != QStringLiteral("eraser")) {
+            || state.toolMode != QStringLiteral("brush")) {
         delete object;
         return 18;
     }

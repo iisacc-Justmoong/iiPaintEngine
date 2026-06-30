@@ -25,6 +25,25 @@ std::uint8_t alphaAt(const std::vector<RasterSample> &samples, DevicePixelPoint 
 
 int main()
 {
+    Rasterizer circleRasterizer{};
+    circleRasterizer.argb = 0xFFFFFFFFU;
+    circleRasterizer.radius = 2;
+    circleRasterizer.flow = 1.0;
+    circleRasterizer.opacity = 1.0;
+
+    BrushDab circleDab{};
+    circleDab.position = {10.0, 10.0};
+    circleDab.scale = 1.0;
+    circleDab.alpha = 1.0;
+    circleDab.colorArgb = 0xFFFFFFFFU;
+
+    const std::vector<RasterSample> circleSamples = projectBrushDabs({circleDab}, circleRasterizer);
+    const std::uint8_t circleCenterAlpha = alphaAt(circleSamples, {10, 10});
+    const std::uint8_t circleEdgeAlpha = alphaAt(circleSamples, {12, 10});
+    if (circleCenterAlpha != 255 || circleEdgeAlpha == 0 || circleEdgeAlpha >= circleCenterAlpha) {
+        return 1;
+    }
+
     Rasterizer rasterizer{};
     rasterizer.argb = 0xFFFFFFFFU;
     rasterizer.brushWidth = 2;

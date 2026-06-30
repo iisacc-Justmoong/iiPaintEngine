@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "Layer/RasterLayer.h"
+#include "Stroke/Rasterizer.h"
 
 namespace {
 
@@ -48,6 +49,47 @@ int main()
     paintRasterSamples(directLayer, repeatedRed);
     if (rasterLayerPixelAt(directLayer, {1, 1}) != composited) {
         return 1;
+    }
+
+    RasterLayer erasedLayer = makeRasterLayer(3, 3, 0xFF336699U);
+    paintRasterSamples(erasedLayer, {
+            RasterSample{{1, 1}, 0x80336699U, 0xFFU, RasterBlendMode::DestinationOut},
+            RasterSample{{2, 2}, 0xFF336699U, 0xFFU, RasterBlendMode::DestinationOut},
+    });
+    if (alphaOf(rasterLayerPixelAt(erasedLayer, {1, 1})) >= 0x90
+            || rasterLayerPixelAt(erasedLayer, {2, 2}) != 0x00000000U
+            || rasterLayerPixelAt(erasedLayer, {0, 0}) != 0xFF336699U) {
+        return 1;
+    }
+
+    RasterLayer mixedLayer = makeRasterLayer(3, 3, 0xFF0000FFU);
+    paintRasterSamples(mixedLayer, {
+            RasterSample{{0, 0}, 0x80FF0000U, 0xFFU, RasterBlendMode::SourceOver},
+            RasterSample{{1, 1}, 0xFF000000U, 0xFFU, RasterBlendMode::DestinationOut},
+            RasterSample{{2, 2}, 0x80FF0000U, 0xFFU, RasterBlendMode::SourceOver},
+    });
+    if (redOf(rasterLayerPixelAt(mixedLayer, {0, 0})) <= 0x7F
+            || rasterLayerPixelAt(mixedLayer, {1, 1}) != 0x00000000U
+            || redOf(rasterLayerPixelAt(mixedLayer, {2, 2})) <= 0x7F) {
+        return 1;
+    }
+
+    Rasterizer eraserRasterizer{};
+    eraserRasterizer.radius = 1;
+    eraserRasterizer.argb = 0xFF000000U;
+    eraserRasterizer.blendMode = RasterBlendMode::DestinationOut;
+    BrushDab eraserDab{};
+    eraserDab.position = {1.0, 1.0};
+    eraserDab.colorArgb = 0xFF000000U;
+    eraserDab.blendMode = RasterBlendMode::DestinationOut;
+    const std::vector<RasterSample> eraserSamples = projectBrushDabs({eraserDab}, eraserRasterizer);
+    if (eraserSamples.empty()) {
+        return 1;
+    }
+    for (const RasterSample &sample : eraserSamples) {
+        if (sample.blendMode != RasterBlendMode::DestinationOut) {
+            return 1;
+        }
     }
 
     if (rasterLayerPixelAt(layer, {0, 0}) != 0xFF0000FFU) {

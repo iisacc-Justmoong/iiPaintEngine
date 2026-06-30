@@ -74,8 +74,8 @@ struct Rasterizer {
     Types::Pixel brushWidth = 0;
     Types::Pixel brushHeight = 0;
     std::vector<Types::Byte> brushAlpha;
-    Types::Scalar spacing = 1.0;
-    Types::Scalar spacingRatio = 1.0;
+    Types::Scalar spacing = 0.0;
+    Types::Scalar spacingRatio = 0.0;
     bool spacingEnabled = true;
     Types::Scalar opacity = 1.0;
     bool opacityEnabled = true;
@@ -92,6 +92,7 @@ struct Rasterizer {
     StrokeTaperShape warmupTaperShape = StrokeTaperShape::Linear;
     StrokeTaperShape endTaperShape = StrokeTaperShape::Linear;
     Types::Scalar rotationJitter = 0.0;
+    RasterBlendMode blendMode = RasterBlendMode::SourceOver;
 };
 
 std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve, const Rasterizer &rasterizer);

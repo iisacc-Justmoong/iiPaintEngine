@@ -49,6 +49,7 @@ class PaintCanvasItem : public QQuickPaintedItem {
     Q_PROPERTY(bool brushOpacityEnabled READ brushOpacityEnabled WRITE setBrushOpacityEnabled NOTIFY brushChanged)
     Q_PROPERTY(qreal brushHardness READ brushHardness WRITE setBrushHardness NOTIFY brushChanged)
     Q_PROPERTY(bool brushHardnessEnabled READ brushHardnessEnabled WRITE setBrushHardnessEnabled NOTIFY brushChanged)
+    Q_PROPERTY(bool eraserMode READ eraserMode WRITE setEraserMode NOTIFY brushChanged)
     Q_PROPERTY(qreal pressureCurveMinimum READ pressureCurveMinimum WRITE setPressureCurveMinimum NOTIFY strokeSettingsChanged)
     Q_PROPERTY(qreal pressureCurveCenter READ pressureCurveCenter WRITE setPressureCurveCenter NOTIFY strokeSettingsChanged)
     Q_PROPERTY(qreal pressureCurveMaximum READ pressureCurveMaximum WRITE setPressureCurveMaximum NOTIFY strokeSettingsChanged)
@@ -111,6 +112,9 @@ public:
 
     bool brushHardnessEnabled() const;
     void setBrushHardnessEnabled(bool enabled);
+
+    bool eraserMode() const;
+    void setEraserMode(bool enabled);
 
     qreal pressureCurveMinimum() const;
     void setPressureCurveMinimum(qreal value);
@@ -182,6 +186,21 @@ private:
         int committedStrokeCount = 0;
     };
 
+    struct RasterPatchSnapshot {
+        Types::Pixel width = 0;
+        Types::Pixel height = 0;
+        DevicePixelRect bounds{};
+        std::vector<std::uint32_t> pixels;
+        std::uint32_t nextStrokeSeed = 1;
+        int committedStrokeCount = 0;
+    };
+
+    struct RasterHistoryEntry {
+        bool fullCanvas = true;
+        RasterSnapshot fullSnapshot;
+        RasterPatchSnapshot patchSnapshot;
+    };
+
     void ensureRasterLayerSize();
     void updateViewportGeometry();
     bool shouldIgnoreMousePointerEvent(QMouseEvent *event);
@@ -221,8 +240,14 @@ private:
     CanvasCommitStrokeWorkRequest currentCommitStrokeWorkRequest(const StrokeInput &stroke) const;
     void invalidatePendingCanvasEventWork();
     RasterSnapshot captureRasterSnapshot() const;
+    RasterPatchSnapshot captureRasterPatchSnapshot(DevicePixelRect dirtyBounds) const;
+    RasterHistoryEntry captureRasterHistoryEntry() const;
+    RasterHistoryEntry captureRasterHistoryEntry(DevicePixelRect dirtyBounds) const;
     void recordRasterChange();
+    void recordRasterChange(DevicePixelRect dirtyBounds);
     void restoreRasterSnapshot(const RasterSnapshot &snapshot);
+    void restoreRasterPatchSnapshot(const RasterPatchSnapshot &snapshot);
+    void restoreRasterHistoryEntry(const RasterHistoryEntry &entry);
 
     RasterLayer m_rasterLayer;
     RasterLayer m_liveRasterLayer;
@@ -247,6 +272,7 @@ private:
     bool m_multithreadedEventsEnabled = true;
     bool m_livePreviewWorkActive = false;
     bool m_livePreviewWorkPending = false;
+    bool m_liveStrokePreviewDestinationOut = false;
     bool m_tabletPointerActive = false;
     bool m_suppressMouseAfterTablet = false;
     PointerDeviceKind m_lastInputDevice = PointerDeviceKind::Mouse;
@@ -258,6 +284,7 @@ private:
     std::uint64_t m_pendingLivePreviewRevision = 0;
     std::uint32_t m_nextStrokeSeed = 1;
     int m_committedStrokeCount = 0;
-    std::vector<RasterSnapshot> m_undoRasterSnapshots;
-    std::vector<RasterSnapshot> m_redoRasterSnapshots;
+    bool m_eraserMode = false;
+    std::vector<RasterHistoryEntry> m_undoRasterSnapshots;
+    std::vector<RasterHistoryEntry> m_redoRasterSnapshots;
 };

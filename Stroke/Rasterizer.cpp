@@ -172,6 +172,39 @@ std::uint8_t opacityCap(std::uint32_t argb,
     return alphaByte(source * mask * clamp01(opacity) * clamp01(opacityCapScale));
 }
 
+Types::Scalar applyMaskHardness(Types::Scalar maskAlpha, Types::Scalar hardness)
+{
+    const Types::Scalar clampedAlpha = clamp01(maskAlpha);
+    if (clampedAlpha <= 0.0 || clampedAlpha >= 1.0) {
+        return clampedAlpha;
+    }
+
+    const Types::Scalar clampedHardness = std::clamp(hardness, 0.01, 1.0);
+    return std::pow(clampedAlpha, 1.0 / clampedHardness);
+}
+
+Types::Scalar circleMaskAlpha(const Rasterizer &rasterizer,
+                              const BrushDab &dab,
+                              Types::Pixel centerX,
+                              Types::Pixel centerY,
+                              Types::Pixel radius,
+                              Types::Pixel x,
+                              Types::Pixel y)
+{
+    if (radius <= 0) {
+        return x == centerX && y == centerY ? 1.0 : 0.0;
+    }
+
+    const Types::Scalar dx = static_cast<Types::Scalar>(x - centerX);
+    const Types::Scalar dy = static_cast<Types::Scalar>(y - centerY);
+    const Types::Scalar distance = std::hypot(dx, dy);
+    const Types::Scalar coverage = clamp01(static_cast<Types::Scalar>(radius) + 0.5 - distance);
+    const Types::Scalar hardness = rasterizer.hardnessEnabled
+            ? rasterizer.hardness * dab.hardnessScale
+            : 1.0;
+    return applyMaskHardness(coverage, hardness);
+}
+
 void appendCircle(std::vector<RasterSample> &samples,
                   Types::Pixel centerX,
                   Types::Pixel centerY,
@@ -181,26 +214,32 @@ void appendCircle(std::vector<RasterSample> &samples,
                   const ProjectionContext &context)
 {
     const Types::Pixel clampedRadius = std::max<Types::Pixel>(0, radius);
-    const Types::Pixel radiusSquared = clampedRadius * clampedRadius;
 
     for (Types::Pixel y = centerY - clampedRadius; y <= centerY + clampedRadius; ++y) {
         for (Types::Pixel x = centerX - clampedRadius; x <= centerX + clampedRadius; ++x) {
-            const Types::Pixel dx = x - centerX;
-            const Types::Pixel dy = y - centerY;
-            if (dx * dx + dy * dy <= radiusSquared) {
-                const Types::Scalar maskAlpha = materialProjectionMask(1.0, dab, {x, y}, context);
-                if (maskAlpha <= 0.0) {
-                    continue;
-                }
-                const std::uint32_t colorArgb = wetDabColorArgb(dab, rasterizer, context, {x, y});
-                const std::uint8_t alpha = projectedAlpha(colorArgb, maskAlpha, dab.alpha);
-                const std::uint8_t cap = opacityCap(colorArgb, maskAlpha, rasterizer, dab.opacityCapScale);
-                if (alpha == 0 || cap == 0) {
-                    continue;
-                }
-                const std::uint32_t argb = withAlpha(colorArgb, alpha);
-                samples.push_back(RasterSample{{x, y}, argb, cap});
+            const Types::Scalar circleAlpha = circleMaskAlpha(rasterizer,
+                                                              dab,
+                                                              centerX,
+                                                              centerY,
+                                                              clampedRadius,
+                                                              x,
+                                                              y);
+            if (circleAlpha <= 0.0) {
+                continue;
             }
+
+            const Types::Scalar maskAlpha = materialProjectionMask(circleAlpha, dab, {x, y}, context);
+            if (maskAlpha <= 0.0) {
+                continue;
+            }
+            const std::uint32_t colorArgb = wetDabColorArgb(dab, rasterizer, context, {x, y});
+            const std::uint8_t alpha = projectedAlpha(colorArgb, maskAlpha, dab.alpha);
+            const std::uint8_t cap = opacityCap(colorArgb, maskAlpha, rasterizer, dab.opacityCapScale);
+            if (alpha == 0 || cap == 0) {
+                continue;
+            }
+            const std::uint32_t argb = withAlpha(colorArgb, alpha);
+            samples.push_back(RasterSample{{x, y}, argb, cap, dab.blendMode});
         }
     }
 }
@@ -323,13 +362,7 @@ Types::Scalar bilinearBrushAlphaAt(const Rasterizer &rasterizer,
 
 Types::Scalar applyHardness(Types::Scalar maskAlpha, Types::Scalar hardness)
 {
-    const Types::Scalar clampedAlpha = clamp01(maskAlpha);
-    if (clampedAlpha <= 0.0 || clampedAlpha >= 1.0) {
-        return clampedAlpha;
-    }
-
-    const Types::Scalar clampedHardness = std::clamp(hardness, 0.01, 1.0);
-    return std::pow(clampedAlpha, 1.0 / clampedHardness);
+    return applyMaskHardness(maskAlpha, hardness);
 }
 
 Types::Scalar transformedBrushMaskAt(const Rasterizer &rasterizer,
@@ -600,7 +633,7 @@ Types::Scalar effectiveSpacing(const Rasterizer &rasterizer,
             ? (rasterizer.brushSize > 0.0
                        ? rasterizer.brushSize * std::max<Types::Scalar>(0.01, rasterizer.spacingRatio)
                        : rasterizer.spacing)
-            : (rasterizer.brushSize > 0.0 ? rasterizer.brushSize : 1.0);
+            : 0.0;
     const BrushDynamicsResult dynamicsResult = resolveBrushDynamics(
             dynamics,
             BrushDynamicsInput{sample.pressure, sample.velocity, sample.tiltX, sample.tiltY});
@@ -1051,7 +1084,7 @@ BrushDab makeBrushDab(const StrokePoint &sample,
     dab.strokeDistance = distanceOnCurve;
     dab.dualBrush = material.dualBrush.enabled;
     dab.colorArgb = rasterizer.argb;
-    dab.blendMode = RasterBlendMode::SourceOver;
+    dab.blendMode = rasterizer.blendMode;
     dab.sequenceIndex = sequenceIndex;
     return dab;
 }

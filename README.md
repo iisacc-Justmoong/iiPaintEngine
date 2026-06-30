@@ -178,9 +178,10 @@ selection/transform/crop/fill/gradient/eraser/blur/smudge 같은 도구의 begin
 drag,
 commit, cancel 상태 전이를 값 타입으로 고정한다. `ToolStateMachine::enabled`가 false이면 도구 상태 전이를 받지 않는다.
 
-초기 브러시는 `Rasterizer`의 기본값인 검은색 원형 브러시를 사용한다. 브러시 알파 이미지가 지정되면 `Rasterizer`는 먼저 `StrokeCurve`의 벡터 구간을 spacing/density
-간격으로 순회하여 `BrushDab` 명령 시퀀스를 만든다. 각 dab은 position, scale, rotation, alpha, color, blendMode를 가진 작은 브러시 투영 명령이다. 그 다음 dab
-위치에 브러시 알파 이미지를 변환하여 `RasterSample`로 투영한다.
+초기 브러시는 `Rasterizer`의 기본값인 검은색 원형 브러시를 사용한다. 원형 브러시는 픽셀 중심의 inside/outside 판정이 아니라 원 coverage를 mask alpha로 계산해
+가장자리 픽셀을 anti-aliased alpha로 투영한다. 브러시 알파 이미지가 지정되면 `Rasterizer`는 먼저 `StrokeCurve`의 벡터 구간을 spacing/density 간격으로
+순회하여 `BrushDab` 명령 시퀀스를 만든다. 각 dab은 position, scale, rotation, alpha, color, blendMode를 가진 작은 브러시 투영 명령이다. 그 다음 dab
+위치에 브러시 알파 이미지 또는 원형 mask를 `RasterSample`로 투영한다.
 
 브러시 알파 이미지는 dab의 scale, ellipse scale, rotation을 역변환한 뒤 source mask를 bilinear sampling으로 읽는다. 정수 픽셀에 nearest로 찍지 않고
 subpixel 위치를 보존하며, 축소된 dab은 픽셀 영역을 샘플링해 작은 브러시가 격자 사이에서 사라지지 않도록 한다. `Rasterizer::hardness`는 bilinear mask alpha에 적용되는
@@ -231,7 +232,7 @@ curve를 독립적으로
 `Rasterizer`도 stroke 인자별 공개 bool 스위치를 가진다. `brushSpacingRatio`의 공개 범위는 0.0~1.0, 즉 0~100%이다.
 `flowEnabled`, `opacityEnabled`, `hardnessEnabled`, `spacingEnabled`가 false이면
 해당 stroke 인자는 저장되어 있어도 dab 생성 또는 brush mask 투영의 입력값으로 쓰지 않고 neutral 기본값으로 해석한다. flow와 opacity는 1.0, hardness는 1.0,
-spacing은 `brushSize`가 있으면 `brushSize * 1.0`, 없으면 절대 간격 1.0을 사용한다.
+spacing은 0.0을 사용한다. 실제 dab 배치 단계에서는 0% spacing도 렌더링 안전 하한인 0.01 document unit으로 제한된다.
 
 `BrushMaterial`은 회화적 표현층의 저장 가능한 계약이다. texture/grain alpha, paper grain, dual brush, scatter, wet paint/smudge/mixer 모델,
 bristle shape/count를 한 값으로 묶고, `BrushPresetSerializer`는 이 preset을 독립 payload로 왕복시킨다. texture, paper grain, dual brush,
@@ -283,7 +284,8 @@ line smoothing을 적용할 수 있고, `cuspPreservationEnabled`/`cuspAngleRadi
 smoothing을 적용하되 기본 모드에서는 마지막 입력 tip을 raw 위치와 시간에 둔다. `Stabilizer::previewDabsMatchCursor`가 true이면 예측/보정된 마지막
 dab 위치를 `cursorPreviewPosition`으로 노출해 cursor preview와 실제 dab preview가 같은 좌표를 보게 한다. `PaintCanvasItem`은 committed
 `RasterLayer`와 live `RasterLayer`를 분리해서 그린다. move 중에는 live layer만 계속 다시 그리며, release 시 live layer를 지우고 같은 raw
-stroke를 `StrokeCommand`로 만들어 committed layer에 합성한다.
+stroke를 `StrokeCommand`로 만들어 committed layer에 합성한다. 지우개 stroke의 live layer는 지우개 샘플을 불투명 마스크로 보관하고, 화면 합성 시
+committed layer 위에 `DestinationOut`으로 적용해 release 전에도 최종 지움 결과와 같은 픽셀 변화를 보여준다.
 
 각 dab은 document dirty bounds를 계산할 수 있고, `StrokeCommand`와 `LiveStrokeFrame`은 dab별 dirty bounds와 stroke 전체 document dirty
 bounds를 함께 가진다. 렌더링 경계에서는 같은 dab bounds를 viewport projection으로 device dirty rect 목록으로 바꾸고 `DirtyRegion`이 전체 bounds를 만든다.
@@ -304,7 +306,9 @@ touch gesture는 centroid, translation, scale, rotation, finger count를 가진 
 가볍게 누적한다. live preview job은 입력 이벤트마다 직접 만들지 않고 `livePreviewFrameIntervalMs` frame tick에서 현재까지 쌓인 raw stroke snapshot을
 묶어 만든다. release가 하나의
 `StrokeInput`을 완료하면 즉시 레이어나 문서를 바꾸지 않고 pending commit request에 넣는다. 실제 commit job과 stroke count/document 상태 변경은 다음
-commit frame에서 시작되고, worker result가 GUI thread에 적용될 때만 발생한다. tablet press/move/release는 먼저 `TabletState`로 옮긴 뒤
+commit frame에서 시작되고, worker result가 GUI thread에 적용될 때만 발생한다. stroke commit undo 기록은 전체 canvas snapshot이 아니라 worker가
+반환한 dirty bounds 내부의 이전 pixel patch만 저장하므로, 작은 브러시 stroke가 큰 canvas 전체를 매번 복사하지 않는다. tablet press/move/release는 먼저
+`TabletState`로 옮긴 뒤
 `InputNormalizer`를 통해
 `PointerDeviceKind::Tablet` 이벤트가 되며, pressure, tilt, rotation, eraser/barrel 상태를 stroke sample에 보존한다. 따라서 실제 펜 필압
 jitter가
@@ -358,14 +362,14 @@ Iipe.Canvas {
 
     brushColor: "#111111"
     brushSize: 6
-    brushSpacing: 1
-    brushSpacingRatio: 0.25
+    brushSpacing: 0
+    brushSpacingRatio: 0
     brushSpacingEnabled: true
-    brushFlow: 0.5
+    brushFlow: 1.0
     brushFlowEnabled: true
     brushOpacity: 1.0
     brushOpacityEnabled: true
-    brushHardness: 0.8
+    brushHardness: 1.0
     brushHardnessEnabled: true
     livePreviewEnabled: true
     livePreviewFrameIntervalMs: 8
@@ -409,10 +413,12 @@ Iipe.CanvasAdapter {
 `canUndo`, `canRedo`, `brushConfig`, `viewportConfig`, `runtimeConfig`, `stateSnapshot`을 제공한다. `openRaster`와
 `saveToFile`은 local file path 또는 `file://` URL을 받으며, 별도 이미지 입출력 라이브러리를 추가하지 않고 이미 사용하는
 Qt Gui의 `QImage` 포맷 처리를 사용한다. `toolMode`는 앱의 현재 도구 문자열을 보존하는 어댑터 상태이며, 엔진 내부 stroke pipeline의 기본 입력 경계는
-계속 `PaintCanvasItem`에 남는다.
+계속 `PaintCanvasItem`에 남는다. `toolMode`가 `eraser`이면 `CanvasAdapter`는 `PaintCanvasItem::eraserMode`를 켜고 stroke sample을
+destination-out 합성으로 적용해 대상 raster alpha를 낮춘다.
 브러시 UI가 필요한 값은 `CanvasBrushConfig`로 묶어서 `CanvasAdapter::brushConfig`와 `setBrushConfig(config)`로 왕복한다. 이 config는 color,
 size, flow, opacity, hardness, absolute spacing, spacing ratio, 각 stroke 인자 enabled 상태, pressure curve, stabilizer
-strength를 담는다. viewport UI는 `CanvasViewportConfig`로 document origin, zoom, device pixel ratio, view size를 왕복하고,
+strength를 담는다. 공개 기본값은 flow, opacity, hardness가 1.0(100%)이고 absolute spacing과 spacing ratio가 0.0(0%)이다.
+viewport UI는 `CanvasViewportConfig`로 document origin, zoom, device pixel ratio, view size를 왕복하고,
 runtime UI는 `CanvasRuntimeConfig`로 live preview, preview frame interval, multithreaded event 처리를 왕복한다.
 `CanvasStateSnapshot`은 live stroke 여부, stroke count, 마지막 입력 장치/pressure, undo/redo 가능 여부, canvas size, tool mode를
 read-only로
@@ -562,8 +568,8 @@ format과 linear compositing 선택을 검사한다.
 `iiPaintEngineColorManagementContract` 테스트는 sRGB 8-bit, Display P3 linear float HDR, ICC profile, wide gamut/HDR 판별,
 `PaintColor` HDR 값 보존과
 SDR clamp 계약을 검사한다.
-`iiPaintEngineBrushMaskSampling` 테스트는 브러시 마스크의 subpixel 위치, bilinear sampling, rotation, soft hardness curve, 축소 dab의 픽셀
-영역 샘플링을 검사한다.
+`iiPaintEngineBrushMaskSampling` 테스트는 기본 원형 브러시의 anti-aliased edge alpha, 브러시 마스크의 subpixel 위치, bilinear sampling,
+rotation, soft hardness curve, 축소 dab의 픽셀 영역 샘플링을 검사한다.
 `iiPaintEngineCoordinateDirtyRegion` 테스트는 view 입력이 document 좌표로 저장되고, 렌더링 때만 viewport projection이 적용되며, dab별 dirty
 bounds가 stroke dirty region으로 묶이는지 검사한다.
 `iiPaintEngineCanvasEventThreading` 테스트는 live/commit 캔버스 이벤트 계산이 Qt 객체 없이 값 타입 worker job으로 실행되고, 별도 thread에서 만든 sample과

@@ -67,6 +67,7 @@ void CanvasAdapter::setToolMode(const QString &mode)
     }
 
     m_toolMode = nextMode;
+    setEraserMode(m_toolMode == QStringLiteral("eraser"));
     emit toolModeChanged();
 }
 

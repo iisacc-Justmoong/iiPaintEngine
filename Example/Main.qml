@@ -53,10 +53,10 @@ LV.ApplicationWindow {
     property int activeSwatchIndex: 0
     property color activeBrushColor: swatches[activeSwatchIndex].color
     property real currentBrushSize: 18.0
-    property real currentFlow: 0.78
-    property real currentOpacity: 0.92
-    property real currentHardness: 0.72
-    property real currentSpacingRatio: 0.22
+    property real currentFlow: 1.0
+    property real currentOpacity: 1.0
+    property real currentHardness: 1.0
+    property real currentSpacingRatio: 0.0
     property real currentPressureCurveMinimum: 0.0
     property real currentPressureCurveCenter: 0.5
     property real currentPressureCurveMaximum: 1.0

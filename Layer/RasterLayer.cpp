@@ -82,6 +82,17 @@ PremultipliedPixel clampPremultipliedAlpha(PremultipliedPixel pixel, double alph
     };
 }
 
+std::uint32_t destinationOut(std::uint32_t destinationArgb, std::uint32_t sourceArgb)
+{
+    PremultipliedPixel destination = premultiply(destinationArgb);
+    const double remainingAlpha = 1.0 - static_cast<double>(alphaOf(sourceArgb)) / 255.0;
+    destination.red *= remainingAlpha;
+    destination.green *= remainingAlpha;
+    destination.blue *= remainingAlpha;
+    destination.alpha *= remainingAlpha;
+    return unpremultiply(destination);
+}
+
 bool contains(const RasterLayer &layer, DevicePixelPoint position)
 {
     return position.x >= 0
@@ -185,11 +196,39 @@ void compositeStrokeBufferOntoLayer(RasterLayer &layer, const StrokeCompositeBuf
     }
 }
 
-void paintRasterSamples(RasterLayer &layer, const std::vector<RasterSample> &samples)
+void flushSourceOverSamples(RasterLayer &layer, std::vector<RasterSample> &samples)
 {
+    if (samples.empty()) {
+        return;
+    }
+
     StrokeCompositeBuffer buffer = makeStrokeCompositeBuffer(layer.width, layer.height);
     accumulateStrokeSamples(buffer, samples);
     compositeStrokeBufferOntoLayer(layer, buffer);
+    samples.clear();
+}
+
+void paintRasterSamples(RasterLayer &layer, const std::vector<RasterSample> &samples)
+{
+    std::vector<RasterSample> sourceOverSamples;
+    sourceOverSamples.reserve(samples.size());
+
+    for (const RasterSample &sample : samples) {
+        if (sample.blendMode != RasterBlendMode::DestinationOut) {
+            sourceOverSamples.push_back(sample);
+            continue;
+        }
+
+        flushSourceOverSamples(layer, sourceOverSamples);
+        if (!contains(layer, sample.position)) {
+            continue;
+        }
+
+        const std::size_t index = pixelIndex(layer, sample.position);
+        layer.pixels[index] = destinationOut(layer.pixels[index], sample.argb);
+    }
+
+    flushSourceOverSamples(layer, sourceOverSamples);
 }
 
 std::uint32_t rasterLayerPixelAt(const RasterLayer &layer, DevicePixelPoint position)
