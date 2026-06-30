@@ -303,6 +303,7 @@ LV.ApplicationWindow {
             }
 
             BrushSlider {
+                objectName: "sizeSlider"
                 width: parent.width
                 label: "Size"
                 valueText: Math.round(root.currentBrushSize) + " px"
@@ -316,6 +317,7 @@ LV.ApplicationWindow {
             }
 
             BrushSlider {
+                objectName: "flowSlider"
                 width: parent.width
                 label: "Flow"
                 valueText: Math.round(root.currentFlow * 100) + "%"
@@ -336,6 +338,7 @@ LV.ApplicationWindow {
             }
 
             BrushSlider {
+                objectName: "opacitySlider"
                 width: parent.width
                 label: "Opacity"
                 valueText: Math.round(root.currentOpacity * 100) + "%"
@@ -356,6 +359,7 @@ LV.ApplicationWindow {
             }
 
             BrushSlider {
+                objectName: "hardnessSlider"
                 width: parent.width
                 label: "Hardness"
                 valueText: Math.round(root.currentHardness * 100) + "%"

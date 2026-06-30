@@ -93,8 +93,12 @@ int main(int argc, char **argv)
     const QObject *controls = root->findChild<QObject *>(QStringLiteral("paintControls"));
     const QObject *clearButton = root->findChild<QObject *>(QStringLiteral("clearButton"));
     const QObject *livePreviewToggle = root->findChild<QObject *>(QStringLiteral("livePreviewToggle"));
+    const QObject *sizeSlider = root->findChild<QObject *>(QStringLiteral("sizeSlider"));
+    const QObject *flowSlider = root->findChild<QObject *>(QStringLiteral("flowSlider"));
     const QObject *flowArgumentToggle = root->findChild<QObject *>(QStringLiteral("flowArgumentToggle"));
+    const QObject *opacitySlider = root->findChild<QObject *>(QStringLiteral("opacitySlider"));
     const QObject *opacityArgumentToggle = root->findChild<QObject *>(QStringLiteral("opacityArgumentToggle"));
+    const QObject *hardnessSlider = root->findChild<QObject *>(QStringLiteral("hardnessSlider"));
     const QObject *hardnessArgumentToggle = root->findChild<QObject *>(QStringLiteral("hardnessArgumentToggle"));
     const QObject *spacingArgumentToggle = root->findChild<QObject *>(QStringLiteral("spacingArgumentToggle"));
     const QObject *spacingSlider = root->findChild<QObject *>(QStringLiteral("spacingSlider"));
@@ -110,8 +114,12 @@ int main(int argc, char **argv)
             || controls == nullptr
             || clearButton == nullptr
             || livePreviewToggle == nullptr
+            || sizeSlider == nullptr
+            || flowSlider == nullptr
             || flowArgumentToggle == nullptr
+            || opacitySlider == nullptr
             || opacityArgumentToggle == nullptr
+            || hardnessSlider == nullptr
             || hardnessArgumentToggle == nullptr
             || spacingArgumentToggle == nullptr
             || spacingSlider == nullptr
@@ -148,7 +156,15 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (spacingSlider->property("from").toReal() != 0.0
+    if (sizeSlider->property("from").toReal() != 2.0
+            || sizeSlider->property("to").toReal() != 72.0
+            || flowSlider->property("from").toReal() != 0.05
+            || flowSlider->property("to").toReal() != 1.0
+            || opacitySlider->property("from").toReal() != 0.05
+            || opacitySlider->property("to").toReal() != 1.0
+            || hardnessSlider->property("from").toReal() != 0.05
+            || hardnessSlider->property("to").toReal() != 1.0
+            || spacingSlider->property("from").toReal() != 0.0
             || spacingSlider->property("to").toReal() != 1.0) {
         delete root;
         return 1;
