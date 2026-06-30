@@ -405,6 +405,20 @@ target_link_libraries(iiPaintEnginePublicUmbrellaHeaderContractTests PRIVATE
 add_test(NAME iiPaintEnginePublicUmbrellaHeaderContract
         COMMAND iiPaintEnginePublicUmbrellaHeaderContractTests)
 
+add_executable(iiPaintEnginePublicCxx17HeaderContractTests
+        tests/PublicCxx17HeaderContractTest.cpp)
+
+set_target_properties(iiPaintEnginePublicCxx17HeaderContractTests PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF)
+
+target_link_libraries(iiPaintEnginePublicCxx17HeaderContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEnginePublicCxx17HeaderContract
+        COMMAND iiPaintEnginePublicCxx17HeaderContractTests)
+
 add_executable(iiPaintEngineCanvasQmlApiTests
         tests/CanvasQmlApiTest.cpp)
 

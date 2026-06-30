@@ -8,7 +8,7 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <span>
+#include <cstddef>
 #include <vector>
 
 namespace {
@@ -55,8 +55,7 @@ BrushState livePreviewBrushState(const BrushState &brush)
     return previewBrush;
 }
 
-std::span<const BrushDab> brushDabsFromDistance(const std::vector<BrushDab> &dabs,
-                                                Types::Scalar startDistance)
+BrushDabSpan brushDabsFromDistance(const std::vector<BrushDab> &dabs, Types::Scalar startDistance)
 {
     const auto firstDab = std::lower_bound(dabs.begin(),
                                            dabs.end(),
@@ -68,7 +67,7 @@ std::span<const BrushDab> brushDabsFromDistance(const std::vector<BrushDab> &dab
         return {};
     }
 
-    return std::span<const BrushDab>{&*firstDab, static_cast<std::size_t>(dabs.end() - firstDab)};
+    return BrushDabSpan{&*firstDab, static_cast<std::size_t>(dabs.end() - firstDab)};
 }
 
 } // namespace
@@ -99,12 +98,12 @@ CanvasLiveStrokeWorkResult runCanvasLiveStrokeWork(const CanvasLiveStrokeWorkReq
     const bool canProjectIncrementally = request.incrementalPreviewEnabled
             && request.incrementalPreviewStartDistance > 0.0
             && !result.frame.dabs.empty();
-    const std::span<const BrushDab> incrementalDabs = canProjectIncrementally
+    const BrushDabSpan incrementalDabs = canProjectIncrementally
             ? brushDabsFromDistance(result.frame.dabs, request.incrementalPreviewStartDistance)
-            : std::span<const BrushDab>{};
-    const std::span<const BrushDab> projectedDabs = canProjectIncrementally
+            : BrushDabSpan{};
+    const BrushDabSpan projectedDabs = canProjectIncrementally
             ? incrementalDabs
-            : std::span<const BrushDab>{result.frame.dabs.data(), result.frame.dabs.size()};
+            : BrushDabSpan{result.frame.dabs};
     result.incrementalPreview = canProjectIncrementally;
     result.incrementalPreviewStartDistance = canProjectIncrementally
             ? request.incrementalPreviewStartDistance

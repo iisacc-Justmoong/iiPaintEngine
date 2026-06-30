@@ -11,7 +11,6 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
-#include <span>
 
 namespace {
 
@@ -30,7 +29,7 @@ struct ProjectionContext {
     RasterProjection projection{};
 };
 
-std::size_t projectedSampleCapacity(std::span<const BrushDab> dabs, const Rasterizer &rasterizer)
+std::size_t projectedSampleCapacity(BrushDabSpan dabs, const Rasterizer &rasterizer)
 {
     if (dabs.empty()) {
         return 0;
@@ -1271,10 +1270,10 @@ std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
 
 std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs, const Rasterizer &rasterizer)
 {
-    return projectBrushDabs(std::span<const BrushDab>{dabs.data(), dabs.size()}, rasterizer);
+    return projectBrushDabs(BrushDabSpan{dabs}, rasterizer);
 }
 
-std::vector<RasterSample> projectBrushDabs(std::span<const BrushDab> dabs, const Rasterizer &rasterizer)
+std::vector<RasterSample> projectBrushDabs(BrushDabSpan dabs, const Rasterizer &rasterizer)
 {
     return projectBrushDabs(dabs, rasterizer, RasterProjection{});
 }
@@ -1283,10 +1282,10 @@ std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs,
                                            const Rasterizer &rasterizer,
                                            const RasterProjection &projection)
 {
-    return projectBrushDabs(std::span<const BrushDab>{dabs.data(), dabs.size()}, rasterizer, projection);
+    return projectBrushDabs(BrushDabSpan{dabs}, rasterizer, projection);
 }
 
-std::vector<RasterSample> projectBrushDabs(std::span<const BrushDab> dabs,
+std::vector<RasterSample> projectBrushDabs(BrushDabSpan dabs,
                                            const Rasterizer &rasterizer,
                                            const RasterProjection &projection)
 {
@@ -1306,13 +1305,13 @@ std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs,
                                            const RasterProjection &projection,
                                            const BrushMaterial &material)
 {
-    return projectBrushDabs(std::span<const BrushDab>{dabs.data(), dabs.size()},
+    return projectBrushDabs(BrushDabSpan{dabs},
                             rasterizer,
                             projection,
                             material);
 }
 
-std::vector<RasterSample> projectBrushDabs(std::span<const BrushDab> dabs,
+std::vector<RasterSample> projectBrushDabs(BrushDabSpan dabs,
                                            const Rasterizer &rasterizer,
                                            const RasterProjection &projection,
                                            const BrushMaterial &material)
@@ -1335,14 +1334,14 @@ std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs,
                                            const RasterSourceSampler &sourceSampler,
                                            const BrushMaterial &material)
 {
-    return projectBrushDabs(std::span<const BrushDab>{dabs.data(), dabs.size()},
+    return projectBrushDabs(BrushDabSpan{dabs},
                             rasterizer,
                             projection,
                             sourceSampler,
                             material);
 }
 
-std::vector<RasterSample> projectBrushDabs(std::span<const BrushDab> dabs,
+std::vector<RasterSample> projectBrushDabs(BrushDabSpan dabs,
                                            const Rasterizer &rasterizer,
                                            const RasterProjection &projection,
                                            const RasterSourceSampler &sourceSampler,
@@ -1411,12 +1410,12 @@ DevicePixelRect deviceBoundsForBrushDabsUnion(const std::vector<BrushDab> &dabs,
                                               const Rasterizer &rasterizer,
                                               const RasterProjection &projection)
 {
-    return deviceBoundsForBrushDabsUnion(std::span<const BrushDab>{dabs.data(), dabs.size()},
+    return deviceBoundsForBrushDabsUnion(BrushDabSpan{dabs},
                                          rasterizer,
                                          projection);
 }
 
-DevicePixelRect deviceBoundsForBrushDabsUnion(std::span<const BrushDab> dabs,
+DevicePixelRect deviceBoundsForBrushDabsUnion(BrushDabSpan dabs,
                                               const Rasterizer &rasterizer,
                                               const RasterProjection &projection)
 {
@@ -1431,12 +1430,12 @@ std::vector<DevicePixelRect> deviceBoundsForBrushDabs(const std::vector<BrushDab
                                                       const Rasterizer &rasterizer,
                                                       const RasterProjection &projection)
 {
-    return deviceBoundsForBrushDabs(std::span<const BrushDab>{dabs.data(), dabs.size()},
+    return deviceBoundsForBrushDabs(BrushDabSpan{dabs},
                                     rasterizer,
                                     projection);
 }
 
-std::vector<DevicePixelRect> deviceBoundsForBrushDabs(std::span<const BrushDab> dabs,
+std::vector<DevicePixelRect> deviceBoundsForBrushDabs(BrushDabSpan dabs,
                                                       const Rasterizer &rasterizer,
                                                       const RasterProjection &projection)
 {
