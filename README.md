@@ -467,6 +467,16 @@ brush color, brush size, flow, opacity, hardness, spacing, 각 stroke 인자 ena
 IIPAINTENGINE_INSTALL_PLATFORMS=macos ./install.sh
 ```
 
+Windows PowerShell에서는 같은 설치 계약을 `install.ps1`로 실행한다. 기본 빌드 디렉터리는 동일하게 `build/`이며,
+기본 prefix는 PowerShell의 `$HOME` 아래 `~/.local/iiPaintEngine`이다. Qt root는 `IIPAINTENGINE_QT_ROOT`가 우선하며,
+없으면 Windows Qt installer의 기본 위치인 `C:\Qt\6.8.3`과 `$HOME/Qt/6.8.3` 순서로 사용한다.
+
+```powershell
+.\install.ps1
+$env:IIPAINTENGINE_INSTALL_PLATFORMS = "windows"
+.\install.ps1
+```
+
 설치 후 CMake 소비자는 아래처럼 가져온다.
 
 ```cmake
@@ -481,8 +491,12 @@ target_link_libraries(app PRIVATE iiPaintEngine::iiPaintEngine)
 ```
 
 macOS 산출물은 `~/.local/iiPaintEngine/lib/libiiPaintEngine.dylib`, Linux/Android 산출물은 각 prefix의 `lib/libiiPaintEngine.so`,
-Windows 산출물은 `bin/iiPaintEngine.dll`이다. WASM 빌드는 Qt Core의 Emscripten runtime symbol을 위해 embind 링크 옵션을 포함한다.
+Windows 산출물은 toolchain에 따라 `bin/iiPaintEngine.dll` 또는 MinGW의 `bin/libiiPaintEngine.dll`이다. WASM 빌드는 Qt Core의
+Emscripten runtime symbol을 위해 embind 링크 옵션을 포함한다.
 플랫폼별 package config는 `~/.local/iiPaintEngine/platforms/<platform>` 아래에도 설치된다.
+설치 스크립트의 host 테스트 단계는 설치 검증에 필요한 엔진 계약 테스트를 명시적으로 빌드하고 실행하며, 설치된 LVRS 패키지에 예제 앱 entrypoint
+라이브러리가 없는 환경을 위해 `iiPaintEngineExampleDemoContract`는 제외한다.
+로컬 테스트 실행 파일이 Windows 프로세스 잠금에 걸려 재링크할 수 없는 경우에는 `IIPAINTENGINE_SKIP_TESTS=ON`으로 설치 단계만 완료할 수 있다.
 
 ## 검증
 
