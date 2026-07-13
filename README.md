@@ -482,6 +482,7 @@ IIPAINTENGINE_INSTALL_PLATFORMS=macos ./install.sh
 ```
 
 Windows PowerShell에서는 같은 설치 계약을 `install.ps1`로 실행한다. 기본 빌드 디렉터리는 동일하게 `build/`이며,
+단일 구성 생성기에서도 내보낸 CMake 대상이 `Release` 위치를 제공하도록 구성 단계부터 `Release` 빌드 유형을 고정한다.
 기본 prefix는 PowerShell의 `$HOME` 아래 `~/.local/iiPaintEngine`이다. Qt root는 `IIPAINTENGINE_QT_ROOT`가 우선하며,
 없으면 Windows Qt installer의 기본 위치인 `C:\Qt\6.8.3`과 `$HOME/Qt/6.8.3` 순서로 사용한다.
 
