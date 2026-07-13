@@ -528,6 +528,7 @@ function Configure-BuildInstall {
     $cmakeArgs = @(
         "-S", $RootDir,
         "-B", $PlatformBuildDir,
+        "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_INSTALL_PREFIX=$InstallPrefix",
         "-DCMAKE_PREFIX_PATH=$cmakePrefixPath",
         "-DLVRS_DIR=$lvrsConfigDir",

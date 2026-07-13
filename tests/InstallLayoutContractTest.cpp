@@ -157,6 +157,8 @@ int main()
                    "install.ps1 must inspect stale CMake build directories.");
     expectContains(installPowerShell, "--fresh",
                    "install.ps1 must configure with a fresh CMake cache.");
+    expectContains(installPowerShell, "-DCMAKE_BUILD_TYPE=Release",
+                   "install.ps1 must configure single-config generators as Release before exporting targets.");
     expectContains(installPowerShell, "Invoke-NativeCommand",
                    "install.ps1 must fail when native build tools fail.");
     expectContains(installPowerShell, "$IiPaintEngineHostTestTargets",
