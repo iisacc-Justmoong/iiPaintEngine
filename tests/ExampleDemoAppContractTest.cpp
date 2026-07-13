@@ -13,6 +13,8 @@
 #include "QtAdapter/IipeQmlTypes.h"
 #include "QtAdapter/PaintCanvasItem.h"
 
+void qml_register_types_LVRS();
+
 namespace {
 
 bool waitForComponent(QGuiApplication &app, QQmlComponent &component)
@@ -28,6 +30,12 @@ bool waitForComponent(QGuiApplication &app, QQmlComponent &component)
 void printQmlErrors(const QQmlComponent &component)
 {
     std::cerr << component.errorString().toStdString() << '\n';
+}
+
+int fail(const char *message)
+{
+    std::cerr << message << '\n';
+    return 1;
 }
 
 bool executableHasRpath(const QString &executablePath, const QString &rpath)
@@ -47,6 +55,7 @@ int main(int argc, char **argv)
     qputenv("QT_QPA_PLATFORM", "offscreen");
 
     QGuiApplication app(argc, argv);
+    qml_register_types_LVRS();
     registerIipeQmlTypes();
 
     const QFileInfo qmlFile{QString::fromUtf8(IIPAINTENGINE_EXAMPLE_MAIN_QML)};
@@ -57,17 +66,18 @@ int main(int argc, char **argv)
             || !executableFile.isExecutable()
             || !contractExecutableFile.isFile()
             || !contractExecutableFile.isExecutable()) {
-        return 1;
+        return fail("Example source or executable contract input is missing or not executable.");
     }
 
     QFile qmlSource{qmlFile.absoluteFilePath()};
     if (!qmlSource.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        return 1;
+        return fail("Example Main.qml could not be opened.");
     }
-    const QByteArray qmlBytes = qmlSource.readAll();
+    QByteArray qmlBytes = qmlSource.readAll();
+    qmlBytes.replace("\r\n", "\n");
     if (!qmlBytes.startsWith("pragma ComponentBehavior: Bound\n")
             || qmlBytes.contains("\npragma\nComponentBehavior: Bound")) {
-        return 1;
+        return fail("Example Main.qml has an invalid ComponentBehavior pragma layout.");
     }
 #if defined(__APPLE__)
     const QString executablePath = executableFile.absoluteFilePath();
@@ -75,12 +85,12 @@ int main(int argc, char **argv)
     if (executablePath.contains(QStringLiteral(".app/Contents/MacOS/"))
             || executableFile.fileName() != QStringLiteral("iiPaintEngineExample")
             || executableFile.dir().dirName() != QStringLiteral("bin")) {
-        return 1;
+        return fail("The macOS example executable layout is invalid.");
     }
     if (QString::fromUtf8(IIPAINTENGINE_LVRS_LIBRARY_DIR).isEmpty()
             || !executableHasRpath(executablePath, QString::fromUtf8(IIPAINTENGINE_LVRS_LIBRARY_DIR))
             || !executableHasRpath(contractExecutablePath, QString::fromUtf8(IIPAINTENGINE_LVRS_LIBRARY_DIR))) {
-        return 1;
+        return fail("The macOS example or contract executable is missing the LVRS rpath.");
     }
 #endif
 
@@ -91,13 +101,13 @@ int main(int argc, char **argv)
     QQmlComponent component(&engine, QUrl::fromLocalFile(qmlFile.absoluteFilePath()));
     if (!waitForComponent(app, component) || component.isError()) {
         printQmlErrors(component);
-        return 1;
+        return fail("Example Main.qml did not compile through QQmlComponent.");
     }
 
     QObject *root = component.create();
     if (root == nullptr) {
         printQmlErrors(component);
-        return 1;
+        return fail("Example Main.qml did not create a root object.");
     }
 
     const auto canvas = root->findChild<PaintCanvasItem *>(QStringLiteral("demoCanvas"));
@@ -143,7 +153,7 @@ int main(int argc, char **argv)
             || inputPressureLabel == nullptr
             || !root->property("demoReady").toBool()) {
         delete root;
-        return 1;
+        return fail("Example Main.qml is missing a required demo object or ready state.");
     }
 
     if (canvas->brushSize() != 18.0
@@ -164,7 +174,7 @@ int main(int argc, char **argv)
             || !canvas->brushHardnessEnabled()
             || !canvas->brushSpacingEnabled()) {
         delete root;
-        return 1;
+        return fail("Example canvas default brush or preview state is invalid.");
     }
 
     if (sizeSlider->property("from").toReal() != 2.0
@@ -178,7 +188,7 @@ int main(int argc, char **argv)
             || spacingSlider->property("from").toReal() != 0.0
             || spacingSlider->property("to").toReal() != 1.0) {
         delete root;
-        return 1;
+        return fail("Example primary slider ranges are invalid.");
     }
 
     if (pressureCurveMinimumSlider->property("from").toReal() != 0.0
@@ -192,7 +202,7 @@ int main(int argc, char **argv)
             || previewFrameIntervalSlider->property("from").toReal() != 0.0
             || previewFrameIntervalSlider->property("to").toReal() != 33.0) {
         delete root;
-        return 1;
+        return fail("Example advanced slider ranges are invalid.");
     }
 
     if (!root->setProperty("currentPressureCurveMinimum", 0.2)
@@ -207,7 +217,7 @@ int main(int argc, char **argv)
             || canvas->stabilizerStrength() != 0.75
             || canvas->livePreviewFrameIntervalMs() != 12) {
         delete root;
-        return 1;
+        return fail("Example brush-setting application contract failed.");
     }
 
     if (!root->setProperty("flowArgumentEnabled", false)
@@ -220,7 +230,7 @@ int main(int argc, char **argv)
             || canvas->brushHardnessEnabled()
             || canvas->brushSpacingEnabled()) {
         delete root;
-        return 1;
+        return fail("Example brush-setting feature-toggle contract failed.");
     }
 
     delete root;

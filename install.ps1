@@ -20,6 +20,101 @@ $WindowsPlatformPrefix = Join-Path $Prefix "platforms/windows"
 $AndroidPrefix = Join-Path $Prefix "platforms/android"
 $WasmPrefix = Join-Path $Prefix "platforms/wasm"
 
+function Resolve-CMakeExecutable {
+    $candidates = @()
+    if ($env:IIPAINTENGINE_CMAKE_PATH) {
+        $candidates += $env:IIPAINTENGINE_CMAKE_PATH
+    }
+    if ($env:LOCALAPPDATA) {
+        $candidates += Join-Path $env:LOCALAPPDATA "Programs/CLion/bin/cmake/win/x64/bin/cmake.exe"
+    }
+    $pathCommand = Get-Command "cmake.exe" -ErrorAction SilentlyContinue
+    if ($pathCommand) {
+        $candidates += $pathCommand.Source
+    }
+
+    foreach ($candidate in @($candidates | Select-Object -Unique)) {
+        if (-not $candidate -or -not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+            continue
+        }
+        $versionOutput = (& $candidate --version 2>$null) | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            continue
+        }
+        $versionMatch = [regex]::Match($versionOutput, 'cmake version\s+(?<version>\d+\.\d+(?:\.\d+)?)')
+        if ($versionMatch.Success -and [version]$versionMatch.Groups["version"].Value -ge [version]"3.31") {
+            return [System.IO.Path]::GetFullPath($candidate)
+        }
+    }
+
+    throw "iiPaintEngine requires CMake 3.31 or newer. Set IIPAINTENGINE_CMAKE_PATH to a compatible cmake.exe."
+}
+
+function Resolve-WindowsNinjaExecutable {
+    param([Parameter(Mandatory = $true)][string] $QtPrefix)
+
+    $qtInstallRoot = Split-Path -Parent (Split-Path -Parent $QtPrefix)
+    $candidates = @(
+        $env:IIPAINTENGINE_NINJA_PATH,
+        (Join-Path $qtInstallRoot "Tools/Ninja/ninja.exe")
+    )
+    $pathCommand = Get-Command "ninja.exe" -ErrorAction SilentlyContinue
+    if ($pathCommand) {
+        $candidates += $pathCommand.Source
+    }
+    foreach ($candidate in @($candidates | Select-Object -Unique)) {
+        if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+            return [System.IO.Path]::GetFullPath($candidate)
+        }
+    }
+
+    throw "Ninja is required for the Windows Qt MinGW build. Set IIPAINTENGINE_NINJA_PATH to ninja.exe."
+}
+
+function Resolve-WindowsMinGwCompiler {
+    param([Parameter(Mandatory = $true)][string] $QtPrefix)
+
+    $qconfigPath = Join-Path $QtPrefix "mkspecs/qconfig.pri"
+    if (-not (Test-Path -LiteralPath $qconfigPath -PathType Leaf)) {
+        throw "Qt compiler metadata is missing: $qconfigPath"
+    }
+    $qconfig = Get-Content -LiteralPath $qconfigPath -Raw
+    $majorMatch = [regex]::Match($qconfig, '(?m)^QT_GCC_MAJOR_VERSION\s*=\s*(?<value>\d+)\s*$')
+    $minorMatch = [regex]::Match($qconfig, '(?m)^QT_GCC_MINOR_VERSION\s*=\s*(?<value>\d+)\s*$')
+    $patchMatch = [regex]::Match($qconfig, '(?m)^QT_GCC_PATCH_VERSION\s*=\s*(?<value>\d+)\s*$')
+    if (-not $majorMatch.Success -or -not $minorMatch.Success -or -not $patchMatch.Success) {
+        throw "Qt MinGW version metadata is incomplete: $qconfigPath"
+    }
+
+    $qtInstallRoot = Split-Path -Parent (Split-Path -Parent $QtPrefix)
+    $toolDirectoryName = "mingw$($majorMatch.Groups['value'].Value)$($minorMatch.Groups['value'].Value)$($patchMatch.Groups['value'].Value)_64"
+    $candidates = @()
+    if ($env:IIPAINTENGINE_MINGW_ROOT) {
+        $configuredItem = Get-Item -LiteralPath $env:IIPAINTENGINE_MINGW_ROOT -ErrorAction SilentlyContinue
+        $configuredCompiler = if ($configuredItem -and $configuredItem.PSIsContainer) {
+            Join-Path $env:IIPAINTENGINE_MINGW_ROOT "bin/g++.exe"
+        } else {
+            $env:IIPAINTENGINE_MINGW_ROOT
+        }
+        $candidates += $configuredCompiler
+    }
+    $candidates += Join-Path $qtInstallRoot "Tools/$toolDirectoryName/bin/g++.exe"
+
+    foreach ($candidate in @($candidates | Select-Object -Unique)) {
+        if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+            return [System.IO.Path]::GetFullPath($candidate)
+        }
+    }
+
+    throw "The MinGW compiler matching Qt ($toolDirectoryName) was not found. Set IIPAINTENGINE_MINGW_ROOT to the matching toolchain."
+}
+
+$CMakeExecutable = Resolve-CMakeExecutable
+$CTestExecutable = Join-Path (Split-Path -Parent $CMakeExecutable) "ctest.exe"
+if (-not (Test-Path -LiteralPath $CTestExecutable -PathType Leaf)) {
+    throw "CTest was not found next to the selected CMake executable: $CTestExecutable"
+}
+
 function Get-DefaultInstallPlatforms {
     if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) {
         return "windows,android,wasm"
@@ -326,7 +421,7 @@ function Build-HostTests {
         return
     }
 
-    Invoke-NativeCommand -FilePath "cmake" -Arguments (@("--build", $PlatformBuildDir, "--config", "Release", "--target") + $IiPaintEngineHostTestTargets)
+    Invoke-NativeCommand -FilePath $CMakeExecutable -Arguments (@("--build", $PlatformBuildDir, "--config", "Release", "--target") + $IiPaintEngineHostTestTargets)
 }
 
 function Run-HostTests {
@@ -337,7 +432,77 @@ function Run-HostTests {
         return
     }
 
-    Invoke-NativeCommand -FilePath "ctest" -Arguments @("--test-dir", $PlatformBuildDir, "--output-on-failure", "-E", "iiPaintEngineExampleDemoContract")
+    Invoke-NativeCommand -FilePath $CTestExecutable -Arguments @("--test-dir", $PlatformBuildDir, "--output-on-failure", "-E", "iiPaintEngineExampleDemoContract")
+}
+
+function Add-UserPathEntries {
+    param([Parameter(Mandatory = $true)][string[]] $Entries)
+
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    $pathParts = @()
+    if ($userPath) {
+        $pathParts = @($userPath -split ";" | Where-Object { $_ })
+    }
+
+    $changed = $false
+    foreach ($entry in $Entries) {
+        if (-not $entry -or -not (Test-Path -LiteralPath $entry -PathType Container)) {
+            continue
+        }
+
+        $alreadyPresent = $false
+        foreach ($part in $pathParts) {
+            if ($part.TrimEnd("\") -ieq $entry.TrimEnd("\")) {
+                $alreadyPresent = $true
+                break
+            }
+        }
+
+        if (-not $alreadyPresent) {
+            $pathParts = @($entry) + $pathParts
+            $changed = $true
+        }
+    }
+
+    if ($changed) {
+        [Environment]::SetEnvironmentVariable("Path", [string]::Join(";", $pathParts), "User")
+        Write-Host "Updated user PATH for iiPaintEngine runtime DLL directories."
+    }
+}
+
+function Add-UserCMakePrefixEntries {
+    param([Parameter(Mandatory = $true)][string[]] $Entries)
+
+    $userPrefixPath = [Environment]::GetEnvironmentVariable("CMAKE_PREFIX_PATH", "User")
+    $prefixParts = @()
+    if ($userPrefixPath) {
+        $prefixParts = @($userPrefixPath -split ";" | Where-Object { $_ })
+    }
+
+    $changed = $false
+    foreach ($entry in $Entries) {
+        if (-not $entry -or -not (Test-Path -LiteralPath $entry -PathType Container)) {
+            continue
+        }
+
+        $alreadyPresent = $false
+        foreach ($part in $prefixParts) {
+            if ($part.TrimEnd("\") -ieq $entry.TrimEnd("\")) {
+                $alreadyPresent = $true
+                break
+            }
+        }
+
+        if (-not $alreadyPresent) {
+            $prefixParts = @($entry) + $prefixParts
+            $changed = $true
+        }
+    }
+
+    if ($changed) {
+        [Environment]::SetEnvironmentVariable("CMAKE_PREFIX_PATH", [string]::Join(";", $prefixParts), "User")
+        Write-Host "Updated user CMAKE_PREFIX_PATH for iiPaintEngine consumers."
+    }
 }
 
 function Configure-BuildInstall {
@@ -370,13 +535,13 @@ function Configure-BuildInstall {
     )
     $cmakeArgs += $ExtraCMakeArgs
 
-    Invoke-NativeCommand -FilePath "cmake" -Arguments (@("--fresh") + $cmakeArgs)
+    Invoke-NativeCommand -FilePath $CMakeExecutable -Arguments (@("--fresh") + $cmakeArgs)
 
     Write-Host "Building iiPaintEngine $Platform dynamic library in $PlatformBuildDir"
-    Invoke-NativeCommand -FilePath "cmake" -Arguments @("--build", $PlatformBuildDir, "--config", "Release", "--target", "iiPaintEngine")
+    Invoke-NativeCommand -FilePath $CMakeExecutable -Arguments @("--build", $PlatformBuildDir, "--config", "Release", "--target", "iiPaintEngine")
 
     Write-Host "Installing iiPaintEngine $Platform package into $InstallPrefix"
-    Invoke-NativeCommand -FilePath "cmake" -Arguments @("--install", $PlatformBuildDir, "--prefix", $InstallPrefix, "--config", "Release")
+    Invoke-NativeCommand -FilePath $CMakeExecutable -Arguments @("--install", $PlatformBuildDir, "--prefix", $InstallPrefix, "--config", "Release")
     Verify-DynamicLibrary -Platform $Platform -InstallPrefix $InstallPrefix
 }
 
@@ -394,10 +559,19 @@ function Install-WindowsPackage {
         return
     }
 
-    Configure-BuildInstall -Platform "windows" -PlatformBuildDir $WindowsBuildDir -InstallPrefix $WindowsPrefix -QtPrefix $WindowsQtPrefix -LvrsPlatformPrefix $lvrsWindowsPrefix
+    $windowsCxxCompiler = Resolve-WindowsMinGwCompiler -QtPrefix $WindowsQtPrefix
+    $windowsNinja = Resolve-WindowsNinjaExecutable -QtPrefix $WindowsQtPrefix
+    $windowsMinGwBin = Split-Path -Parent $windowsCxxCompiler
+    $env:Path = "$windowsMinGwBin;$env:Path"
+
+    Configure-BuildInstall -Platform "windows" -PlatformBuildDir $WindowsBuildDir -InstallPrefix $WindowsPrefix -QtPrefix $WindowsQtPrefix -LvrsPlatformPrefix $lvrsWindowsPrefix -ExtraCMakeArgs @(
+        "-G", "Ninja",
+        "-DCMAKE_MAKE_PROGRAM=$windowsNinja",
+        "-DCMAKE_CXX_COMPILER=$windowsCxxCompiler"
+    )
 
     Write-Host "Installing iiPaintEngine windows platform mirror into $WindowsPlatformPrefix"
-    Invoke-NativeCommand -FilePath "cmake" -Arguments @("--install", $WindowsBuildDir, "--prefix", $WindowsPlatformPrefix, "--config", "Release")
+    Invoke-NativeCommand -FilePath $CMakeExecutable -Arguments @("--install", $WindowsBuildDir, "--prefix", $WindowsPlatformPrefix, "--config", "Release")
     Verify-DynamicLibrary -Platform "windows" -InstallPrefix $WindowsPlatformPrefix
 
     Write-Host "Building iiPaintEngine windows tests in $WindowsBuildDir"
@@ -405,6 +579,21 @@ function Install-WindowsPackage {
 
     Write-Host "Running iiPaintEngine windows tests"
     Run-HostTests -PlatformBuildDir $WindowsBuildDir
+
+    Add-UserPathEntries -Entries @(
+        (Join-Path $WindowsPlatformPrefix "bin"),
+        (Join-Path $WindowsPrefix "bin"),
+        (Join-Path $WindowsQtPrefix "bin"),
+        $windowsMinGwBin
+    )
+    Add-UserCMakePrefixEntries -Entries @(
+        $WindowsPrefix,
+        $WindowsPlatformPrefix,
+        $WindowsQtPrefix,
+        $LvrsPrefix,
+        (Join-Path $LvrsPrefix "platforms/windows")
+    )
+    [Environment]::SetEnvironmentVariable("iiPaintEngine_DIR", (Join-Path $WindowsPlatformPrefix "lib/cmake/iiPaintEngine"), "User")
 }
 
 function Install-AndroidPackage {

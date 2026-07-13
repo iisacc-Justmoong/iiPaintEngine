@@ -33,3 +33,6 @@
 *.app
 
 build*
+
+# Native and WebAssembly example deployment output must stay under build/.
+/Example/bin/

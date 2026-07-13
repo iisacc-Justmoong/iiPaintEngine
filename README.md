@@ -1,5 +1,15 @@
 # iiPaintEngine
 
+## 라이선스
+
+iiPaintEngine은 GNU Affero General Public License version 3 전용으로 배포한다.
+
+`SPDX-License-Identifier: AGPL-3.0-only`
+
+전체 조건은 저장소 루트의 `LICENSE`에 있으며, CMake 설치는 같은 원문을
+`share/licenses/iiPaintEngine/LICENSE`에 포함한다. 이 선택은 명시적으로 AGPL 3.0 이후 버전까지 자동 허용하는
+`AGPL-3.0-or-later`가 아니다.
+
 `iiPaintEngine`은 Qt 기반 페인트 엔진 라이브러리이다. Qt 화면 객체인 `PaintCanvasItem`만 `QObject`/`QQuickPaintedItem` 기반으로 두고, 나머지는 값 복사와
 aggregate 초기화를 지원하는 단순 `struct` 청사진으로 둔다. 엔진 본체는 가능한 한 순수 C++ 데이터와 알고리즘으로 유지한다.
 `QQuickPaintedItem`/`QPainter` 의존은 `QtAdapter/PaintCanvasItem`에만 머물러야 하며, scene graph나 texture-backed renderer로 교체할 때는 이
@@ -443,18 +453,22 @@ QML은 `Canvas` 또는 `CanvasAdapter`만 직접 다룬다. `InputStrokeBuilder`
 ## Example
 
 `Example/Main.qml`은 LVRS의 `ApplicationWindow`, control component와 `iipe.Canvas`를 함께 쓰는 데모 페인팅 앱이다.
-`iiPaintEngineExample`
-target은 LVRS bootstrapped QML 앱으로 실행된다. macOS 빌드 산출물은 Finder에서 더블클릭 가능한 raw 실행 파일
-`Example/bin/iiPaintEngineExample`에 놓인다. 이 실행 파일은 LVRS dylib 위치를 rpath로 가져 Finder/LaunchServices 환경에서도 실행된다. 앱은 현재 공개된
-canvas viewport,
+`iiPaintEngineExample` target은 LVRS QML 컴포넌트를 계속 사용하되, 설치 패키지가 내보내지 않는 C++ bootstrap 심볼에
+의존하지 않도록 표준 `QGuiApplication`/`QQmlApplicationEngine` 엔트리포인트에서 링크된 LVRS 타입을 등록하고 컴파일된
+QML 모듈을 로드한다.
+macOS 빌드 산출물은 Finder에서 더블클릭 가능한 raw 실행 파일
+`build/Example/bin/iiPaintEngineExample`에 놓인다. 이 실행 파일은 LVRS dylib 위치를 rpath로 가져 Finder/LaunchServices 환경에서도 실행된다.
+native/WebAssembly 예제 배포 출력은 모두 `build/Example/bin`에서 생성되며, 소스 트리의 `Example/bin`은 배포 입력이나
+버전 관리 대상이 아니다. 앱은 현재 공개된 canvas viewport,
 brush color, brush size, flow, opacity, hardness, spacing, 각 stroke 인자 enabled 토글, live preview, clear/reset view API와
 마지막 입력 pressure
 상태를 화면에서 바로 드러낸다. 필압 민감도는 min/center/max 그래프와 보조 슬라이더로 노출되고, 스태빌라이저 강도도 별도 슬라이더로 노출되어 사용자 맞춤형
 필압/브러시 설정 UI의 공개 API를 검증한다.
 예제의 `QC.Slider` 및 `BrushSlider` range는 qmlcache 컴파일이 통과하도록 항상 명시적인 `from`/`to` 속성으로 둔다.
 상단 `pragma ComponentBehavior: Bound`도 한 줄 선언으로 유지해 qmlcache가 `ComponentBehavior`를 독립 식별자로 파싱하지 않게 한다.
-`iiPaintEngineExampleDemoContract` 테스트는 예제 QML을 실제 엔진으로 로드하고 slider range, macOS raw 실행 파일 및 테스트 실행 파일의 LVRS rpath 산출
-계약을 함께 검사한다.
+`iiPaintEngineExampleDemoContract` 테스트는 실행 앱과 같은 순서로 LVRS/iiPaintEngine QML 타입을 등록하고 예제 QML을 실제
+엔진으로 로드하며, Windows CRLF 체크아웃도 동일한 한 줄 pragma로 정규화해 검사한다. slider range, macOS raw 실행 파일
+및 테스트 실행 파일의 LVRS rpath 산출 계약도 함께 검사한다.
 
 ## 설치
 
@@ -497,6 +511,11 @@ Emscripten runtime symbol을 위해 embind 링크 옵션을 포함한다.
 설치 스크립트의 host 테스트 단계는 설치 검증에 필요한 엔진 계약 테스트를 명시적으로 빌드하고 실행하며, 설치된 LVRS 패키지에 예제 앱 entrypoint
 라이브러리가 없는 환경을 위해 `iiPaintEngineExampleDemoContract`는 제외한다.
 로컬 테스트 실행 파일이 Windows 프로세스 잠금에 걸려 재링크할 수 없는 경우에는 `IIPAINTENGINE_SKIP_TESTS=ON`으로 설치 단계만 완료할 수 있다.
+Windows host 빌드는 선택한 Qt의 `qconfig.pri`에서 GCC 버전을 읽어 Qt MinGW 13.1.0과 Ninja를 명시적으로 고정한다.
+따라서 MinGW Qt 헤더를 Visual Studio 생성기나 MSVC와 혼합하지 않는다. 기본 설치에서 도구를 찾지 못하면
+`IIPAINTENGINE_CMAKE_PATH`, `IIPAINTENGINE_NINJA_PATH`, `IIPAINTENGINE_MINGW_ROOT`로 정확한 경로를 지정한다.
+Windows PowerShell 설치 스크립트는 소비 앱 실행에 필요한 iiPaintEngine, Qt, MinGW runtime DLL 디렉터리를 사용자 `Path`에 추가하고,
+`find_package(iiPaintEngine CONFIG REQUIRED)` 탐색을 위해 사용자 `CMAKE_PREFIX_PATH`와 `iiPaintEngine_DIR`도 등록한다.
 
 ## 검증
 
@@ -508,7 +527,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-`iiPaintEngineDependencyBoundary` 테스트는 헤더 include 방향과 Qt 의존 위치를 검사한다.
+`iiPaintEngineDependencyBoundary` 테스트는 프로젝트의 CMake 3.31 정책을 스크립트 모드에도 적용하고, 헤더 include 방향과 Qt 의존 위치를 검사한다.
 `iiPaintEngineCoreContract` 테스트는 Core 값 타입, UUID 크기, 좌표계 분리 계약을 검사한다.
 `iiPaintEnginePipelineHeartbeat` 테스트는 최소 입력 획이 래스터 레이어에 그려지고 문서에 보관되는지 검사한다.
 `iiPaintEngineCanvasDocumentStructure` 테스트는 `Document -> Canvas -> LayerStack -> Layer -> DrawingSurface` 소유 구조,
@@ -521,6 +540,9 @@ command를 문자열 payload로 저장하고 다시 열 수 있는지 검사한�
 `iiPaintEngineInstallLayoutContract` 테스트는 `install.sh`, CMake install/export 규칙, `iiPaintEngineConfig.cmake` 플랫폼
 dispatch,
 README 설치 문서가 같은 `~/.local/iiPaintEngine` 동적 라이브러리 설치 계약을 가리키는지 검사한다.
+Windows에서는 테스트 파일명의 `Install` 접두사가 `Windows installer detection heuristic`을 작동시켜 불필요한 UAC를
+요구하지 않도록 실행 파일 이름을 `iiPaintEngineLayoutContractTests`로 출력하며, CTest 이름은 기존 계약을 유지한다. 또한
+Windows에는 POSIX 실행 비트가 없으므로 `install.sh`의 존재를 검사하고, POSIX host에서만 실행 비트까지 검사한다.
 `iiPaintEnginePublicUmbrellaHeaderContract` 테스트는 외부 C++ 소비자가 `#include <iiPaintEngine>` 하나로 Core, Document, Canvas,
 Layer, Stroke, Brush, Render, History, Input, Color, Selection, Transform, Filter, Tool, QtAdapter 공개 타입을 사용할 수 있는지
 검사한다.
