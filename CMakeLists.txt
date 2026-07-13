@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.31)
 project(iiPaintEngine VERSION 0.1.0 LANGUAGES CXX)
 
+set(IIPAINTENGINE_LICENSE_SPDX "AGPL-3.0-only")
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -259,6 +261,9 @@ install(TARGETS iiPaintEngine
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/licenses/iiPaintEngine")
+
 install(FILES library.h iiPaintEngine
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine)
 
@@ -301,7 +306,7 @@ install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/iiPaintEngineConfigVersion.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiPaintEngine)
 
-set(IIPAINTENGINE_EXAMPLE_BIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Example/bin")
+set(IIPAINTENGINE_EXAMPLE_BIN_DIR "${CMAKE_CURRENT_BINARY_DIR}/Example/bin")
 
 lvrs_add_qml_app(
         TARGET iiPaintEngineExample
@@ -389,6 +394,9 @@ add_test(NAME iiPaintEngineAppDocumentApiContract
 
 add_executable(iiPaintEngineInstallLayoutContractTests
         tests/InstallLayoutContractTest.cpp)
+
+set_target_properties(iiPaintEngineInstallLayoutContractTests PROPERTIES
+        OUTPUT_NAME iiPaintEngineLayoutContractTests)
 
 target_compile_definitions(iiPaintEngineInstallLayoutContractTests PRIVATE
         IIPAINTENGINE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

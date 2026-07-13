@@ -28,10 +28,22 @@ void expectContains(const std::string &content, const std::string &token, const 
     }
 }
 
+void expectNotContains(const std::string &content, const std::string &token, const char *message)
+{
+    if (content.find(token) != std::string::npos) {
+        std::cerr << message << '\n';
+        ++failures;
+    }
+}
+
 void expectExecutable(const std::string &path, const char *message)
 {
     struct stat info {};
+#ifdef _WIN32
+    if (stat(path.c_str(), &info) != 0) {
+#else
     if (stat(path.c_str(), &info) != 0 || (info.st_mode & S_IXUSR) == 0) {
+#endif
         std::cerr << message << '\n';
         ++failures;
     }
@@ -49,6 +61,9 @@ int main()
     const std::string cmakeLists = readFile(root + "/CMakeLists.txt");
     const std::string configTemplate = readFile(root + "/cmake/iiPaintEngineConfig.cmake.in");
     const std::string readme = readFile(root + "/README.md");
+    const std::string license = readFile(root + "/LICENSE");
+    const std::string gitignore = readFile(root + "/.gitignore");
+    const std::string exampleMain = readFile(root + "/Example/main.cpp");
 
     expectContains(installScript, "#!/usr/bin/env bash", "install.sh must be a bash script.");
     expectContains(installScript, "set -euo pipefail", "install.sh must fail on script errors.");
@@ -114,6 +129,12 @@ int main()
                    "install.ps1 must allow constrained platform installs.");
     expectContains(installPowerShell, "IIPAINTENGINE_SKIP_TESTS",
                    "install.ps1 must allow installation completion when a local test executable is locked.");
+    expectContains(installPowerShell, "Add-UserPathEntries",
+                   "install.ps1 must register Windows runtime DLL directories for consumer apps.");
+    expectContains(installPowerShell, "Add-UserCMakePrefixEntries",
+                   "install.ps1 must register CMake package prefixes for consumer apps.");
+    expectContains(installPowerShell, "iiPaintEngine_DIR",
+                   "install.ps1 must register the iiPaintEngine CMake package directory for consumer apps.");
     expectContains(installPowerShell, "return \"windows,android,wasm\"",
                    "install.ps1 must default to Windows host and supported cross platform packages.");
     expectContains(installPowerShell, "$WindowsPlatformPrefix = Join-Path $Prefix \"platforms/windows\"",
@@ -144,6 +165,20 @@ int main()
                    "install.ps1 must exclude the example app contract when the installed LVRS package lacks the app entrypoint library.");
     expectContains(installPowerShell, "Run-HostTests -PlatformBuildDir $WindowsBuildDir",
                    "install.ps1 must run Windows host tests after building.");
+    expectContains(installPowerShell, "Resolve-CMakeExecutable",
+                   "install.ps1 must resolve a CMake version supported by the project.");
+    expectContains(installPowerShell, "[version]\"3.31\"",
+                   "install.ps1 must reject CMake versions older than the project minimum.");
+    expectContains(installPowerShell, "Resolve-WindowsMinGwCompiler",
+                   "install.ps1 must resolve the compiler matching the selected Qt MinGW kit.");
+    expectContains(installPowerShell, "QT_GCC_MAJOR_VERSION",
+                   "install.ps1 must derive the MinGW version from Qt metadata.");
+    expectContains(installPowerShell, "\"-G\", \"Ninja\"",
+                   "install.ps1 must prevent Visual Studio generation for a MinGW Qt kit.");
+    expectContains(installPowerShell, "-DCMAKE_CXX_COMPILER=$windowsCxxCompiler",
+                   "install.ps1 must pass the matching MinGW C++ compiler explicitly.");
+    expectContains(installPowerShell, "-DCMAKE_MAKE_PROGRAM=$windowsNinja",
+                   "install.ps1 must pass the resolved Ninja executable explicitly.");
 
     expectContains(cmakeLists, "include(GNUInstallDirs)",
                    "CMakeLists.txt must use GNUInstallDirs for install destinations.");
@@ -169,11 +204,25 @@ int main()
                    "CMakeLists.txt must generate iiPaintEngineConfig.cmake.");
     expectContains(cmakeLists, "DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine",
                    "CMakeLists.txt must install public headers under include/iiPaintEngine.");
+    expectContains(cmakeLists, "set(IIPAINTENGINE_LICENSE_SPDX \"AGPL-3.0-only\")",
+                   "CMakeLists.txt must declare the approved iiPaintEngine SPDX license.");
+    expectContains(cmakeLists, "${CMAKE_INSTALL_DATADIR}/licenses/iiPaintEngine",
+                   "CMakeLists.txt must install the iiPaintEngine license text.");
+    expectContains(cmakeLists, "OUTPUT_NAME iiPaintEngineLayoutContractTests",
+                   "The Windows layout-contract executable name must avoid installer elevation heuristics.");
+    expectContains(cmakeLists, "${CMAKE_CURRENT_BINARY_DIR}/Example/bin",
+                   "The example executable must be emitted under build/.");
+    expectNotContains(cmakeLists, "${CMAKE_CURRENT_SOURCE_DIR}/Example/bin",
+                      "The example executable must not mutate the source tree.");
+    expectContains(gitignore, "/Example/bin/",
+                   ".gitignore must reject generated example deployment output.");
 
     expectContains(configTemplate, "_iiPaintEngine_detect_target_platform",
                    "iiPaintEngineConfig.cmake.in must detect target platforms.");
     expectContains(configTemplate, "platforms/${_iiPaintEngineTargetPlatform}",
                    "iiPaintEngineConfig.cmake.in must redirect root package consumers to platform packages.");
+    expectContains(configTemplate, "C:/Qt/6.8.3/mingw_64",
+                   "iiPaintEngineConfig.cmake.in must support the default Windows Qt installer root.");
     expectContains(configTemplate, "find_dependency(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick)",
                    "iiPaintEngineConfig.cmake.in must declare Qt runtime dependencies.");
     expectContains(configTemplate, "iiPaintEngineTargets.cmake",
@@ -194,6 +243,28 @@ int main()
                    "README.md must document the single public umbrella include.");
     expectContains(readme, "iiPaintEnginePublicUmbrellaHeaderContract",
                    "README.md must document the umbrella header contract test.");
+    expectContains(readme, "SPDX-License-Identifier: AGPL-3.0-only",
+                   "README.md must document the approved iiPaintEngine license identifier.");
+    expectContains(readme, "Windows installer detection heuristic",
+                   "README.md must document why the layout-contract binary avoids an Install-prefixed file name.");
+    expectContains(readme, "build/Example/bin/iiPaintEngineExample",
+                   "README.md must document the build-tree example executable path.");
+    expectContains(readme, "Qt MinGW 13.1.0과 Ninja",
+                   "README.md must document the fixed Windows MinGW/Ninja generator contract.");
+    expectContains(exampleMain, "QGuiApplication",
+                   "The example must use a Qt entrypoint available to installed LVRS consumers.");
+    expectContains(exampleMain, "QQmlApplicationEngine",
+                   "The example must load its LVRS-backed QML through the public Qt engine.");
+    expectContains(exampleMain, "loadFromModule(QStringLiteral(\"IiPaintEngineExample\")",
+                   "The example must load the compiled IiPaintEngineExample module.");
+    expectContains(exampleMain, "qml_register_types_LVRS();",
+                   "The example must register the linked LVRS QML module before loading.");
+    expectNotContains(exampleMain, "runBootstrappedQmlApp",
+                      "The example must not call a non-exported installed LVRS bootstrap symbol.");
+    expectContains(license, "GNU AFFERO GENERAL PUBLIC LICENSE",
+                   "LICENSE must contain the GNU Affero General Public License text.");
+    expectContains(license, "Version 3, 19 November 2007",
+                   "LICENSE must contain the approved AGPL version 3 text.");
 
     return failures == 0 ? 0 : 1;
 }

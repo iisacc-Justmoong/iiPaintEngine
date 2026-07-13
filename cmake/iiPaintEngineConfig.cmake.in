@@ -58,7 +58,10 @@ if(_iiPaintEngineTargetPlatform STREQUAL "macos")
 elseif(_iiPaintEngineTargetPlatform STREQUAL "linux")
     list(APPEND _iiPaintEngineDependencyPrefixes "$ENV{HOME}/Qt/6.8.3/gcc_64")
 elseif(_iiPaintEngineTargetPlatform STREQUAL "windows")
-    list(APPEND _iiPaintEngineDependencyPrefixes "$ENV{HOME}/Qt/6.8.3/mingw_64")
+    list(APPEND _iiPaintEngineDependencyPrefixes
+        "C:/Qt/6.8.3/mingw_64"
+        "$ENV{USERPROFILE}/Qt/6.8.3/mingw_64"
+        "$ENV{HOME}/Qt/6.8.3/mingw_64")
 elseif(_iiPaintEngineTargetPlatform STREQUAL "ios")
     list(APPEND _iiPaintEngineDependencyPrefixes
         "$ENV{HOME}/Qt/6.8.3/ios"
