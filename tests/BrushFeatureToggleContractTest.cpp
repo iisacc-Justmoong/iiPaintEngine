@@ -178,6 +178,22 @@ int main()
         return 1;
     }
 
+    BrushState opacityMappingEnabled = sensitiveBrush();
+    opacityMappingEnabled.dynamics.pressureToFlowEnabled = false;
+    opacityMappingEnabled.dynamics.velocityToOpacityEnabled = false;
+    BrushState opacityMappingDisabled = opacityMappingEnabled;
+    opacityMappingDisabled.dynamics.pressureToOpacityEnabled = false;
+    const StrokeCommand pressureOpacityEnabled = makeStrokeCommand(expressiveInput(), opacityMappingEnabled, Stabilizer{0.0});
+    const StrokeCommand pressureOpacityDisabled = makeStrokeCommand(expressiveInput(), opacityMappingDisabled, Stabilizer{0.0});
+    if (pressureOpacityEnabled.dabs.size() < 2
+            || pressureOpacityDisabled.dabs.size() < 2
+            || !(pressureOpacityDisabled.dabs.front().opacityCapScale > pressureOpacityEnabled.dabs.front().opacityCapScale)
+            || !nearlyEqual(pressureOpacityDisabled.dabs.front().opacityCapScale, 1.0)
+            || !nearlyEqual(pressureOpacityDisabled.dabs.back().opacityCapScale, 1.0)
+            || !nearlyEqual(pressureOpacityDisabled.dabs.front().alpha, pressureOpacityEnabled.dabs.front().alpha)) {
+        return 1;
+    }
+
     BrushState rasterizerEnabled;
     rasterizerEnabled.rasterizer.brushSize = 10.0;
     rasterizerEnabled.rasterizer.spacingRatio = 0.25;

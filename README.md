@@ -427,8 +427,10 @@ Qt Gui의 `QImage` 포맷 처리를 사용한다. `toolMode`는 앱의 현재 �
 계속 `PaintCanvasItem`에 남는다. `toolMode`가 `eraser`이면 `CanvasAdapter`는 `PaintCanvasItem::eraserMode`를 켜고 stroke sample을
 destination-out 합성으로 적용해 대상 raster alpha를 낮춘다.
 브러시 UI가 필요한 값은 `CanvasBrushConfig`로 묶어서 `CanvasAdapter::brushConfig`와 `setBrushConfig(config)`로 왕복한다. 이 config는 color,
-size, flow, opacity, hardness, absolute spacing, spacing ratio, 각 stroke 인자 enabled 상태, pressure curve, stabilizer
-strength를 담는다. 공개 기본값은 flow, opacity, hardness가 1.0(100%)이고 absolute spacing과 spacing ratio가 0.0(0%)이다.
+size, flow, opacity, hardness, absolute spacing, spacing ratio, 각 stroke 인자 enabled 상태, pressure curve,
+pressure-to-opacity
+enabled 상태, stabilizer strength를 담는다. 공개 기본값은 flow, opacity, hardness가 1.0(100%)이고 absolute spacing과 spacing ratio가
+0.0(0%)이며 pressure-to-opacity는 켜져 있다.
 viewport UI는 `CanvasViewportConfig`로 document origin, zoom, device pixel ratio, view size를 왕복하고,
 runtime UI는 `CanvasRuntimeConfig`로 live preview, preview frame interval, multithreaded event 처리를 왕복한다.
 `CanvasStateSnapshot`은 live stroke 여부, stroke count, 마지막 입력 장치/pressure, undo/redo 가능 여부, canvas size, tool mode를
@@ -447,7 +449,8 @@ QML은 `Canvas` 또는 `CanvasAdapter`만 직접 다룬다. `InputStrokeBuilder`
 target은 LVRS bootstrapped QML 앱으로 실행된다. macOS 빌드 산출물은 Finder에서 더블클릭 가능한 raw 실행 파일
 `Example/bin/iiPaintEngineExample`에 놓인다. 이 실행 파일은 LVRS dylib 위치를 rpath로 가져 Finder/LaunchServices 환경에서도 실행된다. 앱은 현재 공개된
 canvas viewport,
-brush color, brush size, flow, opacity, hardness, spacing, 각 stroke 인자 enabled 토글, live preview, clear/reset view API와
+brush color, brush size, flow, opacity, hardness, spacing, 각 stroke 인자 enabled 토글, pressure-to-opacity 토글, live preview,
+clear/reset view API와
 마지막 입력 pressure
 상태를 화면에서 바로 드러낸다. 필압 민감도는 min/center/max 그래프와 보조 슬라이더로 노출되고, 스태빌라이저 강도도 별도 슬라이더로 노출되어 사용자 맞춤형
 필압/브러시 설정 UI의 공개 API를 검증한다.

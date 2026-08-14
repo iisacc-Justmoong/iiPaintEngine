@@ -88,6 +88,7 @@ CanvasBrushConfig CanvasAdapter::brushConfig() const
     config.pressureCurveMinimum = pressureCurveMinimum();
     config.pressureCurveCenter = pressureCurveCenter();
     config.pressureCurveMaximum = pressureCurveMaximum();
+    config.pressureToOpacityEnabled = pressureToOpacityEnabled();
     config.stabilizerStrength = stabilizerStrength();
     return config;
 }
@@ -108,6 +109,7 @@ void CanvasAdapter::setBrushConfig(const CanvasBrushConfig &config)
     setPressureCurveMinimum(config.pressureCurveMinimum);
     setPressureCurveMaximum(config.pressureCurveMaximum);
     setPressureCurveCenter(config.pressureCurveCenter);
+    setPressureToOpacityEnabled(config.pressureToOpacityEnabled);
     setStabilizerStrength(config.stabilizerStrength);
 }
 

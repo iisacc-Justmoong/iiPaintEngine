@@ -64,7 +64,8 @@ int main(int argc, char **argv)
             || defaultBrushConfig.opacity != 1.0
             || defaultBrushConfig.hardness != 1.0
             || defaultBrushConfig.spacing != 0.0
-            || defaultBrushConfig.spacingRatio != 0.0) {
+            || defaultBrushConfig.spacingRatio != 0.0
+            || !defaultBrushConfig.pressureToOpacityEnabled) {
         return 19;
     }
 
@@ -111,7 +112,8 @@ Iipe.CanvasAdapter {
             || initialBrush.opacity != 1.0
             || initialBrush.hardness != 1.0
             || initialBrush.spacing != 0.0
-            || initialBrush.spacingRatio != 0.0) {
+            || initialBrush.spacingRatio != 0.0
+            || !initialBrush.pressureToOpacityEnabled) {
         delete object;
         return 20;
     }
@@ -160,6 +162,7 @@ Iipe.CanvasAdapter {
     brush.pressureCurveMinimum = 0.2;
     brush.pressureCurveCenter = 0.6;
     brush.pressureCurveMaximum = 0.8;
+    brush.pressureToOpacityEnabled = false;
     brush.stabilizerStrength = 0.44;
     canvas->setBrushConfig(brush);
 
@@ -178,6 +181,7 @@ Iipe.CanvasAdapter {
             || appliedBrush.pressureCurveMinimum != 0.2
             || appliedBrush.pressureCurveCenter != 0.6
             || appliedBrush.pressureCurveMaximum != 0.8
+            || appliedBrush.pressureToOpacityEnabled
             || appliedBrush.stabilizerStrength != 0.44
             || canvas->brushSize() != 23.0
             || canvas->brushColor() != QColor{"#557799"}
@@ -185,7 +189,8 @@ Iipe.CanvasAdapter {
             || canvas->brushFlowEnabled()
             || canvas->brushOpacityEnabled()
             || canvas->brushHardnessEnabled()
-            || canvas->brushSpacingEnabled()) {
+            || canvas->brushSpacingEnabled()
+            || canvas->pressureToOpacityEnabled()) {
         delete object;
         return 15;
     }

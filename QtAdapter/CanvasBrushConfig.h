@@ -23,6 +23,7 @@ struct CanvasBrushConfig {
     Q_PROPERTY(qreal pressureCurveMinimum MEMBER pressureCurveMinimum)
     Q_PROPERTY(qreal pressureCurveCenter MEMBER pressureCurveCenter)
     Q_PROPERTY(qreal pressureCurveMaximum MEMBER pressureCurveMaximum)
+    Q_PROPERTY(bool pressureToOpacityEnabled MEMBER pressureToOpacityEnabled)
     Q_PROPERTY(qreal stabilizerStrength MEMBER stabilizerStrength)
 
 public:
@@ -40,6 +41,7 @@ public:
     qreal pressureCurveMinimum = 0.0;
     qreal pressureCurveCenter = 0.5;
     qreal pressureCurveMaximum = 1.0;
+    bool pressureToOpacityEnabled = true;
     qreal stabilizerStrength = 0.25;
 };
 

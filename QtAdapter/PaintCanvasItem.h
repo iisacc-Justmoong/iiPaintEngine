@@ -53,6 +53,7 @@ class PaintCanvasItem : public QQuickPaintedItem {
     Q_PROPERTY(qreal pressureCurveMinimum READ pressureCurveMinimum WRITE setPressureCurveMinimum NOTIFY strokeSettingsChanged)
     Q_PROPERTY(qreal pressureCurveCenter READ pressureCurveCenter WRITE setPressureCurveCenter NOTIFY strokeSettingsChanged)
     Q_PROPERTY(qreal pressureCurveMaximum READ pressureCurveMaximum WRITE setPressureCurveMaximum NOTIFY strokeSettingsChanged)
+    Q_PROPERTY(bool pressureToOpacityEnabled READ pressureToOpacityEnabled WRITE setPressureToOpacityEnabled NOTIFY brushChanged)
     Q_PROPERTY(qreal stabilizerStrength READ stabilizerStrength WRITE setStabilizerStrength NOTIFY strokeSettingsChanged)
     Q_PROPERTY(bool livePreviewEnabled READ livePreviewEnabled WRITE setLivePreviewEnabled NOTIFY livePreviewEnabledChanged)
     Q_PROPERTY(int livePreviewFrameIntervalMs READ livePreviewFrameIntervalMs WRITE setLivePreviewFrameIntervalMs NOTIFY livePreviewFrameIntervalMsChanged)
@@ -124,6 +125,9 @@ public:
 
     qreal pressureCurveMaximum() const;
     void setPressureCurveMaximum(qreal value);
+
+    bool pressureToOpacityEnabled() const;
+    void setPressureToOpacityEnabled(bool enabled);
 
     qreal stabilizerStrength() const;
     void setStabilizerStrength(qreal value);
@@ -288,6 +292,7 @@ private:
     std::uint32_t m_nextStrokeSeed = 1;
     int m_committedStrokeCount = 0;
     bool m_eraserMode = false;
+    bool m_pressureToOpacityEnabled = true;
     std::vector<RasterHistoryEntry> m_undoRasterSnapshots;
     std::vector<RasterHistoryEntry> m_redoRasterSnapshots;
 };

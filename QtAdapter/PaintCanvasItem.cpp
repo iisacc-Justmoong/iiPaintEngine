@@ -690,6 +690,21 @@ void PaintCanvasItem::setPressureCurveMaximum(qreal value)
     emit strokeSettingsChanged();
 }
 
+bool PaintCanvasItem::pressureToOpacityEnabled() const
+{
+    return m_pressureToOpacityEnabled;
+}
+
+void PaintCanvasItem::setPressureToOpacityEnabled(bool enabled)
+{
+    if (m_pressureToOpacityEnabled == enabled) {
+        return;
+    }
+
+    m_pressureToOpacityEnabled = enabled;
+    emit brushChanged();
+}
+
 qreal PaintCanvasItem::stabilizerStrength() const
 {
     return m_stabilizer.smoothing;
@@ -1589,7 +1604,9 @@ BrushState PaintCanvasItem::currentBrushState() const
         rasterizer.argb = 0xFF000000U;
         rasterizer.blendMode = RasterBlendMode::DestinationOut;
     }
-    return BrushState{rasterizer, pressureSensitiveDynamics(), StrokeResampler{}, BrushMaterial{}, m_nextStrokeSeed};
+    BrushDynamics dynamics = pressureSensitiveDynamics();
+    dynamics.pressureToOpacityEnabled = m_pressureToOpacityEnabled;
+    return BrushState{rasterizer, dynamics, StrokeResampler{}, BrushMaterial{}, m_nextStrokeSeed};
 }
 
 CanvasLiveStrokeWorkRequest PaintCanvasItem::currentLiveStrokeWorkRequest() const

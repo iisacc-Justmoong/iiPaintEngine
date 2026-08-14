@@ -109,6 +109,7 @@ int main(int argc, char **argv)
     const QObject *flowArgumentToggle = root->findChild<QObject *>(QStringLiteral("flowArgumentToggle"));
     const QObject *opacitySlider = root->findChild<QObject *>(QStringLiteral("opacitySlider"));
     const QObject *opacityArgumentToggle = root->findChild<QObject *>(QStringLiteral("opacityArgumentToggle"));
+    const QObject *pressureOpacityArgumentToggle = root->findChild<QObject *>(QStringLiteral("pressureOpacityArgumentToggle"));
     const QObject *hardnessSlider = root->findChild<QObject *>(QStringLiteral("hardnessSlider"));
     const QObject *hardnessArgumentToggle = root->findChild<QObject *>(QStringLiteral("hardnessArgumentToggle"));
     const QObject *spacingArgumentToggle = root->findChild<QObject *>(QStringLiteral("spacingArgumentToggle"));
@@ -130,6 +131,7 @@ int main(int argc, char **argv)
             || flowArgumentToggle == nullptr
             || opacitySlider == nullptr
             || opacityArgumentToggle == nullptr
+            || pressureOpacityArgumentToggle == nullptr
             || hardnessSlider == nullptr
             || hardnessArgumentToggle == nullptr
             || spacingArgumentToggle == nullptr
@@ -161,6 +163,7 @@ int main(int argc, char **argv)
             || !canvas->multithreadedEventsEnabled()
             || !canvas->brushFlowEnabled()
             || !canvas->brushOpacityEnabled()
+            || !canvas->pressureToOpacityEnabled()
             || !canvas->brushHardnessEnabled()
             || !canvas->brushSpacingEnabled()) {
         delete root;
@@ -212,11 +215,13 @@ int main(int argc, char **argv)
 
     if (!root->setProperty("flowArgumentEnabled", false)
             || !root->setProperty("opacityArgumentEnabled", false)
+            || !root->setProperty("pressureOpacityArgumentEnabled", false)
             || !root->setProperty("hardnessArgumentEnabled", false)
             || !root->setProperty("spacingArgumentEnabled", false)
             || !QMetaObject::invokeMethod(root, "applyBrushSettings")
             || canvas->brushFlowEnabled()
             || canvas->brushOpacityEnabled()
+            || canvas->pressureToOpacityEnabled()
             || canvas->brushHardnessEnabled()
             || canvas->brushSpacingEnabled()) {
         delete root;

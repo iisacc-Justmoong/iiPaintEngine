@@ -52,6 +52,7 @@ int main()
     CanvasStateSnapshot state;
 
     return brush.size > 0.0
+            && brush.pressureToOpacityEnabled
             && viewport.zoom > 0.0
             && runtime.livePreviewFrameIntervalMs >= 0
             && state.inputPressure >= 0.0
