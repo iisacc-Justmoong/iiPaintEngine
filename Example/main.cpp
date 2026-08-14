@@ -1,5 +1,9 @@
 #include "QtAdapter/IipeQmlTypes.h"
-#include "backend/runtime/appentry.h"
+
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
+#include <QQuickStyle>
+#include <QWindow>
 
 #include <QtPlugin>
 
@@ -7,16 +11,29 @@
 Q_IMPORT_PLUGIN(LVRSPlugin)
 #endif
 
+void qml_register_types_LVRS();
+
 int main(int argc, char *argv[])
 {
+    QGuiApplication app(argc, argv);
+    QGuiApplication::setApplicationName(QStringLiteral("iiPaintEngine Example"));
+    QQuickStyle::setStyle(QStringLiteral("Basic"));
+
+    qml_register_types_LVRS();
     registerIipeQmlTypes();
 
-    lvrs::QmlAppLaunchSpec launchSpec;
-    launchSpec.bootstrap.applicationName = QStringLiteral("iiPaintEngine Example");
-    launchSpec.bootstrap.quickStyleName = QStringLiteral("Basic");
-    launchSpec.moduleUri = QStringLiteral("IiPaintEngineExample");
-    launchSpec.rootObject = QStringLiteral("Main");
-    launchSpec.windowActivationPolicy = lvrs::QmlWindowActivationPolicy::ShowRaiseAndActivate;
+    QQmlApplicationEngine engine;
+    engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+    engine.loadFromModule(QStringLiteral("IiPaintEngineExample"), QStringLiteral("Main"));
+    if (engine.rootObjects().isEmpty()) {
+        return -1;
+    }
 
-    return lvrs::runBootstrappedQmlApp(argc, argv, launchSpec);
+    if (auto *window = qobject_cast<QWindow *>(engine.rootObjects().constFirst())) {
+        window->show();
+        window->raise();
+        window->requestActivate();
+    }
+
+    return app.exec();
 }

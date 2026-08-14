@@ -1,5 +1,4 @@
-pragma
-ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls as QC
 import QtQuick.Layouts
@@ -320,7 +319,7 @@ LV.ApplicationWindow {
                 width: parent.width
                 label: "Size"
                 valueText: Math.round(root.currentBrushSize) + " px"
-                2
+                from: 2
                 to: 72
                 value: root.currentBrushSize
                 onMoved: function (value) {
@@ -334,7 +333,7 @@ LV.ApplicationWindow {
                 width: parent.width
                 label: "Flow"
                 valueText: Math.round(root.currentFlow * 100) + "%"
-                0.05
+                from: 0.05
                 to: 1
                 value: root.currentFlow
                 toggleVisible: true
@@ -355,7 +354,7 @@ LV.ApplicationWindow {
                 width: parent.width
                 label: "Opacity"
                 valueText: Math.round(root.currentOpacity * 100) + "%"
-                0.05
+                from: 0.05
                 to: 1
                 value: root.currentOpacity
                 toggleVisible: true
@@ -407,7 +406,7 @@ LV.ApplicationWindow {
                 width: parent.width
                 label: "Hardness"
                 valueText: Math.round(root.currentHardness * 100) + "%"
-                0.05
+                from: 0.05
                 to: 1
                 value: root.currentHardness
                 toggleVisible: true
@@ -428,7 +427,7 @@ LV.ApplicationWindow {
                 width: parent.width
                 label: "Spacing"
                 valueText: Math.round(root.currentSpacingRatio * 100) + "%"
-                0
+                from: 0
                 to: 1
                 value: root.currentSpacingRatio
                 toggleVisible: true
@@ -459,7 +458,7 @@ LV.ApplicationWindow {
                 width: parent.width
                 label: "Stabilizer"
                 valueText: Math.round(root.currentStabilizerStrength * 100) + "%"
-                0
+                from: 0
                 to: 1
                 value: root.currentStabilizerStrength
                 onMoved: function (value) {
@@ -474,7 +473,7 @@ LV.ApplicationWindow {
                 width: parent.width
                 label: "Frame"
                 valueText: root.currentLivePreviewFrameIntervalMs + " ms"
-                0
+                from: 0
                 to: 33
                 value: root.currentLivePreviewFrameIntervalMs
                 onMoved: function (value) {
@@ -728,7 +727,7 @@ LV.ApplicationWindow {
             y: 16
             width: miniRoot.width
             height: 22
-            miniRoot.from
+            from: miniRoot.from
             to: miniRoot.to
             onMoved: miniRoot.moved(value)
         }
@@ -792,7 +791,7 @@ LV.ApplicationWindow {
             y: 22
             width: sliderRoot.width
             height: 24
-            sliderRoot.from
+            from: sliderRoot.from
             to: sliderRoot.to
             onMoved: sliderRoot.moved(value)
         }

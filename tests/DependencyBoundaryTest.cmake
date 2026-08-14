@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.31)
+
 set(ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
 set(MODULES Core Canvas Input Document Layer Stroke Brush Render History Color Selection Transform Filter Tool QtAdapter)
 

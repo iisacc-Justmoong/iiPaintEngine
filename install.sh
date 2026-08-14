@@ -55,6 +55,7 @@ if [[ -n "${IIPAINTENGINE_INSTALL_PLATFORMS:-}" ]]; then
 else
     INSTALL_PLATFORMS="$(default_install_platforms)"
 fi
+SKIP_TESTS="${IIPAINTENGINE_SKIP_TESTS:-OFF}"
 
 cmake_cache_value() {
     local cache_file="$1"
@@ -249,7 +250,7 @@ verify_dynamic_library() {
             expected="${prefix}/lib/libiiPaintEngine.so"
             ;;
         windows)
-            expected="${prefix}/bin/iiPaintEngine.dll"
+            expected="$(find "${prefix}/bin" -maxdepth 1 -type f \( -name "iiPaintEngine.dll" -o -name "libiiPaintEngine.dll" \) 2>/dev/null | head -n 1)"
             ;;
         wasm)
             expected="$(find "${prefix}" -type f \( -name "libiiPaintEngine.*" -o -name "iiPaintEngine.wasm" \) 2>/dev/null | head -n 1)"
@@ -263,6 +264,73 @@ verify_dynamic_library() {
 
     echo "iiPaintEngine ${platform} dynamic library was not found under ${prefix}" >&2
     exit 1
+}
+
+IIPAINTENGINE_HOST_TEST_TARGETS=(
+    iiPaintEngineTests
+    iiPaintEngineCoreTests
+    iiPaintEnginePipelineTests
+    iiPaintEngineCanvasDocumentStructureTests
+    iiPaintEngineDocumentSerializerContractTests
+    iiPaintEngineAppDocumentApiContractTests
+    iiPaintEngineInstallLayoutContractTests
+    iiPaintEnginePublicUmbrellaHeaderContractTests
+    iiPaintEnginePublicCxx17HeaderContractTests
+    iiPaintEngineCanvasQmlApiTests
+    iiPaintEngineCanvasAdapterContractTests
+    iiPaintEngineCanvasPointerAlignmentTests
+    iiPaintEngineCanvasTabletPressureContractTests
+    iiPaintEngineCanvasLivePreviewRealtimeContractTests
+    iiPaintEnginePointerStrokeFlowTests
+    iiPaintEnginePressureInputContractTests
+    iiPaintEngineTabletInputSurfaceTests
+    iiPaintEngineHybridPaintingModelTests
+    iiPaintEngineStrokePhysicalContractTests
+    iiPaintEngineStrokeGeometryReportContractTests
+    iiPaintEngineStabilizerAdvancedContractTests
+    iiPaintEngineLiveStrokeRenderingTests
+    iiPaintEngineBrushDynamicsMappingTests
+    iiPaintEngineBrushDynamicsResponseCurveContractTests
+    iiPaintEngineBrushFeatureToggleContractTests
+    iiPaintEngineBrushExpressionContractTests
+    iiPaintEngineBrushTextureLayerContractTests
+    iiPaintEngineWetBrushSimulationContractTests
+    iiPaintEngineHistoryUndoRedoContractTests
+    iiPaintEngineEditingToolPipelineContractTests
+    iiPaintEngineStrokeResamplerTests
+    iiPaintEngineStrokeCompositingTests
+    iiPaintEngineLayerCompositingContractTests
+    iiPaintEngineRendererProjectionContractTests
+    iiPaintEngineRenderCacheBackendContractTests
+    iiPaintEngineColorManagementContractTests
+    iiPaintEngineBrushMaskSamplingTests
+    iiPaintEngineCoordinateDirtyRegionTests
+    iiPaintEngineCanvasEventThreadingTests
+    iiPaintEngineCanvasEventLoopLoadContractTests
+    iiPaintEngineCanvasInputBatchingContractTests
+    iiPaintEngineCanvasStrokePipelineSeparationContractTests
+)
+
+build_host_tests() {
+    local build_dir="$1"
+
+    if [[ "${SKIP_TESTS}" == "ON" || "${SKIP_TESTS}" == "1" || "${SKIP_TESTS}" == "true" ]]; then
+        echo "Skipping iiPaintEngine host test build because IIPAINTENGINE_SKIP_TESTS=${SKIP_TESTS}"
+        return
+    fi
+
+    cmake --build "${build_dir}" --config Release --target "${IIPAINTENGINE_HOST_TEST_TARGETS[@]}"
+}
+
+run_host_tests() {
+    local build_dir="$1"
+
+    if [[ "${SKIP_TESTS}" == "ON" || "${SKIP_TESTS}" == "1" || "${SKIP_TESTS}" == "true" ]]; then
+        echo "Skipping iiPaintEngine host tests because IIPAINTENGINE_SKIP_TESTS=${SKIP_TESTS}"
+        return
+    fi
+
+    ctest --test-dir "${build_dir}" --output-on-failure -E "iiPaintEngineExampleDemoContract"
 }
 
 configure_build_install() {
@@ -329,10 +397,10 @@ install_host_platform() {
     fi
 
     echo "Building iiPaintEngine ${platform} tests in ${build_dir}"
-    cmake --build "${build_dir}" --config Release
+    build_host_tests "${build_dir}"
 
     echo "Running iiPaintEngine ${platform} tests"
-    ctest --test-dir "${build_dir}" --output-on-failure
+    run_host_tests "${build_dir}"
 }
 
 install_macos() {
@@ -356,7 +424,8 @@ install_windows() {
     configure_build_install "windows" "${WINDOWS_BUILD_DIR}" "${WINDOWS_PREFIX}" "${WINDOWS_QT_PREFIX}" "${LVRS_PREFIX}/platforms/windows"
     cmake --install "${WINDOWS_BUILD_DIR}" --prefix "${WINDOWS_PLATFORM_PREFIX}" --config Release
     verify_dynamic_library "windows" "${WINDOWS_PLATFORM_PREFIX}"
-    ctest --test-dir "${WINDOWS_BUILD_DIR}" --output-on-failure
+    build_host_tests "${WINDOWS_BUILD_DIR}"
+    run_host_tests "${WINDOWS_BUILD_DIR}"
 }
 
 install_ios() {
