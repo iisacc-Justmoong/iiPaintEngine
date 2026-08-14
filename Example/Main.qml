@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls as QC
 import QtQuick.Layouts
+import QtCore
 import LVRS 1.0 as LV
 import iipe 1.0 as Iipe
 
@@ -28,10 +29,10 @@ LV.ApplicationWindow {
     readonly property int panelWidth: compactDemoLayout ? 244 : 286
     readonly property int panelTop: Math.round(workspaceRect.y + edgeGap + toolbarHeight + edgeGap)
     readonly property int panelHeight: Math.max(1, Math.round(workspaceRect.height - toolbarHeight - edgeGap * 3))
-    readonly property int canvasLeft: compactDemoLayout ? Math.round(workspaceRect.x + edgeGap) : Math.round(workspaceRect.x + edgeGap + panelWidth + edgeGap)
-    readonly property int canvasTop: panelTop
-    readonly property int canvasWidth: compactDemoLayout ? Math.max(1, Math.round(workspaceRect.width - edgeGap * 2)) : Math.max(1, Math.round(workspaceRect.width - panelWidth - edgeGap * 3))
-    readonly property int canvasHeight: compactDemoLayout ? Math.max(1, Math.round(panelHeight - panelWidth - edgeGap)) : panelHeight
+    readonly property int bitmapLeft: compactDemoLayout ? Math.round(workspaceRect.x + edgeGap) : Math.round(workspaceRect.x + edgeGap + panelWidth + edgeGap)
+    readonly property int bitmapTop: panelTop
+    readonly property int bitmapWidth: compactDemoLayout ? Math.max(1, Math.round(workspaceRect.width - edgeGap * 2)) : Math.max(1, Math.round(workspaceRect.width - panelWidth - edgeGap * 3))
+    readonly property int bitmapHeight: compactDemoLayout ? Math.max(1, Math.round(panelHeight - panelWidth - edgeGap)) : panelHeight
     readonly property var swatches: [
         {
             "name": "Ink",
@@ -58,7 +59,7 @@ LV.ApplicationWindow {
             "color": "#7c3aed"
         }
     ]
-    readonly property bool demoReady: demoCanvas.width > 0 && demoCanvas.height > 0 && paintControls.width > 0 && clearButton !== null && livePreviewToggle !== null && pressureCurveGraph !== null && pressureOpacityArgumentToggle !== null
+    readonly property bool demoReady: demoBitmap.fileOpen && demoBitmap.width > 0 && demoBitmap.height > 0 && paintControls.width > 0 && clearButton !== null && livePreviewToggle !== null && pressureCurveGraph !== null && pressureOpacityArgumentToggle !== null
 
     property int activeSwatchIndex: 0
     property color activeBrushColor: swatches[activeSwatchIndex].color
@@ -78,18 +79,18 @@ LV.ApplicationWindow {
     property bool spacingArgumentEnabled: true
 
     function applyBrushSettings() {
-        demoCanvas.setBrush(currentBrushSize, activeBrushColor, currentFlow, currentOpacity);
-        demoCanvas.brushFlowEnabled = flowArgumentEnabled;
-        demoCanvas.brushOpacityEnabled = opacityArgumentEnabled;
-        demoCanvas.pressureToOpacityEnabled = pressureOpacityArgumentEnabled;
-        demoCanvas.brushHardness = currentHardness;
-        demoCanvas.brushHardnessEnabled = hardnessArgumentEnabled;
-        demoCanvas.brushSpacingRatio = currentSpacingRatio;
-        demoCanvas.brushSpacingEnabled = spacingArgumentEnabled;
-        demoCanvas.pressureCurveMinimum = currentPressureCurveMinimum;
-        demoCanvas.pressureCurveCenter = currentPressureCurveCenter;
-        demoCanvas.pressureCurveMaximum = currentPressureCurveMaximum;
-        demoCanvas.livePreviewEnabled = livePreviewToggle.checked;
+        demoBitmap.setBrush(currentBrushSize, activeBrushColor, currentFlow, currentOpacity);
+        demoBitmap.brushFlowEnabled = flowArgumentEnabled;
+        demoBitmap.brushOpacityEnabled = opacityArgumentEnabled;
+        demoBitmap.pressureToOpacityEnabled = pressureOpacityArgumentEnabled;
+        demoBitmap.brushHardness = currentHardness;
+        demoBitmap.brushHardnessEnabled = hardnessArgumentEnabled;
+        demoBitmap.brushSpacingRatio = currentSpacingRatio;
+        demoBitmap.brushSpacingEnabled = spacingArgumentEnabled;
+        demoBitmap.pressureCurveMinimum = currentPressureCurveMinimum;
+        demoBitmap.pressureCurveCenter = currentPressureCurveCenter;
+        demoBitmap.pressureCurveMaximum = currentPressureCurveMaximum;
+        demoBitmap.livePreviewEnabled = livePreviewToggle.checked;
     }
 
     function clamp01(value) {
@@ -116,11 +117,17 @@ LV.ApplicationWindow {
 
     function setZoom(value) {
         currentZoom = Math.max(0.25, Math.min(3.0, value));
-        demoCanvas.zoom = currentZoom;
+        demoBitmap.zoom = currentZoom;
     }
 
     Component.onCompleted: {
-        demoCanvas.resetView();
+        const ratio = Math.max(1, demoBitmap.bitmapDevicePixelRatio);
+        const filePath = StandardPaths.writableLocation(StandardPaths.TempLocation) + "/iiPaintEngine-example.png";
+        demoBitmap.createFile(filePath,
+            Math.max(1, Math.round(demoBitmap.width * ratio)),
+            Math.max(1, Math.round(demoBitmap.height * ratio)),
+            "png");
+        demoBitmap.resetView();
         applyBrushSettings();
     }
 
@@ -151,7 +158,7 @@ LV.ApplicationWindow {
             }
 
             LV.Label {
-                text: demoCanvas.strokeCount + " strokes"
+                text: demoBitmap.strokeCount + " strokes"
                 style: body
                 color: "#aab6c2"
                 Layout.preferredWidth: 110
@@ -160,9 +167,9 @@ LV.ApplicationWindow {
 
             LV.Label {
                 objectName: "inputPressureLabel"
-                text: demoCanvas.inputDevice + " " + Math.round(demoCanvas.inputPressure * 100) + "%"
+                text: demoBitmap.inputDevice + " " + Math.round(demoBitmap.inputPressure * 100) + "%"
                 style: body
-                color: demoCanvas.inputDevice === "tablet" ? "#f5a524" : "#8fa0b2"
+                color: demoBitmap.inputDevice === "tablet" ? "#f5a524" : "#8fa0b2"
                 Layout.preferredWidth: 120
                 Layout.alignment: Qt.AlignVCenter
             }
@@ -180,7 +187,7 @@ LV.ApplicationWindow {
                 text: "Clear"
                 tone: LV.AbstractButton.Destructive
                 Layout.alignment: Qt.AlignVCenter
-                onClicked: demoCanvas.clear()
+                onClicked: demoBitmap.clear()
             }
 
             LV.LabelButton {
@@ -190,7 +197,7 @@ LV.ApplicationWindow {
                 Layout.alignment: Qt.AlignVCenter
                 onClicked: {
                     root.setZoom(1.0);
-                    demoCanvas.resetView();
+                    demoBitmap.resetView();
                 }
             }
 
@@ -244,7 +251,7 @@ LV.ApplicationWindow {
         id: paintControls
         objectName: "paintControls"
         x: Math.round(root.workspaceRect.x + root.edgeGap)
-        y: root.compactDemoLayout ? Math.round(root.canvasTop + root.canvasHeight + root.edgeGap) : root.panelTop
+        y: root.compactDemoLayout ? Math.round(root.bitmapTop + root.bitmapHeight + root.edgeGap) : root.panelTop
         width: root.compactDemoLayout ? Math.max(1, Math.round(root.workspaceRect.width - root.edgeGap * 2)) : root.panelWidth
         height: root.compactDemoLayout ? root.panelWidth : root.panelHeight
         visible: height > 140
@@ -452,12 +459,12 @@ LV.ApplicationWindow {
     }
 
     Rectangle {
-        id: canvasFrame
-        objectName: "canvasFrame"
-        x: root.canvasLeft
-        y: root.canvasTop
-        width: root.canvasWidth
-        height: root.canvasHeight
+        id: bitmapFrame
+        objectName: "bitmapFrame"
+        x: root.bitmapLeft
+        y: root.bitmapTop
+        width: root.bitmapWidth
+        height: root.bitmapHeight
         radius: 8
         color: "#f5f0e7"
         border.color: "#465465"
@@ -465,42 +472,42 @@ LV.ApplicationWindow {
         clip: true
 
         Repeater {
-            model: Math.max(0, Math.ceil(canvasFrame.width / 32))
+            model: Math.max(0, Math.ceil(bitmapFrame.width / 32))
             Rectangle {
                 required property int index
 
                 x: index * 32
                 y: 0
                 width: 1
-                height: canvasFrame.height
+                height: bitmapFrame.height
                 color: "#e0d8ca"
                 opacity: 0.45
             }
         }
 
         Repeater {
-            model: Math.max(0, Math.ceil(canvasFrame.height / 32))
+            model: Math.max(0, Math.ceil(bitmapFrame.height / 32))
             Rectangle {
                 required property int index
 
                 x: 0
                 y: index * 32
-                width: canvasFrame.width
+                width: bitmapFrame.width
                 height: 1
                 color: "#e0d8ca"
                 opacity: 0.45
             }
         }
 
-        Iipe.Canvas {
-            id: demoCanvas
-            objectName: "demoCanvas"
+        Iipe.BitmapFile {
+            id: demoBitmap
+            objectName: "demoBitmap"
             anchors.fill: parent
             anchors.margins: 18
             documentX: 0
             documentY: 0
             zoom: root.currentZoom
-            canvasDevicePixelRatio: Screen.devicePixelRatio > 0 ? Screen.devicePixelRatio : 1
+            bitmapDevicePixelRatio: Screen.devicePixelRatio > 0 ? Screen.devicePixelRatio : 1
             brushColor: root.activeBrushColor
             brushSize: root.currentBrushSize
             brushFlow: root.currentFlow
@@ -528,10 +535,6 @@ LV.ApplicationWindow {
 
         height: 138
 
-        onMinimumChanged: graphCanvas.requestPaint()
-        onCenterChanged: graphCanvas.requestPaint()
-        onMaximumChanged: graphCanvas.requestPaint()
-
         LV.Label {
             x: 0
             y: 0
@@ -542,44 +545,31 @@ LV.ApplicationWindow {
             color: "#c7d2df"
         }
 
-        Canvas {
-            id: graphCanvas
+        Rectangle {
+            id: graphPanel
             x: 0
             y: 20
             width: curveRoot.width
             height: 72
+            color: "transparent"
+            border.color: "#33404d"
+            border.width: 1
 
-            onPaint: {
-                var ctx = getContext("2d");
-                ctx.reset();
-                ctx.clearRect(0, 0, width, height);
-                ctx.strokeStyle = "#33404d";
-                ctx.lineWidth = 1;
-                ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
+            Repeater {
+                model: [curveRoot.minimum, curveRoot.center, curveRoot.maximum]
 
-                var minY = height * (1.0 - curveRoot.minimum);
-                var centerX = width * 0.5;
-                var centerY = height * (1.0 - curveRoot.center);
-                var maxY = height * (1.0 - curveRoot.maximum);
+                Rectangle {
+                    required property real modelData
+                    required property int index
 
-                ctx.beginPath();
-                ctx.moveTo(0, minY);
-                ctx.lineTo(centerX, centerY);
-                ctx.lineTo(width, maxY);
-                ctx.strokeStyle = "#f2f5f8";
-                ctx.lineWidth = 3;
-                ctx.stroke();
-
-                ctx.fillStyle = "#1e88ff";
-                ctx.beginPath();
-                ctx.arc(0, minY, 5, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, 6, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(width, maxY, 5, 0, Math.PI * 2);
-                ctx.fill();
+                    width: index === 1 ? 12 : 10
+                    height: width
+                    radius: 3
+                    color: "#1e88ff"
+                    x: index === 0 ? 0 : (index === 1 ? (graphPanel.width - width) * 0.5 : graphPanel.width - width)
+                    y: Math.max(0, Math.min(graphPanel.height - height,
+                        graphPanel.height * (1.0 - modelData) - height * 0.5))
+                }
             }
 
             MouseArea {

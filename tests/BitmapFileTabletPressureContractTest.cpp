@@ -7,22 +7,23 @@
 #include <QPointF>
 #include <QPointingDevice>
 #include <QTabletEvent>
+#include <QTemporaryDir>
 #include <QWindow>
 #include <QtGui/private/qeventpoint_p.h>
 
 #include <algorithm>
 #include <memory>
 
-#include "QtAdapter/PaintCanvasItem.h"
+#include "QtAdapter/BitmapFileItem.h"
 
 namespace {
 
-class TabletTestCanvas : public PaintCanvasItem {
+class TabletTestBitmap : public BitmapFileItem {
 public:
-    using PaintCanvasItem::event;
-    using PaintCanvasItem::mousePressEvent;
-    using PaintCanvasItem::mouseMoveEvent;
-    using PaintCanvasItem::mouseReleaseEvent;
+    using BitmapFileItem::event;
+    using BitmapFileItem::mousePressEvent;
+    using BitmapFileItem::mouseMoveEvent;
+    using BitmapFileItem::mouseReleaseEvent;
 };
 
 QTabletEvent tabletEvent(QEvent::Type type,
@@ -71,12 +72,12 @@ int alphaAt(const QImage &image, int x, int y)
     return qAlpha(image.pixel(x, y));
 }
 
-QImage renderCanvas(PaintCanvasItem &canvas)
+QImage renderBitmap(BitmapFileItem &bitmap)
 {
     QImage rendered{100, 64, QImage::Format_ARGB32_Premultiplied};
     rendered.fill(Qt::transparent);
     QPainter painter{&rendered};
-    canvas.paint(&painter);
+    bitmap.paint(&painter);
     painter.end();
     return rendered;
 }
@@ -94,13 +95,13 @@ int paintedPixelCount(const QImage &image)
     return count;
 }
 
-bool waitForCommittedStroke(QGuiApplication &app, PaintCanvasItem &canvas)
+bool waitForCommittedStroke(QGuiApplication &app, BitmapFileItem &bitmap)
 {
     QElapsedTimer timer;
     timer.start();
     while (timer.elapsed() < 1000) {
         app.processEvents(QEventLoop::AllEvents, 10);
-        if (canvas.strokeCount() == 1 && !canvas.liveStrokeActive()) {
+        if (bitmap.strokeCount() == 1 && !bitmap.liveStrokeActive()) {
             return true;
         }
     }
@@ -109,169 +110,194 @@ bool waitForCommittedStroke(QGuiApplication &app, PaintCanvasItem &canvas)
 
 QImage renderSinglePressureDab(QGuiApplication &app, qreal pressure)
 {
-    TabletTestCanvas canvas;
-    canvas.setWidth(100);
-    canvas.setHeight(64);
-    canvas.setBrush(20.0, QColor{"#101318"}, 1.0, 1.0);
-    canvas.setBrushHardness(1.0);
-    canvas.setBrushSpacingRatio(1.0);
+    QTemporaryDir directory;
+    TabletTestBitmap bitmap;
+    bitmap.setWidth(100);
+    bitmap.setHeight(64);
+    if (!directory.isValid()
+            || !bitmap.createFile(directory.filePath(QStringLiteral("pressure.png")), 100, 64)) {
+        return {};
+    }
+    bitmap.setBrush(20.0, QColor{"#101318"}, 1.0, 1.0);
+    bitmap.setBrushHardness(1.0);
+    bitmap.setBrushSpacingRatio(1.0);
 
     QTabletEvent press = tabletEvent(QEvent::TabletPress,
                                      QPointF{30.0, 30.0},
                                      pressure,
                                      Qt::NoButton,
                                      Qt::NoButton);
-    canvas.event(&press);
+    bitmap.event(&press);
 
     QTabletEvent release = tabletEvent(QEvent::TabletRelease,
                                        QPointF{30.0, 30.0},
                                        0.0,
                                        Qt::NoButton,
                                        Qt::NoButton);
-    canvas.event(&release);
+    bitmap.event(&release);
 
-    if (!waitForCommittedStroke(app, canvas)) {
+    if (!waitForCommittedStroke(app, bitmap)) {
         return {};
     }
 
-    return renderCanvas(canvas);
+    return renderBitmap(bitmap);
 }
 
 QImage renderSinglePressureDabWithSynthesizedMouse(QGuiApplication &app, qreal pressure)
 {
-    TabletTestCanvas canvas;
-    canvas.setWidth(100);
-    canvas.setHeight(64);
-    canvas.setBrush(20.0, QColor{"#101318"}, 1.0, 1.0);
-    canvas.setBrushHardness(1.0);
-    canvas.setBrushSpacingRatio(1.0);
+    QTemporaryDir directory;
+    TabletTestBitmap bitmap;
+    bitmap.setWidth(100);
+    bitmap.setHeight(64);
+    if (!directory.isValid()
+            || !bitmap.createFile(directory.filePath(QStringLiteral("tablet-mouse.png")), 100, 64)) {
+        return {};
+    }
+    bitmap.setBrush(20.0, QColor{"#101318"}, 1.0, 1.0);
+    bitmap.setBrushHardness(1.0);
+    bitmap.setBrushSpacingRatio(1.0);
 
     QTabletEvent press = tabletEvent(QEvent::TabletPress,
                                      QPointF{30.0, 30.0},
                                      pressure,
                                      Qt::NoButton,
                                      Qt::NoButton);
-    canvas.event(&press);
+    bitmap.event(&press);
 
     const std::unique_ptr<QMouseEvent> mousePress = synthesizedMouseEvent(QEvent::MouseButtonPress,
                                                                           QPointF{30.0, 30.0},
                                                                           Qt::LeftButton,
                                                                           Qt::LeftButton);
-    canvas.mousePressEvent(mousePress.get());
+    bitmap.mousePressEvent(mousePress.get());
 
     QTabletEvent release = tabletEvent(QEvent::TabletRelease,
                                        QPointF{30.0, 30.0},
                                        0.0,
                                        Qt::NoButton,
                                        Qt::NoButton);
-    canvas.event(&release);
+    bitmap.event(&release);
 
     const std::unique_ptr<QMouseEvent> mouseRelease = synthesizedMouseEvent(QEvent::MouseButtonRelease,
                                                                             QPointF{30.0, 30.0},
                                                                             Qt::LeftButton,
                                                                             Qt::NoButton);
-    canvas.mouseReleaseEvent(mouseRelease.get());
+    bitmap.mouseReleaseEvent(mouseRelease.get());
 
-    if (!waitForCommittedStroke(app, canvas)) {
+    if (!waitForCommittedStroke(app, bitmap)) {
         return {};
     }
 
-    return renderCanvas(canvas);
+    return renderBitmap(bitmap);
 }
 
 QImage renderTabletStrokeStartedByPressureMove(QGuiApplication &app)
 {
-    TabletTestCanvas canvas;
-    canvas.setWidth(100);
-    canvas.setHeight(64);
-    canvas.setBrush(20.0, QColor{"#101318"}, 1.0, 1.0);
-    canvas.setBrushHardness(1.0);
-    canvas.setBrushSpacingRatio(0.25);
+    QTemporaryDir directory;
+    TabletTestBitmap bitmap;
+    bitmap.setWidth(100);
+    bitmap.setHeight(64);
+    if (!directory.isValid()
+            || !bitmap.createFile(directory.filePath(QStringLiteral("late-contact.png")), 100, 64)) {
+        return {};
+    }
+    bitmap.setBrush(20.0, QColor{"#101318"}, 1.0, 1.0);
+    bitmap.setBrushHardness(1.0);
+    bitmap.setBrushSpacingRatio(0.25);
 
     QTabletEvent zeroPressurePress = tabletEvent(QEvent::TabletPress,
                                                  QPointF{20.0, 30.0},
                                                  0.0,
                                                  Qt::NoButton,
                                                  Qt::NoButton);
-    canvas.event(&zeroPressurePress);
+    bitmap.event(&zeroPressurePress);
 
     QTabletEvent pressureMove = tabletEvent(QEvent::TabletMove,
                                             QPointF{40.0, 30.0},
                                             0.4,
                                             Qt::NoButton,
                                             Qt::NoButton);
-    canvas.event(&pressureMove);
+    bitmap.event(&pressureMove);
 
     QTabletEvent pressureRelease = tabletEvent(QEvent::TabletRelease,
                                                QPointF{60.0, 30.0},
                                                0.0,
                                                Qt::NoButton,
                                                Qt::NoButton);
-    canvas.event(&pressureRelease);
+    bitmap.event(&pressureRelease);
 
-    if (!waitForCommittedStroke(app, canvas)) {
+    if (!waitForCommittedStroke(app, bitmap)) {
         return {};
     }
 
-    return renderCanvas(canvas);
+    return renderBitmap(bitmap);
 }
 
 QImage renderSynthesizedMouseFallback(QGuiApplication &app)
 {
-    TabletTestCanvas canvas;
-    canvas.setWidth(100);
-    canvas.setHeight(64);
-    canvas.setBrush(16.0, QColor{"#101318"}, 1.0, 1.0);
-    canvas.setBrushHardness(1.0);
-    canvas.setBrushSpacingRatio(0.25);
+    QTemporaryDir directory;
+    TabletTestBitmap bitmap;
+    bitmap.setWidth(100);
+    bitmap.setHeight(64);
+    if (!directory.isValid()
+            || !bitmap.createFile(directory.filePath(QStringLiteral("fallback.png")), 100, 64)) {
+        return {};
+    }
+    bitmap.setBrush(16.0, QColor{"#101318"}, 1.0, 1.0);
+    bitmap.setBrushHardness(1.0);
+    bitmap.setBrushSpacingRatio(0.25);
 
     const std::unique_ptr<QMouseEvent> mousePress = synthesizedMouseEvent(QEvent::MouseButtonPress,
                                                                           QPointF{30.0, 30.0},
                                                                           Qt::LeftButton,
                                                                           Qt::LeftButton);
-    canvas.mousePressEvent(mousePress.get());
+    bitmap.mousePressEvent(mousePress.get());
 
     const std::unique_ptr<QMouseEvent> mouseRelease = synthesizedMouseEvent(QEvent::MouseButtonRelease,
                                                                             QPointF{30.0, 30.0},
                                                                             Qt::LeftButton,
                                                                             Qt::NoButton);
-    canvas.mouseReleaseEvent(mouseRelease.get());
+    bitmap.mouseReleaseEvent(mouseRelease.get());
 
-    if (!waitForCommittedStroke(app, canvas)) {
+    if (!waitForCommittedStroke(app, bitmap)) {
         return {};
     }
 
-    return renderCanvas(canvas);
+    return renderBitmap(bitmap);
 }
 
 QImage renderSynthesizedMousePressureDab(QGuiApplication &app, qreal pressure)
 {
-    TabletTestCanvas canvas;
-    canvas.setWidth(100);
-    canvas.setHeight(64);
-    canvas.setBrush(20.0, QColor{"#101318"}, 1.0, 1.0);
-    canvas.setBrushHardness(1.0);
-    canvas.setBrushSpacingRatio(1.0);
+    QTemporaryDir directory;
+    TabletTestBitmap bitmap;
+    bitmap.setWidth(100);
+    bitmap.setHeight(64);
+    if (!directory.isValid()
+            || !bitmap.createFile(directory.filePath(QStringLiteral("mouse-pressure.png")), 100, 64)) {
+        return {};
+    }
+    bitmap.setBrush(20.0, QColor{"#101318"}, 1.0, 1.0);
+    bitmap.setBrushHardness(1.0);
+    bitmap.setBrushSpacingRatio(1.0);
 
     const std::unique_ptr<QMouseEvent> mousePress = synthesizedMouseEvent(QEvent::MouseButtonPress,
                                                                           QPointF{30.0, 30.0},
                                                                           Qt::LeftButton,
                                                                           Qt::LeftButton,
                                                                           pressure);
-    canvas.mousePressEvent(mousePress.get());
+    bitmap.mousePressEvent(mousePress.get());
 
     const std::unique_ptr<QMouseEvent> mouseRelease = synthesizedMouseEvent(QEvent::MouseButtonRelease,
                                                                             QPointF{30.0, 30.0},
                                                                             Qt::LeftButton,
                                                                             Qt::NoButton,
                                                                             0.0);
-    canvas.mouseReleaseEvent(mouseRelease.get());
+    bitmap.mouseReleaseEvent(mouseRelease.get());
 
-    if (!waitForCommittedStroke(app, canvas)) {
+    if (!waitForCommittedStroke(app, bitmap)) {
         return {};
     }
 
-    return renderCanvas(canvas);
+    return renderBitmap(bitmap);
 }
 
 } // namespace
@@ -282,39 +308,44 @@ int main(int argc, char **argv)
 
     QGuiApplication app(argc, argv);
 
-    TabletTestCanvas canvas;
-    canvas.setWidth(100);
-    canvas.setHeight(64);
-    canvas.setBrush(12.0, QColor{"#101318"}, 1.0, 1.0);
-    canvas.setBrushHardness(1.0);
-    canvas.setBrushSpacingRatio(0.25);
+    QTemporaryDir directory;
+    TabletTestBitmap bitmap;
+    bitmap.setWidth(100);
+    bitmap.setHeight(64);
+    if (!directory.isValid()
+            || !bitmap.createFile(directory.filePath(QStringLiteral("tablet-stroke.png")), 100, 64)) {
+        return 1;
+    }
+    bitmap.setBrush(12.0, QColor{"#101318"}, 1.0, 1.0);
+    bitmap.setBrushHardness(1.0);
+    bitmap.setBrushSpacingRatio(0.25);
 
     QTabletEvent press = tabletEvent(QEvent::TabletPress,
                                      QPointF{20.0, 30.0},
                                      0.0,
                                      Qt::LeftButton,
                                      Qt::LeftButton);
-    canvas.event(&press);
+    bitmap.event(&press);
 
     QTabletEvent move = tabletEvent(QEvent::TabletMove,
                                     QPointF{40.0, 30.0},
                                     0.25,
                                     Qt::NoButton,
                                     Qt::LeftButton);
-    canvas.event(&move);
+    bitmap.event(&move);
 
     QTabletEvent release = tabletEvent(QEvent::TabletRelease,
                                        QPointF{60.0, 30.0},
                                        1.0,
                                        Qt::LeftButton,
                                        Qt::NoButton);
-    canvas.event(&release);
+    bitmap.event(&release);
 
-    if (!waitForCommittedStroke(app, canvas)) {
+    if (!waitForCommittedStroke(app, bitmap)) {
         return 1;
     }
 
-    const QImage rendered = renderCanvas(canvas);
+    const QImage rendered = renderBitmap(bitmap);
 
     if (alphaAt(rendered, 60, 30) <= alphaAt(rendered, 20, 30)
             || alphaAt(rendered, 60, 30) == 0) {

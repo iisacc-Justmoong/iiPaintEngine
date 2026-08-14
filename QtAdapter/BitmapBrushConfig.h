@@ -1,13 +1,9 @@
-//
-// Created by Justmoong on 2026 Jun 04.
-//
-
 #pragma once
 
 #include <QColor>
 #include <QMetaType>
 
-struct CanvasBrushConfig {
+struct BitmapBrushConfig {
     Q_GADGET
     Q_PROPERTY(QColor color MEMBER color)
     Q_PROPERTY(qreal size MEMBER size)
@@ -43,4 +39,4 @@ public:
     bool pressureToOpacityEnabled = true;
 };
 
-Q_DECLARE_METATYPE(CanvasBrushConfig)
+Q_DECLARE_METATYPE(BitmapBrushConfig)

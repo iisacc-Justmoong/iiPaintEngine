@@ -42,7 +42,7 @@
 #include "Layer/RasterLayer.h"
 #include "QtAdapter/DocumentAdapter.h"
 #include "QtAdapter/LayerListModel.h"
-#include "QtAdapter/PaintCanvasItem.h"
+#include "QtAdapter/BitmapFileItem.h"
 #include "QtAdapter/PaintEngineController.h"
 #include "Render/Compositor.h"
 #include "Render/CpuRenderer.h"
@@ -180,8 +180,8 @@ static_assert(blueprintStruct<PaintEngineController>);
 static_assert(blueprintStruct<DocumentAdapter>);
 static_assert(blueprintStruct<LayerListRow>);
 static_assert(blueprintStruct<LayerListModel>);
-static_assert(publiclyInheritsQuickItem<PaintCanvasItem>);
-static_assert(publiclyInheritsQObject<PaintCanvasItem>);
+static_assert(publiclyInheritsQuickItem<BitmapFileItem>);
+static_assert(publiclyInheritsQObject<BitmapFileItem>);
 
 } // namespace
 
@@ -200,13 +200,13 @@ int main()
     SelectionState selection{};
     ToolStateMachine tools{};
 
-    PaintCanvasItem canvasItem;
+    BitmapFileItem bitmapItem;
     PaintEngineController controller{};
     DocumentAdapter documentAdapter{};
     LayerListModel layerListModel{};
 
-    QObject *canvasObject = &canvasItem;
-    if (canvasObject == nullptr) {
+    QObject *bitmapObject = &bitmapItem;
+    if (bitmapObject == nullptr) {
         return 1;
     }
 

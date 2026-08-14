@@ -270,17 +270,17 @@ IIPAINTENGINE_HOST_TEST_TARGETS=(
     iiPaintEngineTests
     iiPaintEngineCoreTests
     iiPaintEnginePipelineTests
-    iiPaintEngineCanvasDocumentStructureTests
+    iiPaintEngineBitmapDocumentStructureTests
     iiPaintEngineDocumentSerializerContractTests
     iiPaintEngineAppDocumentApiContractTests
     iiPaintEngineInstallLayoutContractTests
     iiPaintEnginePublicUmbrellaHeaderContractTests
     iiPaintEnginePublicCxx17HeaderContractTests
-    iiPaintEngineCanvasQmlApiTests
-    iiPaintEngineCanvasAdapterContractTests
-    iiPaintEngineCanvasPointerAlignmentTests
-    iiPaintEngineCanvasTabletPressureContractTests
-    iiPaintEngineCanvasLivePreviewRealtimeContractTests
+    iiPaintEngineBitmapFileQmlApiTests
+    iiPaintEngineBitmapFileApiContractTests
+    iiPaintEngineBitmapFilePointerAlignmentTests
+    iiPaintEngineBitmapFileTabletPressureContractTests
+    iiPaintEngineBitmapFileLivePreviewRealtimeContractTests
     iiPaintEnginePointerStrokeFlowTests
     iiPaintEnginePressureInputContractTests
     iiPaintEngineTabletInputSurfaceTests
@@ -301,10 +301,10 @@ IIPAINTENGINE_HOST_TEST_TARGETS=(
     iiPaintEngineColorManagementContractTests
     iiPaintEngineBrushMaskSamplingTests
     iiPaintEngineCoordinateDirtyRegionTests
-    iiPaintEngineCanvasEventLoopLoadContractTests
+    iiPaintEngineBitmapFileEventLoopLoadContractTests
     iiPaintEngineBitmapOnlyArchitectureContractTests
     iiPaintEngineBitmapFileCompatibilityContractTests
-    iiPaintEngineCanvasModuleRemovalContractTests
+    iiPaintEngineBitmapFileArchitectureContractTests
 )
 
 build_host_tests() {

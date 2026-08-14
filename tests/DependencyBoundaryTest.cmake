@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.31)
 
 set(ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
-set(MODULES Core Input Document Layer Stroke Brush Render History Color Selection Transform Filter Tool QtAdapter)
+set(MODULES Core Input Document Layer Stroke Brush Render History Color Selection Transform Filter Tool BitmapFile QtAdapter)
 
 function(module_for path out_var)
     string(REGEX MATCH "^[^/]+" module "${path}")
@@ -35,8 +35,10 @@ function(allowed_modules_for source_module out_var)
         set(allowed Core Layer)
     elseif (source_module STREQUAL "Input")
         set(allowed Core Stroke)
+    elseif (source_module STREQUAL "BitmapFile")
+        set(allowed Core Layer Stroke Render)
     elseif (source_module STREQUAL "QtAdapter")
-        set(allowed Core Input Document Layer Stroke Brush Render History Color Selection Transform Filter Tool)
+        set(allowed Core Input Document Layer Stroke Brush Render History Color Selection Transform Filter Tool BitmapFile)
     else ()
         set(allowed "")
     endif ()
@@ -61,7 +63,8 @@ foreach (source_file IN LISTS source_files)
 
     file(READ "${ROOT}/${source_file}" content)
 
-    if (NOT source_module STREQUAL "QtAdapter")
+    if (NOT source_module STREQUAL "QtAdapter"
+            AND NOT source_module STREQUAL "BitmapFile")
         if (content MATCHES "#include[ \t]*<Q[A-Za-z0-9_/\\.]+>"
                 OR content MATCHES "\\bQ_OBJECT\\b"
                 OR content MATCHES "\\bQObject\\b"
@@ -72,8 +75,18 @@ foreach (source_file IN LISTS source_files)
         endif ()
     endif ()
 
+    if (source_module STREQUAL "BitmapFile")
+        if (content MATCHES "\\bQ_OBJECT\\b"
+                OR content MATCHES "\\bQObject\\b"
+                OR content MATCHES "\\bQQuickItem\\b"
+                OR content MATCHES "\\bQQuickPaintedItem\\b"
+                OR content MATCHES "\\bQPainter\\b")
+            message(FATAL_ERROR "${source_file} may use Qt bitmap codecs but must not depend on Qt object or view types")
+        endif ()
+    endif ()
+
     if (source_module STREQUAL "QtAdapter"
-            AND NOT source_file MATCHES "^QtAdapter/PaintCanvasItem\\.(h|cpp)$")
+            AND NOT source_file MATCHES "^QtAdapter/BitmapFileItem\\.(h|cpp)$")
         if (content MATCHES "\\bQQuickPaintedItem\\b"
                 OR content MATCHES "\\bQPainter\\b")
             message(FATAL_ERROR "${source_file} must not depend on the painted-item renderer boundary")

@@ -11,7 +11,7 @@
 #include <iostream>
 
 #include "QtAdapter/IipeQmlTypes.h"
-#include "QtAdapter/PaintCanvasItem.h"
+#include "QtAdapter/BitmapFileItem.h"
 
 void qml_register_types_LVRS();
 
@@ -110,7 +110,7 @@ int main(int argc, char **argv)
         return fail("Example Main.qml did not create a root object.");
     }
 
-    const auto canvas = root->findChild<PaintCanvasItem *>(QStringLiteral("demoCanvas"));
+    const auto bitmap = root->findChild<BitmapFileItem *>(QStringLiteral("demoBitmap"));
     const QObject *controls = root->findChild<QObject *>(QStringLiteral("paintControls"));
     const QObject *clearButton = root->findChild<QObject *>(QStringLiteral("clearButton"));
     const QObject *livePreviewToggle = root->findChild<QObject *>(QStringLiteral("livePreviewToggle"));
@@ -130,7 +130,7 @@ int main(int argc, char **argv)
     const QObject *pressureCurveMaximumSlider = root->findChild<QObject *>(QStringLiteral("pressureCurveMaximumSlider"));
     const QObject *inputPressureLabel = root->findChild<QObject *>(QStringLiteral("inputPressureLabel"));
     if (root->objectName() != QStringLiteral("iiPaintEngineExampleWindow")
-            || canvas == nullptr
+            || bitmap == nullptr
             || controls == nullptr
             || clearButton == nullptr
             || livePreviewToggle == nullptr
@@ -154,23 +154,23 @@ int main(int argc, char **argv)
         return fail("Example Main.qml is missing a required demo object or ready state.");
     }
 
-    if (canvas->brushSize() != 18.0
-            || canvas->brushFlow() != 1.0
-            || canvas->brushOpacity() != 1.0
-            || canvas->brushHardness() != 1.0
-            || canvas->brushSpacingRatio() != 0.0
-            || canvas->pressureCurveMinimum() != 0.0
-            || canvas->pressureCurveCenter() != 0.5
-            || canvas->pressureCurveMaximum() != 1.0
-            || canvas->zoom() != 1.0
-            || !canvas->livePreviewEnabled()
-            || !canvas->brushFlowEnabled()
-            || !canvas->brushOpacityEnabled()
-            || !canvas->pressureToOpacityEnabled()
-            || !canvas->brushHardnessEnabled()
-            || !canvas->brushSpacingEnabled()) {
+    if (bitmap->brushSize() != 18.0
+            || bitmap->brushFlow() != 1.0
+            || bitmap->brushOpacity() != 1.0
+            || bitmap->brushHardness() != 1.0
+            || bitmap->brushSpacingRatio() != 0.0
+            || bitmap->pressureCurveMinimum() != 0.0
+            || bitmap->pressureCurveCenter() != 0.5
+            || bitmap->pressureCurveMaximum() != 1.0
+            || bitmap->zoom() != 1.0
+            || !bitmap->livePreviewEnabled()
+            || !bitmap->brushFlowEnabled()
+            || !bitmap->brushOpacityEnabled()
+            || !bitmap->pressureToOpacityEnabled()
+            || !bitmap->brushHardnessEnabled()
+            || !bitmap->brushSpacingEnabled()) {
         delete root;
-        return fail("Example canvas default brush or preview state is invalid.");
+        return fail("Example bitmap default brush or preview state is invalid.");
     }
 
     if (sizeSlider->property("from").toReal() != 2.0
@@ -201,9 +201,9 @@ int main(int argc, char **argv)
             || !root->setProperty("currentPressureCurveCenter", 0.6)
             || !root->setProperty("currentPressureCurveMaximum", 0.9)
             || !QMetaObject::invokeMethod(root, "applyBrushSettings")
-            || canvas->pressureCurveMinimum() != 0.2
-            || canvas->pressureCurveCenter() != 0.6
-            || canvas->pressureCurveMaximum() != 0.9) {
+            || bitmap->pressureCurveMinimum() != 0.2
+            || bitmap->pressureCurveCenter() != 0.6
+            || bitmap->pressureCurveMaximum() != 0.9) {
         delete root;
         return fail("Example brush-setting application contract failed.");
     }
@@ -214,11 +214,11 @@ int main(int argc, char **argv)
             || !root->setProperty("hardnessArgumentEnabled", false)
             || !root->setProperty("spacingArgumentEnabled", false)
             || !QMetaObject::invokeMethod(root, "applyBrushSettings")
-            || canvas->brushFlowEnabled()
-            || canvas->brushOpacityEnabled()
-            || canvas->pressureToOpacityEnabled()
-            || canvas->brushHardnessEnabled()
-            || canvas->brushSpacingEnabled()) {
+            || bitmap->brushFlowEnabled()
+            || bitmap->brushOpacityEnabled()
+            || bitmap->pressureToOpacityEnabled()
+            || bitmap->brushHardnessEnabled()
+            || bitmap->brushSpacingEnabled()) {
         delete root;
         return fail("Example brush-setting feature-toggle contract failed.");
     }

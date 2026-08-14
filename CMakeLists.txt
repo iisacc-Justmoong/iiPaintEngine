@@ -91,6 +91,8 @@ set(IIPAINTENGINE_SOURCES
         Core/RasterBlendMode.h
         Core/CoordinateSpace.cpp
         Core/CoordinateSpace.h
+        BitmapFile/BitmapFile.cpp
+        BitmapFile/BitmapFile.h
         Document/PaintDocument.cpp
         Document/PaintDocument.h
         Document/DocumentMetadata.cpp
@@ -183,14 +185,10 @@ set(IIPAINTENGINE_SOURCES
         Tool/RasterEditTool.h
         Tool/ToolStateMachine.cpp
         Tool/ToolStateMachine.h
-        QtAdapter/PaintCanvasItem.cpp
-        QtAdapter/PaintCanvasItem.h
-        QtAdapter/BitmapFileCodec.cpp
-        QtAdapter/BitmapFileCodec.h
-        QtAdapter/CanvasAdapter.cpp
-        QtAdapter/CanvasAdapter.h
-        QtAdapter/CanvasApiConfig.h
-        QtAdapter/CanvasBrushConfig.h
+        QtAdapter/BitmapFileItem.cpp
+        QtAdapter/BitmapFileItem.h
+        QtAdapter/BitmapFileApiConfig.h
+        QtAdapter/BitmapBrushConfig.h
         QtAdapter/IipeQmlTypes.cpp
         QtAdapter/IipeQmlTypes.h
         QtAdapter/PaintEngineController.cpp
@@ -236,6 +234,7 @@ install(FILES library.h iiPaintEngine
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine)
 
 install(DIRECTORY
+        BitmapFile
         Brush
         Color
         Core
@@ -332,14 +331,14 @@ target_link_libraries(iiPaintEnginePipelineTests PRIVATE
 add_test(NAME iiPaintEnginePipelineHeartbeat
         COMMAND iiPaintEnginePipelineTests)
 
-add_executable(iiPaintEngineCanvasDocumentStructureTests
-        tests/CanvasDocumentStructureTest.cpp)
+add_executable(iiPaintEngineBitmapDocumentStructureTests
+        tests/BitmapDocumentStructureTest.cpp)
 
-target_link_libraries(iiPaintEngineCanvasDocumentStructureTests PRIVATE
+target_link_libraries(iiPaintEngineBitmapDocumentStructureTests PRIVATE
         iiPaintEngine)
 
-add_test(NAME iiPaintEngineCanvasDocumentStructure
-        COMMAND iiPaintEngineCanvasDocumentStructureTests)
+add_test(NAME iiPaintEngineBitmapDocumentStructure
+        COMMAND iiPaintEngineBitmapDocumentStructureTests)
 
 add_executable(iiPaintEngineDocumentSerializerContractTests
         tests/DocumentSerializerContractTest.cpp)
@@ -394,25 +393,25 @@ target_link_libraries(iiPaintEnginePublicCxx17HeaderContractTests PRIVATE
 add_test(NAME iiPaintEnginePublicCxx17HeaderContract
         COMMAND iiPaintEnginePublicCxx17HeaderContractTests)
 
-add_executable(iiPaintEngineCanvasQmlApiTests
-        tests/CanvasQmlApiTest.cpp)
+add_executable(iiPaintEngineBitmapFileQmlApiTests
+        tests/BitmapFileQmlApiTest.cpp)
 
-target_link_libraries(iiPaintEngineCanvasQmlApiTests PRIVATE
+target_link_libraries(iiPaintEngineBitmapFileQmlApiTests PRIVATE
         iiPaintEngine
         Qt6::Qml)
 
-add_test(NAME iiPaintEngineCanvasQmlApi
-        COMMAND iiPaintEngineCanvasQmlApiTests)
+add_test(NAME iiPaintEngineBitmapFileQmlApi
+        COMMAND iiPaintEngineBitmapFileQmlApiTests)
 
-add_executable(iiPaintEngineCanvasAdapterContractTests
-        tests/CanvasAdapterContractTest.cpp)
+add_executable(iiPaintEngineBitmapFileApiContractTests
+        tests/BitmapFileApiContractTest.cpp)
 
-target_link_libraries(iiPaintEngineCanvasAdapterContractTests PRIVATE
+target_link_libraries(iiPaintEngineBitmapFileApiContractTests PRIVATE
         iiPaintEngine
         Qt6::Qml)
 
-add_test(NAME iiPaintEngineCanvasAdapterContract
-        COMMAND iiPaintEngineCanvasAdapterContractTests)
+add_test(NAME iiPaintEngineBitmapFileApiContract
+        COMMAND iiPaintEngineBitmapFileApiContractTests)
 
 add_executable(iiPaintEngineExampleDemoContractTests
         tests/ExampleDemoAppContractTest.cpp)
@@ -441,36 +440,36 @@ endif ()
 add_test(NAME iiPaintEngineExampleDemoContract
         COMMAND iiPaintEngineExampleDemoContractTests)
 
-add_executable(iiPaintEngineCanvasPointerAlignmentTests
-        tests/CanvasPointerAlignmentTest.cpp)
+add_executable(iiPaintEngineBitmapFilePointerAlignmentTests
+        tests/BitmapFilePointerAlignmentTest.cpp)
 
-target_link_libraries(iiPaintEngineCanvasPointerAlignmentTests PRIVATE
+target_link_libraries(iiPaintEngineBitmapFilePointerAlignmentTests PRIVATE
         iiPaintEngine)
 
-add_test(NAME iiPaintEngineCanvasPointerAlignment
-        COMMAND iiPaintEngineCanvasPointerAlignmentTests)
+add_test(NAME iiPaintEngineBitmapFilePointerAlignment
+        COMMAND iiPaintEngineBitmapFilePointerAlignmentTests)
 
-add_executable(iiPaintEngineCanvasTabletPressureContractTests
-        tests/CanvasTabletPressureContractTest.cpp)
+add_executable(iiPaintEngineBitmapFileTabletPressureContractTests
+        tests/BitmapFileTabletPressureContractTest.cpp)
 
-target_link_libraries(iiPaintEngineCanvasTabletPressureContractTests PRIVATE
+target_link_libraries(iiPaintEngineBitmapFileTabletPressureContractTests PRIVATE
         iiPaintEngine)
 if (TARGET Qt6::GuiPrivate)
-    target_link_libraries(iiPaintEngineCanvasTabletPressureContractTests PRIVATE
+    target_link_libraries(iiPaintEngineBitmapFileTabletPressureContractTests PRIVATE
             Qt6::GuiPrivate)
 endif ()
 
-add_test(NAME iiPaintEngineCanvasTabletPressureContract
-        COMMAND iiPaintEngineCanvasTabletPressureContractTests)
+add_test(NAME iiPaintEngineBitmapFileTabletPressureContract
+        COMMAND iiPaintEngineBitmapFileTabletPressureContractTests)
 
-add_executable(iiPaintEngineCanvasLivePreviewRealtimeContractTests
-        tests/CanvasLivePreviewRealtimeContractTest.cpp)
+add_executable(iiPaintEngineBitmapFileLivePreviewRealtimeContractTests
+        tests/BitmapFileLivePreviewRealtimeContractTest.cpp)
 
-target_link_libraries(iiPaintEngineCanvasLivePreviewRealtimeContractTests PRIVATE
+target_link_libraries(iiPaintEngineBitmapFileLivePreviewRealtimeContractTests PRIVATE
         iiPaintEngine)
 
-add_test(NAME iiPaintEngineCanvasLivePreviewRealtimeContract
-        COMMAND iiPaintEngineCanvasLivePreviewRealtimeContractTests)
+add_test(NAME iiPaintEngineBitmapFileLivePreviewRealtimeContract
+        COMMAND iiPaintEngineBitmapFileLivePreviewRealtimeContractTests)
 
 add_executable(iiPaintEnginePointerStrokeFlowTests
         tests/PointerStrokeFlowTest.cpp)
@@ -652,14 +651,14 @@ target_link_libraries(iiPaintEngineCoordinateDirtyRegionTests PRIVATE
 add_test(NAME iiPaintEngineCoordinateDirtyRegion
         COMMAND iiPaintEngineCoordinateDirtyRegionTests)
 
-add_executable(iiPaintEngineCanvasEventLoopLoadContractTests
-        tests/CanvasEventLoopLoadContractTest.cpp)
+add_executable(iiPaintEngineBitmapFileEventLoopLoadContractTests
+        tests/BitmapFileEventLoopLoadContractTest.cpp)
 
-target_link_libraries(iiPaintEngineCanvasEventLoopLoadContractTests PRIVATE
+target_link_libraries(iiPaintEngineBitmapFileEventLoopLoadContractTests PRIVATE
         iiPaintEngine)
 
-add_test(NAME iiPaintEngineCanvasEventLoopLoadContract
-        COMMAND iiPaintEngineCanvasEventLoopLoadContractTests)
+add_test(NAME iiPaintEngineBitmapFileEventLoopLoadContract
+        COMMAND iiPaintEngineBitmapFileEventLoopLoadContractTests)
 
 add_executable(iiPaintEngineBitmapOnlyArchitectureContractTests
         tests/BitmapOnlyArchitectureContractTest.cpp)
@@ -682,17 +681,17 @@ target_link_libraries(iiPaintEngineBitmapFileCompatibilityContractTests PRIVATE
 add_test(NAME iiPaintEngineBitmapFileCompatibilityContract
         COMMAND iiPaintEngineBitmapFileCompatibilityContractTests)
 
-add_executable(iiPaintEngineCanvasModuleRemovalContractTests
-        tests/CanvasModuleRemovalContractTest.cpp)
+add_executable(iiPaintEngineBitmapFileArchitectureContractTests
+        tests/BitmapFileArchitectureContractTest.cpp)
 
-target_compile_definitions(iiPaintEngineCanvasModuleRemovalContractTests PRIVATE
+target_compile_definitions(iiPaintEngineBitmapFileArchitectureContractTests PRIVATE
         IIPAINTENGINE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
-target_link_libraries(iiPaintEngineCanvasModuleRemovalContractTests PRIVATE
+target_link_libraries(iiPaintEngineBitmapFileArchitectureContractTests PRIVATE
         iiPaintEngine)
 
-add_test(NAME iiPaintEngineCanvasModuleRemovalContract
-        COMMAND iiPaintEngineCanvasModuleRemovalContractTests)
+add_test(NAME iiPaintEngineBitmapFileArchitectureContract
+        COMMAND iiPaintEngineBitmapFileArchitectureContractTests)
 
 add_test(NAME iiPaintEngineDependencyBoundary
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/DependencyBoundaryTest.cmake)

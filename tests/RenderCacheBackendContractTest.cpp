@@ -40,13 +40,13 @@ int main()
     static_assert(RenderAccelerationPath::ScalarCpu != RenderAccelerationPath::SimdCpu);
     static_assert(RenderBufferFormat::UInt8 != RenderBufferFormat::Float32);
 
-    const DevicePixelRect canvasBounds{{0, 0}, 512, 512};
+    const DevicePixelRect bitmapBounds{{0, 0}, 512, 512};
     const DirtyRegion dirty = makeDirtyRegion({
             DevicePixelRect{{12, 12}, 1, 1},
             DevicePixelRect{{300, 4}, 20, 20},
             DevicePixelRect{{300, 4}, 20, 20},
     });
-    const std::vector<DevicePixelRect> tileRects = tileRectsForDirtyRegion(canvasBounds, dirty, 128);
+    const std::vector<DevicePixelRect> tileRects = tileRectsForDirtyRegion(bitmapBounds, dirty, 128);
     if (tileRects.size() != 2
             || !containsRect(tileRects, DevicePixelRect{{0, 0}, 128, 128})
             || !containsRect(tileRects, DevicePixelRect{{256, 0}, 128, 128})) {

@@ -34,18 +34,18 @@ int main()
     static_assert(isCompleteType<TransformState>());
     static_assert(isCompleteType<FilterPipeline>());
     static_assert(isCompleteType<FillOperation>());
-    static_assert(isCompleteType<CanvasAdapter>());
-    static_assert(isCompleteType<CanvasBrushConfig>());
-    static_assert(isCompleteType<CanvasViewportConfig>());
-    static_assert(isCompleteType<CanvasRuntimeConfig>());
-    static_assert(isCompleteType<CanvasStateSnapshot>());
-    static_assert(isCompleteType<BitmapReadResult>());
-    static_assert(isCompleteType<BitmapWriteOptions>());
+    static_assert(isCompleteType<BitmapFileItem>());
+    static_assert(isCompleteType<BitmapBrushConfig>());
+    static_assert(isCompleteType<BitmapViewportConfig>());
+    static_assert(isCompleteType<BitmapRuntimeConfig>());
+    static_assert(isCompleteType<BitmapFileState>());
+    static_assert(isCompleteType<BitmapFile>());
+    static_assert(isCompleteType<BitmapFileWriteOptions>());
 
-    CanvasBrushConfig brush;
-    CanvasViewportConfig viewport;
-    CanvasRuntimeConfig runtime;
-    CanvasStateSnapshot state;
+    BitmapBrushConfig brush;
+    BitmapViewportConfig viewport;
+    BitmapRuntimeConfig runtime;
+    BitmapFileState state;
 
     return brush.size > 0.0
             && brush.pressureToOpacityEnabled

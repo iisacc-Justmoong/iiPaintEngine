@@ -6,10 +6,9 @@
 
 #include <QtQml/qqml.h>
 
-#include "QtAdapter/CanvasAdapter.h"
-#include "QtAdapter/CanvasApiConfig.h"
-#include "QtAdapter/CanvasBrushConfig.h"
-#include "QtAdapter/PaintCanvasItem.h"
+#include "QtAdapter/BitmapBrushConfig.h"
+#include "QtAdapter/BitmapFileApiConfig.h"
+#include "QtAdapter/BitmapFileItem.h"
 
 void registerIipeQmlTypes()
 {
@@ -18,11 +17,10 @@ void registerIipeQmlTypes()
         return;
     }
 
-    qRegisterMetaType<CanvasBrushConfig>("CanvasBrushConfig");
-    qRegisterMetaType<CanvasViewportConfig>("CanvasViewportConfig");
-    qRegisterMetaType<CanvasRuntimeConfig>("CanvasRuntimeConfig");
-    qRegisterMetaType<CanvasStateSnapshot>("CanvasStateSnapshot");
-    qmlRegisterType<PaintCanvasItem>("iipe", 1, 0, "Canvas");
-    qmlRegisterType<CanvasAdapter>("iipe", 1, 0, "CanvasAdapter");
+    qRegisterMetaType<BitmapBrushConfig>("BitmapBrushConfig");
+    qRegisterMetaType<BitmapViewportConfig>("BitmapViewportConfig");
+    qRegisterMetaType<BitmapRuntimeConfig>("BitmapRuntimeConfig");
+    qRegisterMetaType<BitmapFileState>("BitmapFileState");
+    qmlRegisterType<BitmapFileItem>("iipe", 1, 0, "BitmapFile");
     registered = true;
 }

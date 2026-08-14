@@ -1,6 +1,7 @@
 # iiPaintEngine
 
-iiPaintEngine은 C++/Qt/QML용 순수 비트맵 페인팅 엔진이다. 캔버스의 기준 데이터는 ARGB 픽셀이며, 입력 경로를 벡터 스트로크로 만들거나 저장하거나 재생하지 않는다.
+iiPaintEngine은 C++/Qt/QML용 순수 비트맵 파일 페인팅 엔진이다. 작업 대상은 추상적인 화면 표면이 아니라 경로와 원본 형식이 결합된 `BitmapFile`이다. 입력 경로를 벡터 스트로크로
+만들거나 저장하거나 재생하지 않는다.
 
 ## Bitmap-only contract
 
@@ -19,25 +20,34 @@ PointerEvent
 `InputStrokeBuilder`는 좌표 목록을 보유하지 않고 현재 이벤트의 점 하나만 방출한다. `RasterDabStream`은 직전 점 하나와 spacing/random 누적 상태만 가진다. 전체 궤적,
 curve, 원본 입력, replay command는 임시로도 만들지 않는다. `BrushDab`은 재편집 가능한 도형이 아니라 즉시 픽셀로 투영되는 일회성 비트맵 스탬프이다.
 
-live preview는 pending bitmap buffer를 그린 결과이다. release 시 그 픽셀 버퍼를 active raster layer에 합성한다. undo/redo는 raster snapshot
-또는 dirty-rect pixel patch를 사용한다. 저장 파일은 레이어 픽셀을 저장하며 포인터 궤적을 저장하지 않는다.
+live preview는 pending bitmap buffer를 표시한 결과이다. release 시 그 픽셀 버퍼를 열린 `BitmapFile`의 ARGB 픽셀에 직접 합성한다. undo/redo는 raster
+snapshot
+또는 dirty-rect pixel patch를 사용한다. 저장 파일에는 현재 픽셀만 기록하며 포인터 궤적을 저장하지 않는다.
 
 텍스트, SVG, 도형 같은 외부 콘텐츠는 iiPaintEngine에 넣기 전에 비트맵으로 변환해야 한다. 엔진은 raster paint layer만 소유한다.
 
 ## Architecture
 
-문서 소유 구조는 다음과 같다.
+파일 편집 소유 구조는 다음과 같다.
 
 ```text
-PaintDocument
-→ LayerStack
-→ Layer
-→ DrawingSurface
+BitmapFile
+→ file path + detected source format
+→ RasterLayer
 → ARGB pixels
+
+BitmapFileItem
+→ view/input translation only
+→ BitmapFile pixel mutation API
 ```
 
-`PaintDocument`가 최종 합성 `DrawingSurface`와 `LayerStack`을 직접 소유한다. 별도 `Canvas` 도메인 타입이나 `Canvas/` 모듈은 없다. QML의
-`Iipe.Canvas`는 비트맵 표면을 화면에 표시하고 입력을 전달하는 Qt UI 타입일 뿐 문서 모델이 아니다.
+`BitmapFile`이 파일 경로, 실제 바이트에서 감지한 형식, ARGB32 sRGB 픽셀, 수정 상태를 함께 소유한다. `BitmapFileItem`은 파일 픽셀을 소유하지 않으며 입력 좌표 변환과 화면 표시만
+담당한다.
+item의 width/height가 바뀌어도 파일 픽셀 크기는 바뀌지 않는다. 새 작업도 익명 표면 생성이 아니라 `createFile(path, width, height, format)`으로 실제 파일 대상을 먼저
+만든다.
+
+레이어 문서 archive가 필요한 C++ 흐름에서는 `PaintDocument`가 최종 합성 `DrawingSurface`와 `LayerStack`을 직접 소유한다. 이 흐름도 실제 콘텐츠는 픽셀뿐이며 파일 편집
+경로와 별개의 화면 표면 모델을 만들지 않는다.
 
 주요 모듈은 다음과 같다.
 
@@ -47,9 +57,10 @@ PaintDocument
 - `Stroke/Rasterizer`: 직전 점에서 현재 점까지 bitmap dab 배치와 pixel projection
 - `Layer`: raster surface, mask, blend, layer stack
 - `Render`: CPU/GPU raster layer 합성, tile cache, brush stamp atlas
-- `Document`: 단일 bitmap surface, layer stack, format version 3 직렬화와 version 2 단일 캔버스 읽기 호환성
+- `BitmapFile`: 런타임 bitmap format 감지/저장, 파일 경로, 직접 수정 가능한 ARGB 픽셀
+- `Document`: 단일 bitmap surface, layer stack, format version 3 직렬화와 version 2 단일 표면 읽기 호환성
 - `History`: raster patch/snapshot 기반 undo/redo 메타데이터
-- `QtAdapter`: QML canvas, 문서 adapter, layer list facade
+- `QtAdapter`: `BitmapFileItem` view/input adapter, 문서 adapter, layer list facade
 
 Render cache에는 tile cache와 brush stamp atlas만 있다. 입력 경로를 다시 계산하는 stroke replay cache는 없다.
 
@@ -87,16 +98,17 @@ commitPaintSamples(engine, pixels, {{100.0, 100.0}, 2.0, 1.0});
 
 ```qml
 import QtQuick 2.15
+import QtCore
 import iipe 1.0 as Iipe
 
-Iipe.Canvas {
-    id: canvas
+Iipe.BitmapFile {
+    id: bitmapFile
     anchors.fill: parent
 
     documentX: 0
     documentY: 0
     zoom: 1
-    canvasDevicePixelRatio: 1
+    bitmapDevicePixelRatio: 1
 
     brushColor: "#111111"
     brushSize: 18
@@ -110,32 +122,32 @@ Iipe.Canvas {
     brushHardnessEnabled: true
     pressureToOpacityEnabled: true
     livePreviewEnabled: true
+
+    Component.onCompleted: {
+        const path = StandardPaths.writableLocation(StandardPaths.TempLocation) + "/paint.png"
+        createFile(path, 1024, 768, "png")
+    }
 }
 ```
 
-viewport API는 `documentX`, `documentY`, `zoom`, `canvasDevicePixelRatio`, `setDocumentViewport`, `resetView`, `panBy`,
+viewport API는 `documentX`, `documentY`, `zoom`, `bitmapDevicePixelRatio`, `setDocumentViewport`, `resetView`, `panBy`,
 `zoomAt`을 제공한다. 브러시 API는 color, size, spacing, flow, opacity, hardness, pressure curve와 각 enabled flag를 제공한다. 상태 API는
 `liveStrokeActive`, `strokeCount`, `inputDevice`, `inputPressure`를 읽을 수 있다.
 
-`CanvasAdapter`는 같은 bitmap surface 위에 `newCanvas`, `openRaster`, `saveToFile`, `saveToFileAs`, `undo`, `redo`,
-`toolMode`, `brushConfig`, `viewportConfig`, `runtimeConfig`, `stateSnapshot`을 제공한다. `supportedOpenFormats`와
-`supportedSaveFormats`는 현재 Qt 런타임에 실제 설치된 래스터 코덱만 보고하며, `lastFileError`는 최근 열기·저장 실패 원인을 제공한다. `runtimeConfig`는 live
-preview on/off만 가진다. smoothing이나 frame-batched path 처리를 위한 설정은 없다.
-
-```qml
-Iipe.CanvasAdapter {
-    anchors.fill: parent
-    toolMode: "brush"
-    Component.onCompleted: newCanvas(1024, 768)
-}
-```
+`BitmapFileItem`은 `createFile`, `openFile`, `save`, `saveAs`, `undo`, `redo`, `toolMode`, `brushConfig`,
+`viewportConfig`, `runtimeConfig`,
+`stateSnapshot`을 하나의 파일 중심 API로 제공한다. `filePath`, `fileFormat`, `fileOpen`, `modified`, `pixelWritable`,
+`canSaveInPlace`, `bitmapWidth`,
+`bitmapHeight`로 현재 파일 상태를 확인한다. `supportedOpenFormats`와 `supportedSaveFormats`는 현재 Qt 런타임의 실제 bitmap codec을 보고하며,
+`supportedEditableFormats`는 읽기와 쓰기가 모두 가능한 교집합이다. 읽기 전용 형식도 픽셀 편집은 가능하며, 원래 형식 writer가 없으면 `saveAs`로 설치된 쓰기 형식을 선택한다.
 
 `toolMode: "eraser"`는 pending bitmap alpha mask를 destination-out으로 합성한다.
 
 ## Bitmap file compatibility
 
-`BitmapFileCodec`는 Qt Gui에 이미 포함된 이미지 I/O 플러그인을 사용하므로 외부 의존성을 추가하지 않는다. 읽기는 파일 확장자보다 실제 바이트 형식을 우선 감지하고 EXIF 방향을 적용한 뒤
-ARGB32 sRGB 픽셀로 정규화한다. 저장은 명시 형식 또는 확장자를 사용하고 JPEG 같은 불투명 형식은 배경색에 합성하며, `QSaveFile`로 원자적으로 교체한다.
+`BitmapFile`은 Qt Gui에 이미 포함된 이미지 I/O 플러그인을 사용하므로 외부 의존성을 추가하지 않는다. 읽기는 파일 확장자보다 실제 바이트 형식을 우선 감지하고 EXIF 방향을 적용한 뒤
+자체 `RasterLayer`의 ARGB32 sRGB 픽셀로 정규화한다. 저장은 객체에 보존된 감지 형식을 사용하므로 확장자가 잘못된 파일도 원래 bitmap 형식으로 다시 쓴다. `saveAs`는 명시 형식 또는
+확장자를 사용하고 JPEG 같은 불투명 형식은 배경색에 합성하며, 모든 저장은 `QSaveFile`로 원자적으로 교체한다.
 
 PNG, JPEG, BMP, WebP, TIFF, GIF, ICO/ICNS, HEIF, JPEG 2000 등은 해당 Qt 런타임에 코덱이 설치되어 있을 때만 노출한다. SVG, SVGZ, PDF 같은 벡터 입력은
 플러그인이 설치되어 있어도 허용 목록에서 제외하며 디코더로 넘기지 않는다. 따라서 벡터 도형이나 경로를 임시 표현으로도 생성하지 않는다. 애니메이션 컨테이너는 첫 번째 비트맵 프레임만 읽는다.
@@ -143,7 +155,7 @@ PNG, JPEG, BMP, WebP, TIFF, GIF, ICO/ICNS, HEIF, JPEG 2000 등은 해당 Qt 런�
 ## Document format
 
 `DocumentArchive::formatVersion`과 `DocumentSerializer::formatVersion`은 3이다. version 3은 `PaintDocument`의 surface와 layer
-stack을 직접 저장한다. version 2의 단일 캔버스 archive는 읽을 때 같은 비트맵 문서 구조로 이관하고, 다음 저장부터 version 3으로 기록한다. 여러 캔버스를 가진 레거시 archive와 더
+stack을 직접 저장한다. version 2의 단일 표면 archive는 읽을 때 같은 비트맵 문서 구조로 이관하고, 다음 저장부터 version 3으로 기록한다. 여러 표면을 가진 레거시 archive와 더
 높은 미래 버전은 일부 데이터만 취하는 대신 `compatible=false`와 오류를 반환하여 원본을 보존한다. archive는 다음 데이터를 왕복한다.
 
 - document composite와 raster layer pixel surface
@@ -171,8 +183,9 @@ ctest --test-dir build --output-on-failure
 build/Example/bin/iiPaintEngineExample
 ```
 
-`Example/Main.qml`은 LVRS control과 `Iipe.Canvas`를 사용하며 size, flow, opacity, hardness, spacing, pressure curve, live
-preview, clear/reset view를 실제 공개 API로 검증한다.
+`Example/Main.qml`은 LVRS control과 `Iipe.BitmapFile`을 사용하며 임시 PNG 파일을 실제 작업 대상으로 생성한 뒤 size, flow, opacity, hardness,
+spacing,
+pressure curve, live preview, clear/reset view를 공개 API로 검증한다.
 
 ## Install
 
@@ -219,14 +232,16 @@ Windows installer detection heuristic 및 elevation 오탐을 피하기 위한 �
 
 - `iiPaintEngineBitmapOnlyArchitectureContract`: 금지된 경로/레이어 소스 부재, 문서의 retained stroke 부재, input point collection 부재,
   이벤트별 pixel 누적
-- `iiPaintEngineBitmapFileCompatibilityContract`: 런타임 래스터 코덱 필터, content sniffing, PNG/JPEG/BMP/WebP/TIFF 왕복, SVG/PDF 차단
-- `iiPaintEngineCanvasModuleRemovalContract`: `Canvas/` 부재, direct bitmap document ownership, 독립 viewport transform
+- `iiPaintEngineBitmapFileCompatibilityContract`: 파일 계층의 path/format/pixel 소유, 직접 pixel mutation, 런타임 bitmap codec 전체 쓰기
+  왕복, content sniffing, SVG/PDF 차단
+- `iiPaintEngineBitmapFileArchitectureContract`: 구형 화면 표면 API 부재, `BitmapFile`과 `BitmapFileItem` 공개 계약
 - `iiPaintEnginePipelineHeartbeat`: pointer event부터 document raster surface까지 최소 파이프라인
-- `iiPaintEngineDocumentSerializerContract`: format version 3 bitmap archive 왕복, version 2 단일 캔버스 이관, raw trajectory 부재
+- `iiPaintEngineDocumentSerializerContract`: format version 3 bitmap archive 왕복, version 2 단일 표면 이관, raw trajectory 부재
 - `iiPaintEngineAppDocumentApiContract`: raster sample commit, layer/history, save/open 왕복
 - `iiPaintEnginePointerStrokeFlow`: mouse event별 bitmap dab spacing/flow
 - `iiPaintEngineRasterPaintingModel`: velocity, pressure, tilt, spacing, opacity/flow의 bitmap dab 반영
-- `iiPaintEngineCanvasLivePreviewRealtimeContract`: pending raster preview, commit, eraser, undo/redo
+- `iiPaintEngineBitmapFileLivePreviewRealtimeContract`: 열린 파일의 pending raster preview, direct pixel commit, eraser,
+  undo/redo
 - `iiPaintEngineBrushDynamicsMapping`: pressure/velocity/tilt/random의 dab 속성 반영
 - `iiPaintEngineBrushTextureLayerContract`: document/tip/follow/paper bitmap texture와 dual brush
 - `iiPaintEngineWetBrushSimulationContract`: source raster sampling, pickup/deposit/mix, bristle footprint

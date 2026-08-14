@@ -2,7 +2,7 @@
 // Created by Justmoong on 2026 May 24.
 //
 
-#include "PaintCanvasItem.h"
+#include "BitmapFileItem.h"
 
 #include <QImage>
 #include <QMouseEvent>
@@ -10,6 +10,7 @@
 #include <QPointingDevice>
 #include <QRect>
 #include <QTabletEvent>
+#include <QUrl>
 
 #include <algorithm>
 #include <cstddef>
@@ -23,6 +24,23 @@
 #include "Stroke/Rasterizer.h"
 
 namespace {
+
+QString localFilePath(const QString &filePath)
+{
+    const QUrl url(filePath);
+    if (url.isValid() && url.isLocalFile()) {
+        return url.toLocalFile();
+    }
+    return filePath;
+}
+
+QString normalizedToolMode(const QString &mode)
+{
+    const QString trimmed = mode.trimmed().toLower();
+    return trimmed == QStringLiteral("eraser")
+            ? QStringLiteral("eraser")
+            : QStringLiteral("brush");
+}
 
 Types::Scalar safePixelRatio(Types::Scalar value)
 {
@@ -109,23 +127,6 @@ RasterSourceSampler sourceSamplerForLayer(const RasterLayer &layer)
     return sampler;
 }
 
-QImage imageFromRasterLayer(const RasterLayer &layer)
-{
-    if (layer.width <= 0 || layer.height <= 0) {
-        return {};
-    }
-
-    QImage image(layer.width, layer.height, QImage::Format_ARGB32);
-    for (Types::Pixel y = 0; y < layer.height; ++y) {
-        for (Types::Pixel x = 0; x < layer.width; ++x) {
-            const auto index = static_cast<std::size_t>(y) * static_cast<std::size_t>(layer.width)
-                    + static_cast<std::size_t>(x);
-            image.setPixel(x, y, static_cast<QRgb>(layer.pixels[index]));
-        }
-    }
-    return image;
-}
-
 bool samplesContainDestinationOut(const std::vector<RasterSample> &samples)
 {
     return std::any_of(samples.begin(), samples.end(), [](const RasterSample &sample) {
@@ -146,14 +147,6 @@ std::vector<RasterSample> destinationOutSamplesAsSourceMask(const std::vector<Ra
         maskSamples.push_back(sample);
     }
     return maskSamples;
-}
-
-Types::Pixel itemPixelSize(qreal value, Types::Scalar devicePixelRatio)
-{
-    return std::max<Types::Pixel>(
-            0,
-            static_cast<Types::Pixel>(std::ceil(static_cast<Types::Scalar>(value)
-                                                * safePixelRatio(devicePixelRatio))));
 }
 
 PointerButton pointerButtonFromMouseButton(Qt::MouseButton button)
@@ -277,7 +270,7 @@ BrushDynamics pressureSensitiveDynamics()
 
 } // namespace
 
-PaintCanvasItem::PaintCanvasItem(QQuickItem *parent)
+BitmapFileItem::BitmapFileItem(QQuickItem *parent)
     : QQuickPaintedItem(parent)
 {
     setAcceptedMouseButtons(Qt::LeftButton);
@@ -286,16 +279,330 @@ PaintCanvasItem::PaintCanvasItem(QQuickItem *parent)
     m_rasterizer.spacing = 0.0;
     m_rasterizer.spacingRatio = 0.0;
     m_rasterizer.flow = 1.0;
+
+    connect(this, &BitmapFileItem::brushChanged, this, &BitmapFileItem::brushConfigChanged);
+    connect(this, &BitmapFileItem::strokeSettingsChanged, this, &BitmapFileItem::brushConfigChanged);
+    connect(this, &BitmapFileItem::viewportChanged, this, &BitmapFileItem::viewportConfigChanged);
+    connect(this, &BitmapFileItem::livePreviewEnabledChanged, this, &BitmapFileItem::runtimeConfigChanged);
+    connect(this, &BitmapFileItem::liveStrokeActiveChanged, this, &BitmapFileItem::stateSnapshotChanged);
+    connect(this, &BitmapFileItem::strokeCountChanged, this, &BitmapFileItem::stateSnapshotChanged);
+    connect(this, &BitmapFileItem::inputStateChanged, this, &BitmapFileItem::stateSnapshotChanged);
+    connect(this, &BitmapFileItem::viewportChanged, this, &BitmapFileItem::stateSnapshotChanged);
+    connect(this, &BitmapFileItem::toolModeChanged, this, &BitmapFileItem::stateSnapshotChanged);
+    connect(this, &BitmapFileItem::undoRedoChanged, this, &BitmapFileItem::stateSnapshotChanged);
+    connect(this, &BitmapFileItem::fileChanged, this, &BitmapFileItem::stateSnapshotChanged);
+    connect(this, &QQuickItem::widthChanged, this, [this] {
+        updateViewportGeometry();
+        emit viewportConfigChanged();
+        emit stateSnapshotChanged();
+    });
+    connect(this, &QQuickItem::heightChanged, this, [this] {
+        updateViewportGeometry();
+        emit viewportConfigChanged();
+        emit stateSnapshotChanged();
+    });
 }
 
-PaintCanvasItem::~PaintCanvasItem() = default;
+BitmapFileItem::~BitmapFileItem() = default;
 
-qreal PaintCanvasItem::documentX() const
+void BitmapFileItem::resetInteractionForFile()
+{
+    const bool wasLiveStrokeActive = liveStrokeActive();
+    const int previousStrokeCount = m_committedStrokeCount;
+    resetInputStrokeBuilder(m_strokeBuilder);
+    resetRasterDabStream(m_rasterDabStream);
+    m_liveRasterLayer = makeRasterLayer(m_bitmapFile.width(), m_bitmapFile.height());
+    m_pendingRasterBuffer = makeStrokeCompositeBuffer(m_bitmapFile.width(), m_bitmapFile.height());
+    m_liveStrokeDeviceDirtyBounds = {};
+    m_liveStrokePreviewDestinationOut = false;
+    m_nextStrokeSeed = 1;
+    m_committedStrokeCount = 0;
+    m_undoRasterSnapshots.clear();
+    m_redoRasterSnapshots.clear();
+    updateViewportGeometry();
+    emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
+    if (previousStrokeCount != 0) {
+        emit strokeCountChanged();
+    }
+    emit undoRedoChanged();
+    emit viewportChanged();
+    update();
+}
+
+void BitmapFileItem::emitFileStateSignals()
+{
+    emit fileChanged();
+    emit lastFileErrorChanged();
+}
+
+QString BitmapFileItem::filePath() const
+{
+    return m_bitmapFile.filePath();
+}
+
+QString BitmapFileItem::fileFormat() const
+{
+    return QString::fromLatin1(m_bitmapFile.fileFormat());
+}
+
+bool BitmapFileItem::fileOpen() const
+{
+    return m_bitmapFile.isOpen();
+}
+
+bool BitmapFileItem::modified() const
+{
+    return m_bitmapFile.isModified();
+}
+
+bool BitmapFileItem::pixelWritable() const
+{
+    return m_bitmapFile.isPixelWritable();
+}
+
+bool BitmapFileItem::canSaveInPlace() const
+{
+    return m_bitmapFile.canSaveInPlace();
+}
+
+int BitmapFileItem::bitmapWidth() const
+{
+    return m_bitmapFile.width();
+}
+
+int BitmapFileItem::bitmapHeight() const
+{
+    return m_bitmapFile.height();
+}
+
+QStringList BitmapFileItem::supportedOpenFormats() const
+{
+    QStringList formats;
+    for (const QByteArray &format : supportedBitmapReadFormats()) {
+        formats.push_back(QString::fromLatin1(format));
+    }
+    return formats;
+}
+
+QStringList BitmapFileItem::supportedSaveFormats() const
+{
+    QStringList formats;
+    for (const QByteArray &format : supportedBitmapWriteFormats()) {
+        formats.push_back(QString::fromLatin1(format));
+    }
+    return formats;
+}
+
+QStringList BitmapFileItem::supportedEditableFormats() const
+{
+    QStringList formats;
+    for (const QByteArray &format : supportedEditableBitmapFormats()) {
+        formats.push_back(QString::fromLatin1(format));
+    }
+    return formats;
+}
+
+QString BitmapFileItem::lastFileError() const
+{
+    return m_bitmapFile.lastError();
+}
+
+QString BitmapFileItem::toolMode() const
+{
+    return m_toolMode;
+}
+
+void BitmapFileItem::setToolMode(const QString &mode)
+{
+    const QString nextMode = normalizedToolMode(mode);
+    if (m_toolMode == nextMode) {
+        return;
+    }
+    m_toolMode = nextMode;
+    setEraserMode(m_toolMode == QStringLiteral("eraser"));
+    emit toolModeChanged();
+}
+
+BitmapBrushConfig BitmapFileItem::brushConfig() const
+{
+    BitmapBrushConfig config;
+    config.color = brushColor();
+    config.size = brushSize();
+    config.flow = brushFlow();
+    config.opacity = brushOpacity();
+    config.hardness = brushHardness();
+    config.spacing = brushSpacing();
+    config.spacingRatio = brushSpacingRatio();
+    config.flowEnabled = brushFlowEnabled();
+    config.opacityEnabled = brushOpacityEnabled();
+    config.hardnessEnabled = brushHardnessEnabled();
+    config.spacingEnabled = brushSpacingEnabled();
+    config.pressureCurveMinimum = pressureCurveMinimum();
+    config.pressureCurveCenter = pressureCurveCenter();
+    config.pressureCurveMaximum = pressureCurveMaximum();
+    config.pressureToOpacityEnabled = pressureToOpacityEnabled();
+    return config;
+}
+
+void BitmapFileItem::setBrushConfig(const BitmapBrushConfig &config)
+{
+    setBrushSize(config.size);
+    setBrushColor(config.color);
+    setBrushFlow(config.flow);
+    setBrushOpacity(config.opacity);
+    setBrushHardness(config.hardness);
+    setBrushSpacing(config.spacing);
+    setBrushSpacingRatio(config.spacingRatio);
+    setBrushFlowEnabled(config.flowEnabled);
+    setBrushOpacityEnabled(config.opacityEnabled);
+    setBrushHardnessEnabled(config.hardnessEnabled);
+    setBrushSpacingEnabled(config.spacingEnabled);
+    setPressureCurveMinimum(config.pressureCurveMinimum);
+    setPressureCurveMaximum(config.pressureCurveMaximum);
+    setPressureCurveCenter(config.pressureCurveCenter);
+    setPressureToOpacityEnabled(config.pressureToOpacityEnabled);
+}
+
+BitmapViewportConfig BitmapFileItem::viewportConfig() const
+{
+    BitmapViewportConfig config;
+    config.documentX = documentX();
+    config.documentY = documentY();
+    config.zoom = zoom();
+    config.devicePixelRatio = bitmapDevicePixelRatio();
+    config.viewWidth = width();
+    config.viewHeight = height();
+    return config;
+}
+
+void BitmapFileItem::setViewportConfig(const BitmapViewportConfig &config)
+{
+    setWidth(std::max<qreal>(0.0, config.viewWidth));
+    setHeight(std::max<qreal>(0.0, config.viewHeight));
+    setBitmapDevicePixelRatio(config.devicePixelRatio);
+    setDocumentViewport(config.documentX, config.documentY, config.zoom);
+}
+
+BitmapRuntimeConfig BitmapFileItem::runtimeConfig() const
+{
+    BitmapRuntimeConfig config;
+    config.livePreviewEnabled = livePreviewEnabled();
+    return config;
+}
+
+void BitmapFileItem::setRuntimeConfig(const BitmapRuntimeConfig &config)
+{
+    setLivePreviewEnabled(config.livePreviewEnabled);
+}
+
+BitmapFileState BitmapFileItem::stateSnapshot() const
+{
+    BitmapFileState state;
+    state.open = fileOpen();
+    state.modified = modified();
+    state.pixelWritable = pixelWritable();
+    state.canSaveInPlace = canSaveInPlace();
+    state.liveStrokeActive = liveStrokeActive();
+    state.strokeCount = strokeCount();
+    state.inputDevice = inputDevice();
+    state.inputPressure = inputPressure();
+    state.canUndo = canUndo();
+    state.canRedo = canRedo();
+    state.bitmapWidth = bitmapWidth();
+    state.bitmapHeight = bitmapHeight();
+    state.filePath = filePath();
+    state.fileFormat = fileFormat();
+    state.toolMode = toolMode();
+    return state;
+}
+
+bool BitmapFileItem::canUndo() const
+{
+    return !m_undoRasterSnapshots.empty();
+}
+
+bool BitmapFileItem::canRedo() const
+{
+    return !m_redoRasterSnapshots.empty();
+}
+
+bool BitmapFileItem::createFile(const QString &filePath,
+                                int width,
+                                int height)
+{
+    return createFile(filePath, width, height, QStringLiteral("png"));
+}
+
+bool BitmapFileItem::createFile(const QString &filePath,
+                                int width,
+                                int height,
+                                const QString &format)
+{
+    const bool created = m_bitmapFile.create(localFilePath(filePath),
+                                             width,
+                                             height,
+                                             format.toLatin1());
+    if (created) {
+        resetInteractionForFile();
+    }
+    emitFileStateSignals();
+    return created;
+}
+
+bool BitmapFileItem::openFile(const QString &filePath)
+{
+    const bool opened = m_bitmapFile.open(localFilePath(filePath));
+    if (opened) {
+        resetInteractionForFile();
+    }
+    emitFileStateSignals();
+    return opened;
+}
+
+bool BitmapFileItem::save(int quality)
+{
+    BitmapFileWriteOptions options;
+    options.quality = quality;
+    const bool saved = m_bitmapFile.save(options);
+    emitFileStateSignals();
+    return saved;
+}
+
+bool BitmapFileItem::save()
+{
+    return save(-1);
+}
+
+bool BitmapFileItem::saveAs(const QString &filePath)
+{
+    return saveAs(filePath, {}, -1);
+}
+
+bool BitmapFileItem::saveAs(const QString &filePath, const QString &format)
+{
+    return saveAs(filePath, format, -1);
+}
+
+bool BitmapFileItem::saveAs(const QString &filePath, const QString &format, int quality)
+{
+    BitmapFileWriteOptions options;
+    options.quality = quality;
+    const bool saved = m_bitmapFile.saveAs(localFilePath(filePath), format.toLatin1(), options);
+    emitFileStateSignals();
+    return saved;
+}
+
+QImage BitmapFileItem::bitmapImage() const
+{
+    return m_bitmapFile.image();
+}
+
+qreal BitmapFileItem::documentX() const
 {
     return m_documentOrigin.x;
 }
 
-void PaintCanvasItem::setDocumentX(qreal value)
+void BitmapFileItem::setDocumentX(qreal value)
 {
     if (m_documentOrigin.x == value) {
         return;
@@ -310,12 +617,12 @@ void PaintCanvasItem::setDocumentX(qreal value)
     update();
 }
 
-qreal PaintCanvasItem::documentY() const
+qreal BitmapFileItem::documentY() const
 {
     return m_documentOrigin.y;
 }
 
-void PaintCanvasItem::setDocumentY(qreal value)
+void BitmapFileItem::setDocumentY(qreal value)
 {
     if (m_documentOrigin.y == value) {
         return;
@@ -330,12 +637,12 @@ void PaintCanvasItem::setDocumentY(qreal value)
     update();
 }
 
-qreal PaintCanvasItem::zoom() const
+qreal BitmapFileItem::zoom() const
 {
     return m_zoom;
 }
 
-void PaintCanvasItem::setZoom(qreal value)
+void BitmapFileItem::setZoom(qreal value)
 {
     const Types::Scalar nextZoom = std::max<Types::Scalar>(0.01, static_cast<Types::Scalar>(value));
     if (m_zoom == nextZoom) {
@@ -351,12 +658,12 @@ void PaintCanvasItem::setZoom(qreal value)
     update();
 }
 
-qreal PaintCanvasItem::canvasDevicePixelRatio() const
+qreal BitmapFileItem::bitmapDevicePixelRatio() const
 {
     return m_devicePixelRatio;
 }
 
-void PaintCanvasItem::setCanvasDevicePixelRatio(qreal value)
+void BitmapFileItem::setBitmapDevicePixelRatio(qreal value)
 {
     const Types::Scalar nextRatio = std::max<Types::Scalar>(0.01, static_cast<Types::Scalar>(value));
     if (m_devicePixelRatio == nextRatio) {
@@ -372,12 +679,12 @@ void PaintCanvasItem::setCanvasDevicePixelRatio(qreal value)
     update();
 }
 
-QColor PaintCanvasItem::brushColor() const
+QColor BitmapFileItem::brushColor() const
 {
     return QColor::fromRgba(m_rasterizer.argb);
 }
 
-void PaintCanvasItem::setBrushColor(const QColor &color)
+void BitmapFileItem::setBrushColor(const QColor &color)
 {
     const std::uint32_t nextColor = argbFromColor(color);
     if (m_rasterizer.argb == nextColor) {
@@ -388,7 +695,7 @@ void PaintCanvasItem::setBrushColor(const QColor &color)
     emit brushChanged();
 }
 
-qreal PaintCanvasItem::brushSize() const
+qreal BitmapFileItem::brushSize() const
 {
     if (m_rasterizer.brushSize > 0.0) {
         return m_rasterizer.brushSize;
@@ -397,7 +704,7 @@ qreal PaintCanvasItem::brushSize() const
     return static_cast<qreal>(m_rasterizer.radius) * 2.0;
 }
 
-void PaintCanvasItem::setBrushSize(qreal value)
+void BitmapFileItem::setBrushSize(qreal value)
 {
     const Types::Scalar nextSize = std::max<Types::Scalar>(1.0, static_cast<Types::Scalar>(value));
     if (m_rasterizer.brushSize == nextSize) {
@@ -409,12 +716,12 @@ void PaintCanvasItem::setBrushSize(qreal value)
     emit brushChanged();
 }
 
-qreal PaintCanvasItem::brushSpacing() const
+qreal BitmapFileItem::brushSpacing() const
 {
     return m_rasterizer.spacing;
 }
 
-void PaintCanvasItem::setBrushSpacing(qreal value)
+void BitmapFileItem::setBrushSpacing(qreal value)
 {
     const Types::Scalar nextSpacing = std::max<Types::Scalar>(0.0, static_cast<Types::Scalar>(value));
     if (m_rasterizer.spacing == nextSpacing) {
@@ -425,12 +732,12 @@ void PaintCanvasItem::setBrushSpacing(qreal value)
     emit brushChanged();
 }
 
-qreal PaintCanvasItem::brushSpacingRatio() const
+qreal BitmapFileItem::brushSpacingRatio() const
 {
     return m_rasterizer.spacingRatio;
 }
 
-void PaintCanvasItem::setBrushSpacingRatio(qreal value)
+void BitmapFileItem::setBrushSpacingRatio(qreal value)
 {
     const Types::Scalar nextRatio = std::clamp(static_cast<Types::Scalar>(value), 0.0, 1.0);
     if (m_rasterizer.spacingRatio == nextRatio) {
@@ -441,12 +748,12 @@ void PaintCanvasItem::setBrushSpacingRatio(qreal value)
     emit brushChanged();
 }
 
-bool PaintCanvasItem::brushSpacingEnabled() const
+bool BitmapFileItem::brushSpacingEnabled() const
 {
     return m_rasterizer.spacingEnabled;
 }
 
-void PaintCanvasItem::setBrushSpacingEnabled(bool enabled)
+void BitmapFileItem::setBrushSpacingEnabled(bool enabled)
 {
     if (m_rasterizer.spacingEnabled == enabled) {
         return;
@@ -456,12 +763,12 @@ void PaintCanvasItem::setBrushSpacingEnabled(bool enabled)
     emit brushChanged();
 }
 
-qreal PaintCanvasItem::brushFlow() const
+qreal BitmapFileItem::brushFlow() const
 {
     return m_rasterizer.flow;
 }
 
-void PaintCanvasItem::setBrushFlow(qreal value)
+void BitmapFileItem::setBrushFlow(qreal value)
 {
     const Types::Scalar nextFlow = std::clamp(static_cast<Types::Scalar>(value), 0.0, 1.0);
     if (m_rasterizer.flow == nextFlow) {
@@ -472,12 +779,12 @@ void PaintCanvasItem::setBrushFlow(qreal value)
     emit brushChanged();
 }
 
-bool PaintCanvasItem::brushFlowEnabled() const
+bool BitmapFileItem::brushFlowEnabled() const
 {
     return m_rasterizer.flowEnabled;
 }
 
-void PaintCanvasItem::setBrushFlowEnabled(bool enabled)
+void BitmapFileItem::setBrushFlowEnabled(bool enabled)
 {
     if (m_rasterizer.flowEnabled == enabled) {
         return;
@@ -487,12 +794,12 @@ void PaintCanvasItem::setBrushFlowEnabled(bool enabled)
     emit brushChanged();
 }
 
-qreal PaintCanvasItem::brushOpacity() const
+qreal BitmapFileItem::brushOpacity() const
 {
     return m_rasterizer.opacity;
 }
 
-void PaintCanvasItem::setBrushOpacity(qreal value)
+void BitmapFileItem::setBrushOpacity(qreal value)
 {
     const Types::Scalar nextOpacity = std::clamp(static_cast<Types::Scalar>(value), 0.0, 1.0);
     if (m_rasterizer.opacity == nextOpacity) {
@@ -503,12 +810,12 @@ void PaintCanvasItem::setBrushOpacity(qreal value)
     emit brushChanged();
 }
 
-bool PaintCanvasItem::brushOpacityEnabled() const
+bool BitmapFileItem::brushOpacityEnabled() const
 {
     return m_rasterizer.opacityEnabled;
 }
 
-void PaintCanvasItem::setBrushOpacityEnabled(bool enabled)
+void BitmapFileItem::setBrushOpacityEnabled(bool enabled)
 {
     if (m_rasterizer.opacityEnabled == enabled) {
         return;
@@ -518,12 +825,12 @@ void PaintCanvasItem::setBrushOpacityEnabled(bool enabled)
     emit brushChanged();
 }
 
-qreal PaintCanvasItem::brushHardness() const
+qreal BitmapFileItem::brushHardness() const
 {
     return m_rasterizer.hardness;
 }
 
-void PaintCanvasItem::setBrushHardness(qreal value)
+void BitmapFileItem::setBrushHardness(qreal value)
 {
     const Types::Scalar nextHardness = std::clamp(static_cast<Types::Scalar>(value), 0.01, 1.0);
     if (m_rasterizer.hardness == nextHardness) {
@@ -534,12 +841,12 @@ void PaintCanvasItem::setBrushHardness(qreal value)
     emit brushChanged();
 }
 
-bool PaintCanvasItem::brushHardnessEnabled() const
+bool BitmapFileItem::brushHardnessEnabled() const
 {
     return m_rasterizer.hardnessEnabled;
 }
 
-void PaintCanvasItem::setBrushHardnessEnabled(bool enabled)
+void BitmapFileItem::setBrushHardnessEnabled(bool enabled)
 {
     if (m_rasterizer.hardnessEnabled == enabled) {
         return;
@@ -549,12 +856,12 @@ void PaintCanvasItem::setBrushHardnessEnabled(bool enabled)
     emit brushChanged();
 }
 
-bool PaintCanvasItem::eraserMode() const
+bool BitmapFileItem::eraserMode() const
 {
     return m_eraserMode;
 }
 
-void PaintCanvasItem::setEraserMode(bool enabled)
+void BitmapFileItem::setEraserMode(bool enabled)
 {
     if (m_eraserMode == enabled) {
         return;
@@ -564,12 +871,12 @@ void PaintCanvasItem::setEraserMode(bool enabled)
     emit brushChanged();
 }
 
-qreal PaintCanvasItem::pressureCurveMinimum() const
+qreal BitmapFileItem::pressureCurveMinimum() const
 {
     return m_inputNormalizer.pressureCurveMinimum;
 }
 
-void PaintCanvasItem::setPressureCurveMinimum(qreal value)
+void BitmapFileItem::setPressureCurveMinimum(qreal value)
 {
     const Types::Scalar nextMinimum = unitSettingOrDefault(static_cast<Types::Scalar>(value), 0.0);
     const Types::Scalar nextCenter = std::max(m_inputNormalizer.pressureCurveCenter, nextMinimum);
@@ -586,12 +893,12 @@ void PaintCanvasItem::setPressureCurveMinimum(qreal value)
     emit strokeSettingsChanged();
 }
 
-qreal PaintCanvasItem::pressureCurveCenter() const
+qreal BitmapFileItem::pressureCurveCenter() const
 {
     return m_inputNormalizer.pressureCurveCenter;
 }
 
-void PaintCanvasItem::setPressureCurveCenter(qreal value)
+void BitmapFileItem::setPressureCurveCenter(qreal value)
 {
     const Types::Scalar nextCenter = std::clamp(
             unitSettingOrDefault(static_cast<Types::Scalar>(value), 0.5),
@@ -605,12 +912,12 @@ void PaintCanvasItem::setPressureCurveCenter(qreal value)
     emit strokeSettingsChanged();
 }
 
-qreal PaintCanvasItem::pressureCurveMaximum() const
+qreal BitmapFileItem::pressureCurveMaximum() const
 {
     return m_inputNormalizer.pressureCurveMaximum;
 }
 
-void PaintCanvasItem::setPressureCurveMaximum(qreal value)
+void BitmapFileItem::setPressureCurveMaximum(qreal value)
 {
     const Types::Scalar nextMaximum = unitSettingOrDefault(static_cast<Types::Scalar>(value), 1.0);
     const Types::Scalar nextMinimum = std::min(m_inputNormalizer.pressureCurveMinimum, nextMaximum);
@@ -629,12 +936,12 @@ void PaintCanvasItem::setPressureCurveMaximum(qreal value)
     emit strokeSettingsChanged();
 }
 
-bool PaintCanvasItem::pressureToOpacityEnabled() const
+bool BitmapFileItem::pressureToOpacityEnabled() const
 {
     return m_pressureToOpacityEnabled;
 }
 
-void PaintCanvasItem::setPressureToOpacityEnabled(bool enabled)
+void BitmapFileItem::setPressureToOpacityEnabled(bool enabled)
 {
     if (m_pressureToOpacityEnabled == enabled) {
         return;
@@ -644,12 +951,12 @@ void PaintCanvasItem::setPressureToOpacityEnabled(bool enabled)
     emit brushChanged();
 }
 
-bool PaintCanvasItem::livePreviewEnabled() const
+bool BitmapFileItem::livePreviewEnabled() const
 {
     return m_livePreviewEnabled;
 }
 
-void PaintCanvasItem::setLivePreviewEnabled(bool enabled)
+void BitmapFileItem::setLivePreviewEnabled(bool enabled)
 {
     if (m_livePreviewEnabled == enabled) {
         return;
@@ -660,17 +967,17 @@ void PaintCanvasItem::setLivePreviewEnabled(bool enabled)
     emit livePreviewEnabledChanged();
 }
 
-bool PaintCanvasItem::liveStrokeActive() const
+bool BitmapFileItem::liveStrokeActive() const
 {
     return m_strokeBuilder.active;
 }
 
-int PaintCanvasItem::strokeCount() const
+int BitmapFileItem::strokeCount() const
 {
     return m_committedStrokeCount;
 }
 
-QString PaintCanvasItem::inputDevice() const
+QString BitmapFileItem::inputDevice() const
 {
     switch (m_lastInputDevice) {
         case PointerDeviceKind::Tablet:
@@ -684,40 +991,50 @@ QString PaintCanvasItem::inputDevice() const
     return QStringLiteral("mouse");
 }
 
-qreal PaintCanvasItem::inputPressure() const
+qreal BitmapFileItem::inputPressure() const
 {
     return m_lastInputPressure;
 }
 
-void PaintCanvasItem::paint(QPainter *painter)
+void BitmapFileItem::paint(QPainter *painter)
 {
-    ensureRasterLayerSize();
-    drawRasterLayer(painter, m_rasterLayer, m_devicePixelRatio);
+    ensureBitmapBuffers();
+    drawRasterLayer(painter, m_bitmapFile.pixels(), m_devicePixelRatio);
     if (m_livePreviewEnabled && liveStrokeActive()) {
         drawLiveRasterLayer(painter, m_liveRasterLayer, m_devicePixelRatio, m_liveStrokePreviewDestinationOut);
     }
 }
 
-void PaintCanvasItem::clear()
+bool BitmapFileItem::clear()
 {
+    if (!m_bitmapFile.isPixelWritable()) {
+        emitFileStateSignals();
+        return false;
+    }
     const bool wasLiveStrokeActive = liveStrokeActive();
-    ensureRasterLayerSize();
+    ensureBitmapBuffers();
     recordRasterChange();
     cancelActiveRasterStroke();
-    clearRasterLayer(m_rasterLayer);
+    if (!m_bitmapFile.clear()) {
+        emitFileStateSignals();
+        return false;
+    }
     clearPendingRasterStroke();
     m_nextStrokeSeed = 1;
     m_committedStrokeCount = 0;
     emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
     emit strokeCountChanged();
+    emit undoRedoChanged();
+    emitFileStateSignals();
     update();
+    return true;
 }
 
-void PaintCanvasItem::setDocumentViewport(qreal documentX, qreal documentY, qreal zoom)
+void BitmapFileItem::setDocumentViewport(qreal documentX, qreal documentY, qreal zoom)
 {
     const bool wasLiveStrokeActive = liveStrokeActive();
     cancelActiveRasterStroke();
-    ensureRasterLayerSize();
+    ensureBitmapBuffers();
     clearPendingRasterStroke();
     m_documentOrigin = {static_cast<Types::Scalar>(documentX), static_cast<Types::Scalar>(documentY)};
     m_zoom = std::max<Types::Scalar>(0.01, static_cast<Types::Scalar>(zoom));
@@ -727,19 +1044,19 @@ void PaintCanvasItem::setDocumentViewport(qreal documentX, qreal documentY, qrea
     update();
 }
 
-void PaintCanvasItem::resetView()
+void BitmapFileItem::resetView()
 {
     setDocumentViewport(0.0, 0.0, 1.0);
 }
 
-void PaintCanvasItem::panBy(qreal documentDx, qreal documentDy)
+void BitmapFileItem::panBy(qreal documentDx, qreal documentDy)
 {
     setDocumentViewport(m_documentOrigin.x + static_cast<Types::Scalar>(documentDx),
                         m_documentOrigin.y + static_cast<Types::Scalar>(documentDy),
                         m_zoom);
 }
 
-void PaintCanvasItem::zoomAt(qreal viewX, qreal viewY, qreal factor)
+void BitmapFileItem::zoomAt(qreal viewX, qreal viewY, qreal factor)
 {
     const bool wasLiveStrokeActive = liveStrokeActive();
     const Types::Scalar nextZoom = std::max<Types::Scalar>(0.01, m_zoom * static_cast<Types::Scalar>(factor));
@@ -757,7 +1074,7 @@ void PaintCanvasItem::zoomAt(qreal viewX, qreal viewY, qreal factor)
     update();
 }
 
-void PaintCanvasItem::setBrush(qreal size, const QColor &color, qreal flow, qreal opacity)
+void BitmapFileItem::setBrush(qreal size, const QColor &color, qreal flow, qreal opacity)
 {
     setBrushSize(size);
     setBrushColor(color);
@@ -765,60 +1082,7 @@ void PaintCanvasItem::setBrush(qreal size, const QColor &color, qreal flow, qrea
     setBrushOpacity(opacity);
 }
 
-bool PaintCanvasItem::resetRasterCanvas(Types::Pixel width,
-                                        Types::Pixel height,
-                                        std::uint32_t clearArgb)
-{
-    if (width <= 0 || height <= 0) {
-        return false;
-    }
-
-    ensureRasterLayerSize();
-    recordRasterChange();
-
-    RasterSnapshot snapshot;
-    snapshot.width = width;
-    snapshot.height = height;
-    snapshot.pixels.assign(static_cast<std::size_t>(width) * static_cast<std::size_t>(height), clearArgb);
-    snapshot.nextStrokeSeed = 1;
-    snapshot.committedStrokeCount = 0;
-    restoreRasterSnapshot(snapshot);
-    return true;
-}
-
-bool PaintCanvasItem::replaceRasterCanvas(const QImage &image)
-{
-    if (image.isNull() || image.width() <= 0 || image.height() <= 0) {
-        return false;
-    }
-
-    ensureRasterLayerSize();
-    recordRasterChange();
-
-    const QImage converted = image.convertToFormat(QImage::Format_ARGB32);
-    RasterSnapshot snapshot;
-    snapshot.width = converted.width();
-    snapshot.height = converted.height();
-    snapshot.pixels.reserve(static_cast<std::size_t>(snapshot.width)
-                            * static_cast<std::size_t>(snapshot.height));
-    for (Types::Pixel y = 0; y < snapshot.height; ++y) {
-        for (Types::Pixel x = 0; x < snapshot.width; ++x) {
-            snapshot.pixels.push_back(static_cast<std::uint32_t>(converted.pixel(x, y)));
-        }
-    }
-    snapshot.nextStrokeSeed = 1;
-    snapshot.committedStrokeCount = 0;
-    restoreRasterSnapshot(snapshot);
-    return true;
-}
-
-QImage PaintCanvasItem::rasterCanvasImage()
-{
-    ensureRasterLayerSize();
-    return imageFromRasterLayer(m_rasterLayer);
-}
-
-bool PaintCanvasItem::undoRasterChange()
+bool BitmapFileItem::undo()
 {
     if (m_undoRasterSnapshots.empty()) {
         return false;
@@ -826,14 +1090,16 @@ bool PaintCanvasItem::undoRasterChange()
 
     RasterHistoryEntry previous = std::move(m_undoRasterSnapshots.back());
     m_undoRasterSnapshots.pop_back();
-    m_redoRasterSnapshots.push_back(previous.fullCanvas
+    m_redoRasterSnapshots.push_back(previous.fullBitmap
             ? captureRasterHistoryEntry()
             : captureRasterHistoryEntry(previous.patchSnapshot.bounds));
     restoreRasterHistoryEntry(previous);
+    emit undoRedoChanged();
+    emitFileStateSignals();
     return true;
 }
 
-bool PaintCanvasItem::redoRasterChange()
+bool BitmapFileItem::redo()
 {
     if (m_redoRasterSnapshots.empty()) {
         return false;
@@ -841,25 +1107,23 @@ bool PaintCanvasItem::redoRasterChange()
 
     RasterHistoryEntry next = std::move(m_redoRasterSnapshots.back());
     m_redoRasterSnapshots.pop_back();
-    m_undoRasterSnapshots.push_back(next.fullCanvas
+    m_undoRasterSnapshots.push_back(next.fullBitmap
             ? captureRasterHistoryEntry()
             : captureRasterHistoryEntry(next.patchSnapshot.bounds));
     restoreRasterHistoryEntry(next);
+    emit undoRedoChanged();
+    emitFileStateSignals();
     return true;
 }
 
-bool PaintCanvasItem::canUndoRasterChange() const
+bool BitmapFileItem::event(QEvent *event)
 {
-    return !m_undoRasterSnapshots.empty();
-}
-
-bool PaintCanvasItem::canRedoRasterChange() const
-{
-    return !m_redoRasterSnapshots.empty();
-}
-
-bool PaintCanvasItem::event(QEvent *event)
-{
+    if (!m_bitmapFile.isPixelWritable()
+            && (event->type() == QEvent::TabletPress
+                || event->type() == QEvent::TabletMove
+                || event->type() == QEvent::TabletRelease)) {
+        return QQuickPaintedItem::event(event);
+    }
     switch (event->type()) {
         case QEvent::TabletPress:
             handleTabletPointerEvent(static_cast<QTabletEvent *>(event), PointerEventPhase::Press);
@@ -880,8 +1144,12 @@ bool PaintCanvasItem::event(QEvent *event)
     return QQuickPaintedItem::event(event);
 }
 
-void PaintCanvasItem::mousePressEvent(QMouseEvent *event)
+void BitmapFileItem::mousePressEvent(QMouseEvent *event)
 {
+    if (!m_bitmapFile.isPixelWritable()) {
+        event->ignore();
+        return;
+    }
     if (shouldIgnoreMousePointerEvent(event)) {
         event->accept();
         return;
@@ -896,8 +1164,12 @@ void PaintCanvasItem::mousePressEvent(QMouseEvent *event)
     event->accept();
 }
 
-void PaintCanvasItem::mouseMoveEvent(QMouseEvent *event)
+void BitmapFileItem::mouseMoveEvent(QMouseEvent *event)
 {
+    if (!m_bitmapFile.isPixelWritable()) {
+        event->ignore();
+        return;
+    }
     if (shouldIgnoreMousePointerEvent(event)) {
         event->accept();
         return;
@@ -907,8 +1179,12 @@ void PaintCanvasItem::mouseMoveEvent(QMouseEvent *event)
     event->accept();
 }
 
-void PaintCanvasItem::mouseReleaseEvent(QMouseEvent *event)
+void BitmapFileItem::mouseReleaseEvent(QMouseEvent *event)
 {
+    if (!m_bitmapFile.isPixelWritable()) {
+        event->ignore();
+        return;
+    }
     if (shouldIgnoreMousePointerEvent(event)) {
         event->accept();
         return;
@@ -923,29 +1199,22 @@ void PaintCanvasItem::mouseReleaseEvent(QMouseEvent *event)
     event->accept();
 }
 
-void PaintCanvasItem::ensureRasterLayerSize()
+void BitmapFileItem::ensureBitmapBuffers()
 {
-    const Types::Pixel nextWidth = itemPixelSize(width(), m_devicePixelRatio);
-    const Types::Pixel nextHeight = itemPixelSize(height(), m_devicePixelRatio);
-    bool resized = false;
-    if (m_rasterLayer.width != nextWidth || m_rasterLayer.height != nextHeight) {
-        m_rasterLayer = makeRasterLayer(nextWidth, nextHeight);
-        resized = true;
-    }
-
+    const Types::Pixel nextWidth = m_bitmapFile.width();
+    const Types::Pixel nextHeight = m_bitmapFile.height();
     if (m_liveRasterLayer.width != nextWidth || m_liveRasterLayer.height != nextHeight) {
+        resetInputStrokeBuilder(m_strokeBuilder);
+        resetRasterDabStream(m_rasterDabStream);
         m_liveRasterLayer = makeRasterLayer(nextWidth, nextHeight);
         m_pendingRasterBuffer = makeStrokeCompositeBuffer(nextWidth, nextHeight);
-        resized = true;
-    }
-
-    if (resized) {
-        cancelActiveRasterStroke();
+        m_liveStrokeDeviceDirtyBounds = {};
+        m_liveStrokePreviewDestinationOut = false;
     }
     updateViewportGeometry();
 }
 
-void PaintCanvasItem::updateViewportGeometry()
+void BitmapFileItem::updateViewportGeometry()
 {
     const Types::Scalar viewWidth = std::max<Types::Scalar>(0.0, static_cast<Types::Scalar>(width()));
     const Types::Scalar viewHeight = std::max<Types::Scalar>(0.0, static_cast<Types::Scalar>(height()));
@@ -956,12 +1225,12 @@ void PaintCanvasItem::updateViewportGeometry()
             viewHeight / zoom,
     };
     m_viewport.viewRect = {{0.0, 0.0}, viewWidth, viewHeight};
-    m_viewport.devicePixelRect = {{0, 0}, m_rasterLayer.width, m_rasterLayer.height};
+    m_viewport.devicePixelRect = {{0, 0}, m_bitmapFile.width(), m_bitmapFile.height()};
     m_viewport.zoom = zoom;
     m_viewport.devicePixelRatio = std::max<Types::Scalar>(0.01, m_devicePixelRatio);
 }
 
-bool PaintCanvasItem::shouldIgnoreMousePointerEvent(QMouseEvent *event)
+bool BitmapFileItem::shouldIgnoreMousePointerEvent(QMouseEvent *event)
 {
     if (m_tabletPointerActive || m_suppressMouseAfterTablet) {
         if (event->type() == QEvent::MouseButtonRelease && !event->buttons().testFlag(Qt::LeftButton)) {
@@ -973,10 +1242,10 @@ bool PaintCanvasItem::shouldIgnoreMousePointerEvent(QMouseEvent *event)
     return false;
 }
 
-void PaintCanvasItem::handleMousePointerEvent(QMouseEvent *event, PointerEventPhase phase)
+void BitmapFileItem::handleMousePointerEvent(QMouseEvent *event, PointerEventPhase phase)
 {
     const bool wasLiveStrokeActive = liveStrokeActive();
-    ensureRasterLayerSize();
+    ensureBitmapBuffers();
     const PointerEvent pointerEvent = makeDocumentPointerEvent(event, phase);
     noteInputState(pointerEvent);
     const InputStrokeBuildResult result = appendPointerEvent(m_strokeBuilder, pointerEvent);
@@ -984,10 +1253,10 @@ void PaintCanvasItem::handleMousePointerEvent(QMouseEvent *event, PointerEventPh
     emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
 }
 
-void PaintCanvasItem::handleTabletPointerEvent(QTabletEvent *event, PointerEventPhase phase)
+void BitmapFileItem::handleTabletPointerEvent(QTabletEvent *event, PointerEventPhase phase)
 {
     const bool wasLiveStrokeActive = liveStrokeActive();
-    ensureRasterLayerSize();
+    ensureBitmapBuffers();
     const PointerEvent pointerEvent = makeDocumentPointerEvent(event, phase);
     noteTabletPointerEvent(pointerEvent);
     noteInputState(pointerEvent);
@@ -996,7 +1265,7 @@ void PaintCanvasItem::handleTabletPointerEvent(QTabletEvent *event, PointerEvent
     emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
 }
 
-PointerEvent PaintCanvasItem::makeDocumentPointerEvent(QMouseEvent *event, PointerEventPhase phase) const
+PointerEvent BitmapFileItem::makeDocumentPointerEvent(QMouseEvent *event, PointerEventPhase phase) const
 {
     const QPointF position = event->position();
     const bool pressureAware = isPressureAwareMouseEvent(event);
@@ -1047,12 +1316,12 @@ PointerEvent PaintCanvasItem::makeDocumentPointerEvent(QMouseEvent *event, Point
     return pointerEvent;
 }
 
-PointerEvent PaintCanvasItem::makeDocumentPointerEvent(QTabletEvent *event, PointerEventPhase phase) const
+PointerEvent BitmapFileItem::makeDocumentPointerEvent(QTabletEvent *event, PointerEventPhase phase) const
 {
     return normalizeTabletPointerEvent(m_inputNormalizer, makeTabletState(event, phase), phase);
 }
 
-void PaintCanvasItem::noteTabletPointerEvent(const PointerEvent &event)
+void BitmapFileItem::noteTabletPointerEvent(const PointerEvent &event)
 {
     const bool contact = event.primaryButtonDown || event.pressure > 0.0 || event.eraserActive;
     if ((event.phase == PointerEventPhase::Press || event.phase == PointerEventPhase::Move) && contact) {
@@ -1070,7 +1339,7 @@ void PaintCanvasItem::noteTabletPointerEvent(const PointerEvent &event)
     }
 }
 
-TabletState PaintCanvasItem::makeTabletState(QTabletEvent *event, PointerEventPhase phase) const
+TabletState BitmapFileItem::makeTabletState(QTabletEvent *event, PointerEventPhase phase) const
 {
     const QPointF position = event->position();
     const bool eraserActive = isTabletEraser(event->pointingDevice());
@@ -1101,7 +1370,7 @@ TabletState PaintCanvasItem::makeTabletState(QTabletEvent *event, PointerEventPh
     return tablet;
 }
 
-RasterProjection PaintCanvasItem::currentRasterProjection() const
+RasterProjection BitmapFileItem::currentRasterProjection() const
 {
     return RasterProjection{
             m_viewport.documentRect.origin,
@@ -1110,14 +1379,14 @@ RasterProjection PaintCanvasItem::currentRasterProjection() const
     };
 }
 
-DevicePixelRect PaintCanvasItem::layerBounds() const
+DevicePixelRect BitmapFileItem::bitmapBounds() const
 {
-    return DevicePixelRect{{0, 0}, m_rasterLayer.width, m_rasterLayer.height};
+    return DevicePixelRect{{0, 0}, m_bitmapFile.width(), m_bitmapFile.height()};
 }
 
-void PaintCanvasItem::requestTextureUpdate(DevicePixelRect dirtyBounds)
+void BitmapFileItem::requestTextureUpdate(DevicePixelRect dirtyBounds)
 {
-    const DevicePixelRect clipped = intersectDevicePixelRects(layerBounds(), dirtyBounds);
+    const DevicePixelRect clipped = intersectDevicePixelRects(bitmapBounds(), dirtyBounds);
     if (isEmpty(clipped)) {
         return;
     }
@@ -1125,7 +1394,7 @@ void PaintCanvasItem::requestTextureUpdate(DevicePixelRect dirtyBounds)
     update(qRectFromDeviceRect(clipped, m_devicePixelRatio));
 }
 
-void PaintCanvasItem::applyPointerBuildResult(const InputStrokeBuildResult &result)
+void BitmapFileItem::applyPointerBuildResult(const InputStrokeBuildResult &result)
 {
     if (result.strokeCancelled) {
         cancelActiveRasterStroke();
@@ -1149,7 +1418,7 @@ void PaintCanvasItem::applyPointerBuildResult(const InputStrokeBuildResult &resu
     }
 }
 
-void PaintCanvasItem::appendPointerPointToRaster(const StrokePoint &point, bool finishStroke)
+void BitmapFileItem::appendPointerPointToRaster(const StrokePoint &point, bool finishStroke)
 {
     const std::vector<BrushDab> dabs = appendRasterDabs(m_rasterDabStream,
                                                         point,
@@ -1164,7 +1433,7 @@ void PaintCanvasItem::appendPointerPointToRaster(const StrokePoint &point, bool 
     const bool needsSource = m_activeBrush.material.simulation.enabled
             && m_activeBrush.material.simulation.model != BrushSimulationModel::Dry;
     if (needsSource) {
-        const RasterSourceSampler sourceSampler = sourceSamplerForLayer(m_rasterLayer);
+        const RasterSourceSampler sourceSampler = sourceSamplerForLayer(m_bitmapFile.pixels());
         samples = projectBrushDabs(dabs,
                                    m_activeBrush.rasterizer,
                                    projection,
@@ -1196,7 +1465,7 @@ void PaintCanvasItem::appendPointerPointToRaster(const StrokePoint &point, bool 
     }
 }
 
-void PaintCanvasItem::commitPendingRasterStroke()
+void BitmapFileItem::commitPendingRasterStroke()
 {
     const DevicePixelRect dirtyBounds = m_liveStrokeDeviceDirtyBounds;
     if (isEmpty(dirtyBounds)) {
@@ -1205,10 +1474,11 @@ void PaintCanvasItem::commitPendingRasterStroke()
     }
 
     recordRasterChange(dirtyBounds);
-    if (m_liveStrokePreviewDestinationOut) {
-        eraseStrokeBufferFromLayer(m_rasterLayer, m_pendingRasterBuffer);
-    } else {
-        compositeStrokeBufferOntoLayer(m_rasterLayer, m_pendingRasterBuffer);
+    if (!m_bitmapFile.applyStrokePixels(m_pendingRasterBuffer,
+                                        m_liveStrokePreviewDestinationOut)) {
+        clearPendingRasterStroke();
+        emitFileStateSignals();
+        return;
     }
 
     clearPendingRasterStroke();
@@ -1216,13 +1486,15 @@ void PaintCanvasItem::commitPendingRasterStroke()
     ++m_nextStrokeSeed;
     ++m_committedStrokeCount;
     emit strokeCountChanged();
+    emit undoRedoChanged();
+    emitFileStateSignals();
 }
 
-void PaintCanvasItem::clearPendingRasterStroke()
+void BitmapFileItem::clearPendingRasterStroke()
 {
     const DevicePixelRect previousDirtyBounds = m_liveStrokeDeviceDirtyBounds;
     clearRasterLayerRect(m_liveRasterLayer, previousDirtyBounds);
-    m_pendingRasterBuffer = makeStrokeCompositeBuffer(m_rasterLayer.width, m_rasterLayer.height);
+    m_pendingRasterBuffer = makeStrokeCompositeBuffer(m_bitmapFile.width(), m_bitmapFile.height());
     resetRasterDabStream(m_rasterDabStream);
     m_liveStrokeDeviceDirtyBounds = {};
     m_liveStrokePreviewDestinationOut = false;
@@ -1231,9 +1503,9 @@ void PaintCanvasItem::clearPendingRasterStroke()
     }
 }
 
-void PaintCanvasItem::syncPendingRasterLayer(DevicePixelRect dirtyBounds)
+void BitmapFileItem::syncPendingRasterLayer(DevicePixelRect dirtyBounds)
 {
-    const DevicePixelRect clipped = intersectDevicePixelRects(layerBounds(), dirtyBounds);
+    const DevicePixelRect clipped = intersectDevicePixelRects(bitmapBounds(), dirtyBounds);
     if (isEmpty(clipped)) {
         return;
     }
@@ -1248,14 +1520,14 @@ void PaintCanvasItem::syncPendingRasterLayer(DevicePixelRect dirtyBounds)
     }
 }
 
-void PaintCanvasItem::emitLiveStrokeActiveChangedIfNeeded(bool previousActive)
+void BitmapFileItem::emitLiveStrokeActiveChangedIfNeeded(bool previousActive)
 {
     if (previousActive != liveStrokeActive()) {
         emit liveStrokeActiveChanged();
     }
 }
 
-void PaintCanvasItem::noteInputState(const PointerEvent &event)
+void BitmapFileItem::noteInputState(const PointerEvent &event)
 {
     const Types::Scalar pressure = std::clamp(event.pressure, 0.0, 1.0);
     if (m_lastInputDevice == event.device
@@ -1268,7 +1540,7 @@ void PaintCanvasItem::noteInputState(const PointerEvent &event)
     emit inputStateChanged();
 }
 
-BrushState PaintCanvasItem::currentBrushState() const
+BrushState BitmapFileItem::currentBrushState() const
 {
     Rasterizer rasterizer = m_rasterizer;
     if (m_eraserMode) {
@@ -1280,29 +1552,29 @@ BrushState PaintCanvasItem::currentBrushState() const
     return BrushState{rasterizer, dynamics, BrushMaterial{}, m_nextStrokeSeed};
 }
 
-void PaintCanvasItem::cancelActiveRasterStroke()
+void BitmapFileItem::cancelActiveRasterStroke()
 {
     resetInputStrokeBuilder(m_strokeBuilder);
     clearPendingRasterStroke();
 }
 
-PaintCanvasItem::RasterSnapshot PaintCanvasItem::captureRasterSnapshot() const
+BitmapFileItem::RasterSnapshot BitmapFileItem::captureRasterSnapshot() const
 {
     RasterSnapshot snapshot;
-    snapshot.width = m_rasterLayer.width;
-    snapshot.height = m_rasterLayer.height;
-    snapshot.pixels = m_rasterLayer.pixels;
+    snapshot.width = m_bitmapFile.width();
+    snapshot.height = m_bitmapFile.height();
+    snapshot.pixels = m_bitmapFile.pixels().pixels;
     snapshot.nextStrokeSeed = m_nextStrokeSeed;
     snapshot.committedStrokeCount = m_committedStrokeCount;
     return snapshot;
 }
 
-PaintCanvasItem::RasterPatchSnapshot PaintCanvasItem::captureRasterPatchSnapshot(DevicePixelRect dirtyBounds) const
+BitmapFileItem::RasterPatchSnapshot BitmapFileItem::captureRasterPatchSnapshot(DevicePixelRect dirtyBounds) const
 {
     RasterPatchSnapshot snapshot;
-    snapshot.width = m_rasterLayer.width;
-    snapshot.height = m_rasterLayer.height;
-    snapshot.bounds = intersectDevicePixelRects(layerBounds(), dirtyBounds);
+    snapshot.width = m_bitmapFile.width();
+    snapshot.height = m_bitmapFile.height();
+    snapshot.bounds = intersectDevicePixelRects(bitmapBounds(), dirtyBounds);
     snapshot.nextStrokeSeed = m_nextStrokeSeed;
     snapshot.committedStrokeCount = m_committedStrokeCount;
 
@@ -1316,39 +1588,39 @@ PaintCanvasItem::RasterPatchSnapshot PaintCanvasItem::captureRasterPatchSnapshot
          y < snapshot.bounds.origin.y + snapshot.bounds.height;
          ++y) {
         const std::size_t rowStart = static_cast<std::size_t>(y)
-                * static_cast<std::size_t>(m_rasterLayer.width);
+                * static_cast<std::size_t>(m_bitmapFile.width());
         for (Types::Pixel x = snapshot.bounds.origin.x;
              x < snapshot.bounds.origin.x + snapshot.bounds.width;
              ++x) {
-            snapshot.pixels.push_back(m_rasterLayer.pixels[rowStart + static_cast<std::size_t>(x)]);
+            snapshot.pixels.push_back(m_bitmapFile.pixels().pixels[rowStart + static_cast<std::size_t>(x)]);
         }
     }
     return snapshot;
 }
 
-PaintCanvasItem::RasterHistoryEntry PaintCanvasItem::captureRasterHistoryEntry() const
+BitmapFileItem::RasterHistoryEntry BitmapFileItem::captureRasterHistoryEntry() const
 {
     RasterHistoryEntry entry;
-    entry.fullCanvas = true;
+    entry.fullBitmap = true;
     entry.fullSnapshot = captureRasterSnapshot();
     return entry;
 }
 
-PaintCanvasItem::RasterHistoryEntry PaintCanvasItem::captureRasterHistoryEntry(DevicePixelRect dirtyBounds) const
+BitmapFileItem::RasterHistoryEntry BitmapFileItem::captureRasterHistoryEntry(DevicePixelRect dirtyBounds) const
 {
     RasterHistoryEntry entry;
-    entry.fullCanvas = false;
+    entry.fullBitmap = false;
     entry.patchSnapshot = captureRasterPatchSnapshot(dirtyBounds);
     return entry;
 }
 
-void PaintCanvasItem::recordRasterChange()
+void BitmapFileItem::recordRasterChange()
 {
     m_undoRasterSnapshots.push_back(captureRasterHistoryEntry());
     m_redoRasterSnapshots.clear();
 }
 
-void PaintCanvasItem::recordRasterChange(DevicePixelRect dirtyBounds)
+void BitmapFileItem::recordRasterChange(DevicePixelRect dirtyBounds)
 {
     RasterHistoryEntry entry = captureRasterHistoryEntry(dirtyBounds);
     if (isEmpty(entry.patchSnapshot.bounds)) {
@@ -1358,20 +1630,20 @@ void PaintCanvasItem::recordRasterChange(DevicePixelRect dirtyBounds)
     m_redoRasterSnapshots.clear();
 }
 
-void PaintCanvasItem::restoreRasterSnapshot(const RasterSnapshot &snapshot)
+void BitmapFileItem::restoreRasterSnapshot(const RasterSnapshot &snapshot)
 {
     const bool wasLiveStrokeActive = liveStrokeActive();
     const int previousStrokeCount = m_committedStrokeCount;
 
     cancelActiveRasterStroke();
-    setWidth(snapshot.width);
-    setHeight(snapshot.height);
-
-    m_rasterLayer = makeRasterLayer(snapshot.width, snapshot.height);
+    RasterLayer restoredPixels = makeRasterLayer(snapshot.width, snapshot.height);
     const auto expectedPixelCount = static_cast<std::size_t>(snapshot.width)
             * static_cast<std::size_t>(snapshot.height);
     if (snapshot.pixels.size() == expectedPixelCount) {
-        m_rasterLayer.pixels = snapshot.pixels;
+        restoredPixels.pixels = snapshot.pixels;
+    }
+    if (!m_bitmapFile.replacePixels(restoredPixels)) {
+        return;
     }
     m_liveRasterLayer = makeRasterLayer(snapshot.width, snapshot.height);
     m_pendingRasterBuffer = makeStrokeCompositeBuffer(snapshot.width, snapshot.height);
@@ -1390,10 +1662,10 @@ void PaintCanvasItem::restoreRasterSnapshot(const RasterSnapshot &snapshot)
     update();
 }
 
-void PaintCanvasItem::restoreRasterPatchSnapshot(const RasterPatchSnapshot &snapshot)
+void BitmapFileItem::restoreRasterPatchSnapshot(const RasterPatchSnapshot &snapshot)
 {
-    if (snapshot.width != m_rasterLayer.width
-            || snapshot.height != m_rasterLayer.height
+    if (snapshot.width != m_bitmapFile.width()
+            || snapshot.height != m_bitmapFile.height()
             || isEmpty(snapshot.bounds)) {
         return;
     }
@@ -1408,15 +1680,8 @@ void PaintCanvasItem::restoreRasterPatchSnapshot(const RasterPatchSnapshot &snap
     const int previousStrokeCount = m_committedStrokeCount;
 
     cancelActiveRasterStroke();
-    for (Types::Pixel y = 0; y < snapshot.bounds.height; ++y) {
-        const std::size_t sourceRowStart = static_cast<std::size_t>(y)
-                * static_cast<std::size_t>(snapshot.bounds.width);
-        const std::size_t destinationRowStart = static_cast<std::size_t>(snapshot.bounds.origin.y + y)
-                * static_cast<std::size_t>(m_rasterLayer.width)
-                + static_cast<std::size_t>(snapshot.bounds.origin.x);
-        std::copy(snapshot.pixels.begin() + static_cast<std::ptrdiff_t>(sourceRowStart),
-                  snapshot.pixels.begin() + static_cast<std::ptrdiff_t>(sourceRowStart + snapshot.bounds.width),
-                  m_rasterLayer.pixels.begin() + static_cast<std::ptrdiff_t>(destinationRowStart));
+    if (!m_bitmapFile.replacePixelPatch(snapshot.bounds, snapshot.pixels)) {
+        return;
     }
 
     m_liveRasterLayer = makeRasterLayer(snapshot.width, snapshot.height);
@@ -1436,9 +1701,9 @@ void PaintCanvasItem::restoreRasterPatchSnapshot(const RasterPatchSnapshot &snap
     requestTextureUpdate(snapshot.bounds);
 }
 
-void PaintCanvasItem::restoreRasterHistoryEntry(const RasterHistoryEntry &entry)
+void BitmapFileItem::restoreRasterHistoryEntry(const RasterHistoryEntry &entry)
 {
-    if (entry.fullCanvas) {
+    if (entry.fullBitmap) {
         restoreRasterSnapshot(entry.fullSnapshot);
         return;
     }

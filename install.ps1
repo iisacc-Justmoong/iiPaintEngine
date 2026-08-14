@@ -372,17 +372,17 @@ $IiPaintEngineHostTestTargets = @(
     "iiPaintEngineTests",
     "iiPaintEngineCoreTests",
     "iiPaintEnginePipelineTests",
-    "iiPaintEngineCanvasDocumentStructureTests",
+    "iiPaintEngineBitmapDocumentStructureTests",
     "iiPaintEngineDocumentSerializerContractTests",
     "iiPaintEngineAppDocumentApiContractTests",
     "iiPaintEngineInstallLayoutContractTests",
     "iiPaintEnginePublicUmbrellaHeaderContractTests",
     "iiPaintEnginePublicCxx17HeaderContractTests",
-    "iiPaintEngineCanvasQmlApiTests",
-    "iiPaintEngineCanvasAdapterContractTests",
-    "iiPaintEngineCanvasPointerAlignmentTests",
-    "iiPaintEngineCanvasTabletPressureContractTests",
-    "iiPaintEngineCanvasLivePreviewRealtimeContractTests",
+    "iiPaintEngineBitmapFileQmlApiTests",
+    "iiPaintEngineBitmapFileApiContractTests",
+    "iiPaintEngineBitmapFilePointerAlignmentTests",
+    "iiPaintEngineBitmapFileTabletPressureContractTests",
+    "iiPaintEngineBitmapFileLivePreviewRealtimeContractTests",
     "iiPaintEnginePointerStrokeFlowTests",
     "iiPaintEnginePressureInputContractTests",
     "iiPaintEngineTabletInputSurfaceTests",
@@ -403,10 +403,10 @@ $IiPaintEngineHostTestTargets = @(
     "iiPaintEngineColorManagementContractTests",
     "iiPaintEngineBrushMaskSamplingTests",
     "iiPaintEngineCoordinateDirtyRegionTests",
-    "iiPaintEngineCanvasEventLoopLoadContractTests",
+    "iiPaintEngineBitmapFileEventLoopLoadContractTests",
     "iiPaintEngineBitmapOnlyArchitectureContractTests",
     "iiPaintEngineBitmapFileCompatibilityContractTests",
-    "iiPaintEngineCanvasModuleRemovalContractTests"
+    "iiPaintEngineBitmapFileArchitectureContractTests"
 )
 
 function Build-HostTests {

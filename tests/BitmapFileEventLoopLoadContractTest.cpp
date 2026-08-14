@@ -2,18 +2,19 @@
 #include <QGuiApplication>
 #include <QMouseEvent>
 #include <QPointF>
+#include <QTemporaryDir>
 
 #include <iostream>
 
-#include "QtAdapter/PaintCanvasItem.h"
+#include "QtAdapter/BitmapFileItem.h"
 
 namespace {
 
-class EventLoopTestCanvas : public PaintCanvasItem {
+class EventLoopTestBitmap : public BitmapFileItem {
 public:
-    using PaintCanvasItem::mouseMoveEvent;
-    using PaintCanvasItem::mousePressEvent;
-    using PaintCanvasItem::mouseReleaseEvent;
+    using BitmapFileItem::mouseMoveEvent;
+    using BitmapFileItem::mousePressEvent;
+    using BitmapFileItem::mouseReleaseEvent;
 };
 
 QMouseEvent mouseEvent(QEvent::Type type,
@@ -30,26 +31,26 @@ QMouseEvent mouseEvent(QEvent::Type type,
                        Qt::NoModifier};
 }
 
-bool waitForPreview(QGuiApplication &app, PaintCanvasItem &canvas)
+bool waitForPreview(QGuiApplication &app, BitmapFileItem &bitmap)
 {
     QElapsedTimer timer;
     timer.start();
     while (timer.elapsed() < 1000) {
         app.processEvents(QEventLoop::AllEvents, 10);
-        if (canvas.liveStrokeActive()) {
+        if (bitmap.liveStrokeActive()) {
             return true;
         }
     }
     return false;
 }
 
-bool waitForCommittedStroke(QGuiApplication &app, PaintCanvasItem &canvas)
+bool waitForCommittedStroke(QGuiApplication &app, BitmapFileItem &bitmap)
 {
     QElapsedTimer timer;
     timer.start();
     while (timer.elapsed() < 1000) {
         app.processEvents(QEventLoop::AllEvents, 10);
-        if (canvas.strokeCount() == 1 && !canvas.liveStrokeActive()) {
+        if (bitmap.strokeCount() == 1 && !bitmap.liveStrokeActive()) {
             return true;
         }
     }
@@ -64,15 +65,23 @@ int main(int argc, char **argv)
 
     QGuiApplication app(argc, argv);
 
-    EventLoopTestCanvas canvas;
-    canvas.setWidth(256);
-    canvas.setHeight(128);
-    canvas.setCanvasDevicePixelRatio(1.0);
-    canvas.setLivePreviewEnabled(true);
-    canvas.setBrush(18.0, QColor{"#101318"}, 1.0, 1.0);
+    QTemporaryDir directory;
+    if (!directory.isValid()) {
+        return 1;
+    }
 
-    const int initialQObjectChildren = canvas.children().size();
-    const int initialItemChildren = canvas.childItems().size();
+    EventLoopTestBitmap bitmap;
+    bitmap.setWidth(256);
+    bitmap.setHeight(128);
+    bitmap.setBitmapDevicePixelRatio(1.0);
+    if (!bitmap.createFile(directory.filePath(QStringLiteral("event-loop.png")), 256, 128)) {
+        return 1;
+    }
+    bitmap.setLivePreviewEnabled(true);
+    bitmap.setBrush(18.0, QColor{"#101318"}, 1.0, 1.0);
+
+    const int initialQObjectChildren = bitmap.children().size();
+    const int initialItemChildren = bitmap.childItems().size();
     if (initialQObjectChildren != 0 || initialItemChildren != 0) {
         std::cerr << "initial children qobject=" << initialQObjectChildren
                   << " item=" << initialItemChildren << '\n';
@@ -83,7 +92,7 @@ int main(int argc, char **argv)
                                    QPointF{24.0, 24.0},
                                    Qt::LeftButton,
                                    Qt::LeftButton);
-    canvas.mousePressEvent(&press);
+    bitmap.mousePressEvent(&press);
 
     QPointF latestPosition{24.0, 24.0};
     for (int index = 0; index < 120; ++index) {
@@ -93,10 +102,10 @@ int main(int argc, char **argv)
                                       latestPosition,
                                       Qt::NoButton,
                                       Qt::LeftButton);
-        canvas.mouseMoveEvent(&move);
+        bitmap.mouseMoveEvent(&move);
     }
 
-    if (!waitForPreview(app, canvas)) {
+    if (!waitForPreview(app, bitmap)) {
         std::cerr << "preview did not become active\n";
         return 1;
     }
@@ -105,19 +114,19 @@ int main(int argc, char **argv)
                                      latestPosition,
                                      Qt::LeftButton,
                                      Qt::NoButton);
-    canvas.mouseReleaseEvent(&release);
-    if (!waitForCommittedStroke(app, canvas)) {
-        std::cerr << "commit wait failed strokeCount=" << canvas.strokeCount()
-                  << " live=" << canvas.liveStrokeActive() << '\n';
+    bitmap.mouseReleaseEvent(&release);
+    if (!waitForCommittedStroke(app, bitmap)) {
+        std::cerr << "commit wait failed strokeCount=" << bitmap.strokeCount()
+                  << " live=" << bitmap.liveStrokeActive() << '\n';
         return 1;
     }
 
-    if (canvas.children().size() != initialQObjectChildren
-            || canvas.childItems().size() != initialItemChildren
-            || canvas.strokeCount() != 1) {
-        std::cerr << "final children qobject=" << canvas.children().size()
-                  << " item=" << canvas.childItems().size()
-                  << " strokeCount=" << canvas.strokeCount() << '\n';
+    if (bitmap.children().size() != initialQObjectChildren
+            || bitmap.childItems().size() != initialItemChildren
+            || bitmap.strokeCount() != 1) {
+        std::cerr << "final children qobject=" << bitmap.children().size()
+                  << " item=" << bitmap.childItems().size()
+                  << " strokeCount=" << bitmap.strokeCount() << '\n';
         return 1;
     }
 

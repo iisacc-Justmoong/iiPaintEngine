@@ -328,9 +328,9 @@ DocumentMetadata readDocumentMetadata(const std::map<std::string, std::string> &
     return metadata;
 }
 
-void readLegacyCanvasMetadata(const std::map<std::string, std::string> &values,
-                              const std::string &prefix,
-                              DocumentMetadata &metadata)
+void readLegacySurfaceMetadata(const std::map<std::string, std::string> &values,
+                               const std::string &prefix,
+                               DocumentMetadata &metadata)
 {
     if (metadata.title.empty()) {
         metadata.title = readString(values, prefix + ".title");
@@ -1058,16 +1058,16 @@ DocumentArchive deserializeDocumentArchive(const std::string &payload)
     std::string surfacePrefix = "document.surface";
     std::string layersPrefix = "document.layers";
     if (sourceFormatVersion < documentArchiveFormatVersion) {
-        const std::size_t legacyCanvasCount = readNumber<std::size_t>(values, "document.canvases.count");
-        if (legacyCanvasCount != 1) {
+        const std::size_t legacySurfaceCount = readNumber<std::size_t>(values, "document.canvases.count");
+        if (legacySurfaceCount != 1) {
             archive.compatible = false;
-            archive.compatibilityError = "Only single-canvas legacy bitmap documents can be migrated without data loss.";
+            archive.compatibilityError = "Only single-surface legacy bitmap documents can be migrated without data loss.";
             return archive;
         }
         const std::string legacyPrefix = "document.canvases.0";
         surfacePrefix = legacyPrefix + ".surface";
         layersPrefix = legacyPrefix + ".layers";
-        readLegacyCanvasMetadata(values, legacyPrefix + ".metadata", archive.document.metadata);
+        readLegacySurfaceMetadata(values, legacyPrefix + ".metadata", archive.document.metadata);
     }
 
     archive.document.surface = readSurface(values, surfacePrefix);

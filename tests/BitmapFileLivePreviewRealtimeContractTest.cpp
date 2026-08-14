@@ -4,21 +4,20 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPointF>
+#include <QTemporaryDir>
 
 #include <algorithm>
 #include <cmath>
 
-#include "QtAdapter/PaintCanvasItem.h"
+#include "QtAdapter/BitmapFileItem.h"
 
 namespace {
 
-class LivePreviewTestCanvas : public PaintCanvasItem {
+class LivePreviewTestBitmap : public BitmapFileItem {
 public:
-    using PaintCanvasItem::mouseMoveEvent;
-    using PaintCanvasItem::mousePressEvent;
-    using PaintCanvasItem::mouseReleaseEvent;
-    using PaintCanvasItem::redoRasterChange;
-    using PaintCanvasItem::undoRasterChange;
+    using BitmapFileItem::mouseMoveEvent;
+    using BitmapFileItem::mousePressEvent;
+    using BitmapFileItem::mouseReleaseEvent;
 };
 
 QMouseEvent mouseEvent(QEvent::Type type,
@@ -35,11 +34,11 @@ QMouseEvent mouseEvent(QEvent::Type type,
                        Qt::NoModifier};
 }
 
-QImage renderedCanvas(PaintCanvasItem &canvas);
+QImage renderedBitmap(BitmapFileItem &bitmap);
 
-bool hasPaintNear(PaintCanvasItem &canvas, QPointF position, int radius)
+bool hasPaintNear(BitmapFileItem &bitmap, QPointF position, int radius)
 {
-    const QImage rendered = renderedCanvas(canvas);
+    const QImage rendered = renderedBitmap(bitmap);
     const int centerX = static_cast<int>(std::lround(position.x()));
     const int centerY = static_cast<int>(std::lround(position.y()));
     for (int y = std::max(0, centerY - radius); y <= std::min(rendered.height() - 1, centerY + radius); ++y) {
@@ -52,19 +51,19 @@ bool hasPaintNear(PaintCanvasItem &canvas, QPointF position, int radius)
     return false;
 }
 
-QImage renderedCanvas(PaintCanvasItem &canvas)
+QImage renderedBitmap(BitmapFileItem &bitmap)
 {
     QImage rendered{160, 96, QImage::Format_ARGB32_Premultiplied};
     rendered.fill(Qt::transparent);
     QPainter painter{&rendered};
-    canvas.paint(&painter);
+    bitmap.paint(&painter);
     painter.end();
     return rendered;
 }
 
-int alphaAt(PaintCanvasItem &canvas, QPointF position)
+int alphaAt(BitmapFileItem &bitmap, QPointF position)
 {
-    const QImage rendered = renderedCanvas(canvas);
+    const QImage rendered = renderedBitmap(bitmap);
     const int centerX = static_cast<int>(std::lround(position.x()));
     const int centerY = static_cast<int>(std::lround(position.y()));
     if (centerX < 0 || centerY < 0 || centerX >= rendered.width() || centerY >= rendered.height()) {
@@ -73,52 +72,52 @@ int alphaAt(PaintCanvasItem &canvas, QPointF position)
     return qAlpha(rendered.pixel(centerX, centerY));
 }
 
-bool waitForLivePaint(QGuiApplication &app, PaintCanvasItem &canvas, QPointF position)
+bool waitForLivePaint(QGuiApplication &app, BitmapFileItem &bitmap, QPointF position)
 {
     QElapsedTimer timer;
     timer.start();
     while (timer.elapsed() < 1000) {
         app.processEvents(QEventLoop::AllEvents, 10);
-        if (hasPaintNear(canvas, position, 8)) {
+        if (hasPaintNear(bitmap, position, 8)) {
             return true;
         }
     }
     return false;
 }
 
-bool waitForCommittedPaint(QGuiApplication &app, PaintCanvasItem &canvas, QPointF position)
+bool waitForCommittedPaint(QGuiApplication &app, BitmapFileItem &bitmap, QPointF position)
 {
     QElapsedTimer timer;
     timer.start();
     while (timer.elapsed() < 1000) {
         app.processEvents(QEventLoop::AllEvents, 10);
-        if (!canvas.liveStrokeActive() && hasPaintNear(canvas, position, 8)) {
+        if (!bitmap.liveStrokeActive() && hasPaintNear(bitmap, position, 8)) {
             return true;
         }
     }
     return false;
 }
 
-bool waitForAlphaAtLeast(QGuiApplication &app, PaintCanvasItem &canvas, QPointF position, int minimumAlpha)
+bool waitForAlphaAtLeast(QGuiApplication &app, BitmapFileItem &bitmap, QPointF position, int minimumAlpha)
 {
     QElapsedTimer timer;
     timer.start();
     while (timer.elapsed() < 1000) {
         app.processEvents(QEventLoop::AllEvents, 10);
-        if (alphaAt(canvas, position) >= minimumAlpha) {
+        if (alphaAt(bitmap, position) >= minimumAlpha) {
             return true;
         }
     }
     return false;
 }
 
-bool waitForAlphaAtMost(QGuiApplication &app, PaintCanvasItem &canvas, QPointF position, int maximumAlpha)
+bool waitForAlphaAtMost(QGuiApplication &app, BitmapFileItem &bitmap, QPointF position, int maximumAlpha)
 {
     QElapsedTimer timer;
     timer.start();
     while (timer.elapsed() < 1000) {
         app.processEvents(QEventLoop::AllEvents, 10);
-        if (alphaAt(canvas, position) <= maximumAlpha) {
+        if (alphaAt(bitmap, position) <= maximumAlpha) {
             return true;
         }
     }
@@ -126,7 +125,7 @@ bool waitForAlphaAtMost(QGuiApplication &app, PaintCanvasItem &canvas, QPointF p
 }
 
 bool waitForCommittedAlphaAtMost(QGuiApplication &app,
-                                 PaintCanvasItem &canvas,
+                                 BitmapFileItem &bitmap,
                                  QPointF position,
                                  int maximumAlpha,
                                  int expectedStrokeCount)
@@ -135,9 +134,9 @@ bool waitForCommittedAlphaAtMost(QGuiApplication &app,
     timer.start();
     while (timer.elapsed() < 1000) {
         app.processEvents(QEventLoop::AllEvents, 10);
-        if (!canvas.liveStrokeActive()
-                && canvas.strokeCount() == expectedStrokeCount
-                && alphaAt(canvas, position) <= maximumAlpha) {
+        if (!bitmap.liveStrokeActive()
+                && bitmap.strokeCount() == expectedStrokeCount
+                && alphaAt(bitmap, position) <= maximumAlpha) {
             return true;
         }
     }
@@ -152,19 +151,27 @@ int main(int argc, char **argv)
 
     QGuiApplication app(argc, argv);
 
-    LivePreviewTestCanvas canvas;
-    canvas.setWidth(160);
-    canvas.setHeight(96);
-    canvas.setCanvasDevicePixelRatio(1.0);
-    canvas.setLivePreviewEnabled(true);
-    canvas.setBrush(24.0, QColor{"#101318"}, 1.0, 1.0);
-    canvas.setBrushSpacingRatio(0.02);
+    QTemporaryDir directory;
+    if (!directory.isValid()) {
+        return 1;
+    }
+
+    LivePreviewTestBitmap bitmap;
+    bitmap.setWidth(160);
+    bitmap.setHeight(96);
+    bitmap.setBitmapDevicePixelRatio(1.0);
+    if (!bitmap.createFile(directory.filePath(QStringLiteral("live.png")), 160, 96)) {
+        return 1;
+    }
+    bitmap.setLivePreviewEnabled(true);
+    bitmap.setBrush(24.0, QColor{"#101318"}, 1.0, 1.0);
+    bitmap.setBrushSpacingRatio(0.02);
 
     QMouseEvent press = mouseEvent(QEvent::MouseButtonPress,
                                    QPointF{12.0, 48.0},
                                    Qt::LeftButton,
                                    Qt::LeftButton);
-    canvas.mousePressEvent(&press);
+    bitmap.mousePressEvent(&press);
 
     QPointF latestPosition{12.0, 48.0};
     for (int i = 1; i <= 80; ++i) {
@@ -174,18 +181,18 @@ int main(int argc, char **argv)
                                       latestPosition,
                                       Qt::NoButton,
                                       Qt::LeftButton);
-        canvas.mouseMoveEvent(&move);
+        bitmap.mouseMoveEvent(&move);
     }
 
-    if (!waitForLivePaint(app, canvas, latestPosition)) {
+    if (!waitForLivePaint(app, bitmap, latestPosition)) {
         return 1;
     }
 
-    if (!canvas.liveStrokeActive()) {
+    if (!bitmap.liveStrokeActive()) {
         return 1;
     }
 
-    if (canvas.strokeCount() != 0) {
+    if (bitmap.strokeCount() != 0) {
         return 1;
     }
 
@@ -193,80 +200,83 @@ int main(int argc, char **argv)
                                      latestPosition,
                                      Qt::LeftButton,
                                      Qt::NoButton);
-    canvas.mouseReleaseEvent(&release);
+    bitmap.mouseReleaseEvent(&release);
 
-    if (!hasPaintNear(canvas, latestPosition, 8)) {
+    if (!hasPaintNear(bitmap, latestPosition, 8)) {
         return 1;
     }
 
-    if (!waitForCommittedPaint(app, canvas, latestPosition)) {
+    if (!waitForCommittedPaint(app, bitmap, latestPosition)) {
         return 1;
     }
 
-    if (canvas.strokeCount() != 1) {
+    if (bitmap.strokeCount() != 1) {
         return 1;
     }
 
-    const int committedAlpha = alphaAt(canvas, latestPosition);
+    const int committedAlpha = alphaAt(bitmap, latestPosition);
     if (committedAlpha <= 0
-            || !canvas.undoRasterChange()
-            || canvas.strokeCount() != 0
-            || alphaAt(canvas, latestPosition) != 0
-            || !canvas.redoRasterChange()
-            || canvas.strokeCount() != 1
-            || alphaAt(canvas, latestPosition) <= 0) {
+            || !bitmap.undo()
+            || bitmap.strokeCount() != 0
+            || alphaAt(bitmap, latestPosition) != 0
+            || !bitmap.redo()
+            || bitmap.strokeCount() != 1
+            || alphaAt(bitmap, latestPosition) <= 0) {
         return 1;
     }
 
-    LivePreviewTestCanvas eraserCanvas;
-    eraserCanvas.setWidth(160);
-    eraserCanvas.setHeight(96);
-    eraserCanvas.setCanvasDevicePixelRatio(1.0);
-    eraserCanvas.setLivePreviewEnabled(true);
-    eraserCanvas.setBrush(52.0, QColor{"#101318"}, 1.0, 1.0);
-    eraserCanvas.setBrushSpacingRatio(0.0);
+    LivePreviewTestBitmap eraserBitmap;
+    eraserBitmap.setWidth(160);
+    eraserBitmap.setHeight(96);
+    eraserBitmap.setBitmapDevicePixelRatio(1.0);
+    if (!eraserBitmap.createFile(directory.filePath(QStringLiteral("eraser.png")), 160, 96)) {
+        return 2;
+    }
+    eraserBitmap.setLivePreviewEnabled(true);
+    eraserBitmap.setBrush(52.0, QColor{"#101318"}, 1.0, 1.0);
+    eraserBitmap.setBrushSpacingRatio(0.0);
 
     QMouseEvent basePress = mouseEvent(QEvent::MouseButtonPress,
                                        QPointF{20.0, 48.0},
                                        Qt::LeftButton,
                                        Qt::LeftButton);
-    eraserCanvas.mousePressEvent(&basePress);
+    eraserBitmap.mousePressEvent(&basePress);
     QMouseEvent baseMove = mouseEvent(QEvent::MouseMove,
                                       QPointF{140.0, 48.0},
                                       Qt::NoButton,
                                       Qt::LeftButton);
-    eraserCanvas.mouseMoveEvent(&baseMove);
+    eraserBitmap.mouseMoveEvent(&baseMove);
     QMouseEvent baseRelease = mouseEvent(QEvent::MouseButtonRelease,
                                          QPointF{140.0, 48.0},
                                          Qt::LeftButton,
                                          Qt::NoButton);
-    eraserCanvas.mouseReleaseEvent(&baseRelease);
+    eraserBitmap.mouseReleaseEvent(&baseRelease);
 
     const QPointF eraserPosition{80.0, 48.0};
-    if (!waitForCommittedPaint(app, eraserCanvas, eraserPosition)
-            || !waitForAlphaAtLeast(app, eraserCanvas, eraserPosition, 220)) {
+    if (!waitForCommittedPaint(app, eraserBitmap, eraserPosition)
+            || !waitForAlphaAtLeast(app, eraserBitmap, eraserPosition, 220)) {
         return 2;
     }
 
-    eraserCanvas.setEraserMode(true);
+    eraserBitmap.setEraserMode(true);
     QMouseEvent eraserPress = mouseEvent(QEvent::MouseButtonPress,
                                          QPointF{60.0, 48.0},
                                          Qt::LeftButton,
                                          Qt::LeftButton);
-    eraserCanvas.mousePressEvent(&eraserPress);
+    eraserBitmap.mousePressEvent(&eraserPress);
     for (int i = 1; i <= 20; ++i) {
         QMouseEvent eraserMove = mouseEvent(QEvent::MouseMove,
                                             QPointF{60.0 + static_cast<qreal>(i), 48.0},
                                             Qt::NoButton,
                                             Qt::LeftButton);
-        eraserCanvas.mouseMoveEvent(&eraserMove);
+        eraserBitmap.mouseMoveEvent(&eraserMove);
     }
 
-    if (!waitForAlphaAtMost(app, eraserCanvas, eraserPosition, 80)) {
+    if (!waitForAlphaAtMost(app, eraserBitmap, eraserPosition, 80)) {
         return 3;
     }
 
-    if (!eraserCanvas.liveStrokeActive() || eraserCanvas.strokeCount() != 1) {
+    if (!eraserBitmap.liveStrokeActive() || eraserBitmap.strokeCount() != 1) {
         return 4;
     }
 
@@ -274,8 +284,8 @@ int main(int argc, char **argv)
                                            eraserPosition,
                                            Qt::LeftButton,
                                            Qt::NoButton);
-    eraserCanvas.mouseReleaseEvent(&eraserRelease);
-    if (!waitForCommittedAlphaAtMost(app, eraserCanvas, eraserPosition, 80, 2)) {
+    eraserBitmap.mouseReleaseEvent(&eraserRelease);
+    if (!waitForCommittedAlphaAtMost(app, eraserBitmap, eraserPosition, 80, 2)) {
         return 5;
     }
 
