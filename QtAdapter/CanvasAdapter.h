@@ -5,6 +5,7 @@
 #pragma once
 
 #include <QString>
+#include <QStringList>
 
 #include "QtAdapter/CanvasApiConfig.h"
 #include "QtAdapter/CanvasBrushConfig.h"
@@ -19,6 +20,9 @@ class CanvasAdapter : public PaintCanvasItem {
     Q_PROPERTY(CanvasStateSnapshot stateSnapshot READ stateSnapshot NOTIFY stateSnapshotChanged)
     Q_PROPERTY(bool canUndo READ canUndo NOTIFY undoRedoChanged)
     Q_PROPERTY(bool canRedo READ canRedo NOTIFY undoRedoChanged)
+    Q_PROPERTY(QStringList supportedOpenFormats READ supportedOpenFormats CONSTANT)
+    Q_PROPERTY(QStringList supportedSaveFormats READ supportedSaveFormats CONSTANT)
+    Q_PROPERTY(QString lastFileError READ lastFileError NOTIFY lastFileErrorChanged)
 
 public:
     explicit CanvasAdapter(QQuickItem *parent = nullptr);
@@ -39,10 +43,14 @@ public:
 
     bool canUndo() const;
     bool canRedo() const;
+    QStringList supportedOpenFormats() const;
+    QStringList supportedSaveFormats() const;
+    QString lastFileError() const;
 
     Q_INVOKABLE bool newCanvas(int width, int height);
     Q_INVOKABLE bool openRaster(const QString &filePath);
     Q_INVOKABLE bool saveToFile(const QString &filePath);
+    Q_INVOKABLE bool saveToFileAs(const QString &filePath, const QString &format, int quality = -1);
     Q_INVOKABLE bool undo();
     Q_INVOKABLE bool redo();
 
@@ -53,7 +61,11 @@ signals:
     void runtimeConfigChanged();
     void stateSnapshotChanged();
     void undoRedoChanged();
+    void lastFileErrorChanged();
 
 private:
     QString m_toolMode = QStringLiteral("brush");
+    QString m_lastFileError;
+
+    void setLastFileError(const QString &error);
 };

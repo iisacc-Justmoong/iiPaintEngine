@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include <vector>
-
-#include "Canvas/Canvas.h"
 #include "Document/DocumentMetadata.h"
+#include "Layer/DrawingSurface.h"
+#include "Layer/LayerStack.h"
 
 struct PaintDocument {
     DocumentMetadata metadata;
-    std::vector<Canvas> canvases;
+    DrawingSurface surface;
+    LayerStack layers;
 };
 
 PaintDocument makePaintDocument(const RasterLayer &baseLayer);

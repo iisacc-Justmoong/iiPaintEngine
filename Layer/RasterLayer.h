@@ -41,6 +41,8 @@ std::uint32_t strokeCompositePixelAt(const StrokeCompositeBuffer &buffer, Device
 
 void compositeStrokeBufferOntoLayer(RasterLayer &layer, const StrokeCompositeBuffer &buffer);
 
+void eraseStrokeBufferFromLayer(RasterLayer &layer, const StrokeCompositeBuffer &buffer);
+
 void paintRasterSamples(RasterLayer &layer, const std::vector<RasterSample> &samples);
 
 std::uint32_t rasterLayerPixelAt(const RasterLayer &layer, DevicePixelPoint position);

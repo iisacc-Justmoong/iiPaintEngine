@@ -54,10 +54,7 @@ Iipe.Canvas {
     pressureCurveMinimum: 0.2
     pressureCurveCenter: 0.6
     pressureCurveMaximum: 0.9
-    stabilizerStrength: 0.4
     livePreviewEnabled: true
-    livePreviewFrameIntervalMs: 12
-    multithreadedEventsEnabled: true
 }
 )",
                       QUrl{"test://CanvasQmlApi.qml"});
@@ -99,10 +96,7 @@ Iipe.Canvas {
             || canvas->pressureCurveMinimum() != 0.2
             || canvas->pressureCurveCenter() != 0.6
             || canvas->pressureCurveMaximum() != 0.9
-            || canvas->stabilizerStrength() != 0.4
             || !canvas->livePreviewEnabled()
-            || canvas->livePreviewFrameIntervalMs() != 12
-            || !canvas->multithreadedEventsEnabled()
             || canvas->liveStrokeActive()
             || canvas->strokeCount() != 0
             || canvas->inputDevice() != QStringLiteral("mouse")
@@ -171,35 +165,15 @@ Iipe.Canvas {
     canvas->setPressureCurveMinimum(0.7);
     canvas->setPressureCurveCenter(0.1);
     canvas->setPressureCurveMaximum(0.5);
-    canvas->setStabilizerStrength(2.0);
     if (canvas->pressureCurveMinimum() != 0.5
             || canvas->pressureCurveCenter() != 0.5
-            || canvas->pressureCurveMaximum() != 0.5
-            || canvas->stabilizerStrength() != 1.0) {
+            || canvas->pressureCurveMaximum() != 0.5) {
         delete object;
         return 1;
     }
 
     QMetaObject::invokeMethod(canvas, "clear");
     if (canvas->strokeCount() != 0) {
-        delete object;
-        return 1;
-    }
-
-    canvas->setMultithreadedEventsEnabled(false);
-    if (canvas->multithreadedEventsEnabled()) {
-        delete object;
-        return 1;
-    }
-
-    canvas->setLivePreviewFrameIntervalMs(-4);
-    if (canvas->livePreviewFrameIntervalMs() != 0) {
-        delete object;
-        return 1;
-    }
-
-    canvas->setLivePreviewFrameIntervalMs(2500);
-    if (canvas->livePreviewFrameIntervalMs() != 1000) {
         delete object;
         return 1;
     }

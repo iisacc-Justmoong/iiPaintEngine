@@ -33,7 +33,6 @@ struct RenderContext {
     bool allowCpuFallback = true;
     bool tileCacheEnabled = false;
     bool brushStampAtlasEnabled = false;
-    bool strokeReplayCacheEnabled = false;
     bool simdEnabled = true;
     bool gpuPathEnabled = true;
     bool linearCompositingEnabled = true;
@@ -45,7 +44,6 @@ struct RenderExecutionPlan {
     RenderBufferFormat bufferFormat = RenderBufferFormat::UInt8;
     bool usesTileCache = false;
     bool usesBrushStampAtlas = false;
-    bool usesStrokeReplayCache = false;
     bool linearCompositing = false;
     bool wideGamut = false;
     bool hdr = false;

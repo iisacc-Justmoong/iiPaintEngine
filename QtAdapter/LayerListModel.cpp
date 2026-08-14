@@ -42,11 +42,10 @@ LayerListModel makeLayerListModel(const LayerStack &layers)
 
 LayerListModel makeLayerListModel(const DocumentAdapter &adapter)
 {
-    const Canvas *canvas = activeDocumentCanvas(adapter);
-    if (canvas == nullptr) {
+    if (!documentAdapterHasDocument(adapter)) {
         return {};
     }
-    return makeLayerListModel(canvas->layers);
+    return makeLayerListModel(adapter.archive.document.layers);
 }
 
 const LayerListRow *layerListRowAt(const LayerListModel &model, std::size_t rowIndex)

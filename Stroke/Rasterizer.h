@@ -8,13 +8,12 @@
 #include <cstddef>
 #include <vector>
 
+#include "Brush/BrushDynamics.h"
+#include "Brush/BrushMaterial.h"
 #include "Core/PaintRect.h"
 #include "Core/RasterSample.h"
 #include "Core/Types.h"
-#include "Stroke/StrokeCurve.h"
-
-struct BrushDynamics;
-struct BrushMaterial;
+#include "Stroke/StrokePoint.h"
 
 enum class StrokeTaperShape {
     Linear,
@@ -133,30 +132,36 @@ struct Rasterizer {
     Types::Scalar pressureScale = 0.0;
     Types::Scalar velocitySpacing = 0.0;
     Types::Scalar warmupDistance = 0.0;
-    Types::Scalar taperDistance = 0.0;
     Types::Scalar taperMinimum = 0.25;
     StrokeTaperShape warmupTaperShape = StrokeTaperShape::Linear;
-    StrokeTaperShape endTaperShape = StrokeTaperShape::Linear;
     Types::Scalar rotationJitter = 0.0;
     RasterBlendMode blendMode = RasterBlendMode::SourceOver;
 };
 
-std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve, const Rasterizer &rasterizer);
+struct BrushState {
+    Rasterizer rasterizer;
+    BrushDynamics dynamics;
+    BrushMaterial material;
+    std::uint32_t randomSeed = 0;
+};
 
-std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
-                                     const Rasterizer &rasterizer,
-                                     std::uint32_t randomSeed);
+// Minimal state for streaming bitmap dabs along incoming pointer positions.
+// It never owns a path, curve, point list, or replayable stroke object.
+struct RasterDabStream {
+    bool active = false;
+    StrokePoint previousPoint{};
+    Types::Scalar traveledDistance = 0.0;
+    Types::Scalar nextDabDistance = 0.0;
+    Types::Scalar lastDabDistance = -1.0;
+    std::uint32_t sequenceIndex = 0;
+};
 
-std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
-                                     const Rasterizer &rasterizer,
-                                     const BrushDynamics &dynamics,
-                                     std::uint32_t randomSeed);
+std::vector<BrushDab> appendRasterDabs(RasterDabStream &stream,
+                                       const StrokePoint &point,
+                                       const BrushState &brush,
+                                       bool finishStroke = false);
 
-std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
-                                     const Rasterizer &rasterizer,
-                                     const BrushDynamics &dynamics,
-                                     const BrushMaterial &material,
-                                     std::uint32_t randomSeed);
+void resetRasterDabStream(RasterDabStream &stream);
 
 std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs, const Rasterizer &rasterizer);
 
@@ -191,12 +196,6 @@ std::vector<RasterSample> projectBrushDabs(BrushDabSpan dabs,
                                            const RasterProjection &projection,
                                            const RasterSourceSampler &sourceSampler,
                                            const BrushMaterial &material);
-
-std::vector<RasterSample> rasterizeStrokeCurve(const StrokeCurve &curve, const Rasterizer &rasterizer);
-
-std::vector<RasterSample> rasterizeStrokeCurve(const StrokeCurve &curve,
-                                               const Rasterizer &rasterizer,
-                                               const RasterProjection &projection);
 
 DocumentRect documentBoundsForBrushDab(const BrushDab &dab, const Rasterizer &rasterizer);
 

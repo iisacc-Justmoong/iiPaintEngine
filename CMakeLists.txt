@@ -26,7 +26,7 @@ if (NOT LVRS_DIR)
     endif ()
 endif ()
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Svg Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Network)
 find_package(LVRS CONFIG REQUIRED)
 
 set(IIPAINTENGINE_LVRS_LIBRARY_DIR "")
@@ -99,16 +99,6 @@ set(IIPAINTENGINE_SOURCES
         Document/DocumentSnapshot.h
         Document/DocumentSerializer.cpp
         Document/DocumentSerializer.h
-        Canvas/Canvas.cpp
-        Canvas/Canvas.h
-        Canvas/CanvasMetadata.cpp
-        Canvas/CanvasMetadata.h
-        Canvas/CanvasState.cpp
-        Canvas/CanvasState.h
-        Canvas/CanvasViewport.cpp
-        Canvas/CanvasViewport.h
-        Canvas/CanvasSession.cpp
-        Canvas/CanvasSession.h
         Layer/Layer.cpp
         Layer/Layer.h
         Layer/LayerMetadata.cpp
@@ -119,12 +109,6 @@ set(IIPAINTENGINE_SOURCES
         Layer/LayerStack.h
         Layer/RasterLayer.cpp
         Layer/RasterLayer.h
-        Layer/StrokeLayer.cpp
-        Layer/StrokeLayer.h
-        Layer/TextLayer.cpp
-        Layer/TextLayer.h
-        Layer/VectorLayer.cpp
-        Layer/VectorLayer.h
         Brush/BrushPreset.cpp
         Brush/BrushPreset.h
         Brush/BrushMaterial.cpp
@@ -145,26 +129,8 @@ set(IIPAINTENGINE_SOURCES
         Brush/BrushResolve.h
         Stroke/Rasterizer.cpp
         Stroke/Rasterizer.h
-        Stroke/LiveStroke.cpp
-        Stroke/LiveStroke.h
-        Stroke/Stabilizer.cpp
-        Stroke/Stabilizer.h
         Stroke/StrokePoint.cpp
         Stroke/StrokePoint.h
-        Stroke/Stroke.cpp
-        Stroke/Stroke.h
-        Stroke/StrokeGeometry.cpp
-        Stroke/StrokeGeometry.h
-        Stroke/StrokeCommand.cpp
-        Stroke/StrokeCommand.h
-        Stroke/StrokeRepository.cpp
-        Stroke/StrokeRepository.h
-        Stroke/StrokeInput.cpp
-        Stroke/StrokeInput.h
-        Stroke/StrokeResampler.cpp
-        Stroke/StrokeResampler.h
-        Stroke/StrokeCurve.cpp
-        Stroke/StrokeCurve.h
         Render/Renderer.cpp
         Render/Renderer.h
         Render/RenderContext.cpp
@@ -209,6 +175,8 @@ set(IIPAINTENGINE_SOURCES
         Selection/Selection.h
         Transform/Transform.cpp
         Transform/Transform.h
+        Transform/ViewportTransform.cpp
+        Transform/ViewportTransform.h
         Filter/FilterPipeline.cpp
         Filter/FilterPipeline.h
         Tool/RasterEditTool.cpp
@@ -217,12 +185,12 @@ set(IIPAINTENGINE_SOURCES
         Tool/ToolStateMachine.h
         QtAdapter/PaintCanvasItem.cpp
         QtAdapter/PaintCanvasItem.h
+        QtAdapter/BitmapFileCodec.cpp
+        QtAdapter/BitmapFileCodec.h
         QtAdapter/CanvasAdapter.cpp
         QtAdapter/CanvasAdapter.h
         QtAdapter/CanvasApiConfig.h
         QtAdapter/CanvasBrushConfig.h
-        QtAdapter/CanvasEventWork.cpp
-        QtAdapter/CanvasEventWork.h
         QtAdapter/IipeQmlTypes.cpp
         QtAdapter/IipeQmlTypes.h
         QtAdapter/PaintEngineController.cpp
@@ -269,7 +237,6 @@ install(FILES library.h iiPaintEngine
 
 install(DIRECTORY
         Brush
-        Canvas
         Color
         Core
         Document
@@ -532,14 +499,14 @@ target_link_libraries(iiPaintEngineTabletInputSurfaceTests PRIVATE
 add_test(NAME iiPaintEngineTabletInputSurface
         COMMAND iiPaintEngineTabletInputSurfaceTests)
 
-add_executable(iiPaintEngineHybridPaintingModelTests
-        tests/HybridPaintingModelTest.cpp)
+add_executable(iiPaintEngineRasterPaintingModelTests
+        tests/RasterPaintingModelTest.cpp)
 
-target_link_libraries(iiPaintEngineHybridPaintingModelTests PRIVATE
+target_link_libraries(iiPaintEngineRasterPaintingModelTests PRIVATE
         iiPaintEngine)
 
-add_test(NAME iiPaintEngineHybridPaintingModel
-        COMMAND iiPaintEngineHybridPaintingModelTests)
+add_test(NAME iiPaintEngineRasterPaintingModel
+        COMMAND iiPaintEngineRasterPaintingModelTests)
 
 add_executable(iiPaintEngineStrokePhysicalContractTests
         tests/StrokePhysicalContractTest.cpp)
@@ -549,33 +516,6 @@ target_link_libraries(iiPaintEngineStrokePhysicalContractTests PRIVATE
 
 add_test(NAME iiPaintEngineStrokePhysicalContract
         COMMAND iiPaintEngineStrokePhysicalContractTests)
-
-add_executable(iiPaintEngineStrokeGeometryReportContractTests
-        tests/StrokeGeometryReportContractTest.cpp)
-
-target_link_libraries(iiPaintEngineStrokeGeometryReportContractTests PRIVATE
-        iiPaintEngine)
-
-add_test(NAME iiPaintEngineStrokeGeometryReportContract
-        COMMAND iiPaintEngineStrokeGeometryReportContractTests)
-
-add_executable(iiPaintEngineStabilizerAdvancedContractTests
-        tests/StabilizerAdvancedContractTest.cpp)
-
-target_link_libraries(iiPaintEngineStabilizerAdvancedContractTests PRIVATE
-        iiPaintEngine)
-
-add_test(NAME iiPaintEngineStabilizerAdvancedContract
-        COMMAND iiPaintEngineStabilizerAdvancedContractTests)
-
-add_executable(iiPaintEngineLiveStrokeRenderingTests
-        tests/LiveStrokeRenderingTest.cpp)
-
-target_link_libraries(iiPaintEngineLiveStrokeRenderingTests PRIVATE
-        iiPaintEngine)
-
-add_test(NAME iiPaintEngineLiveStrokeRendering
-        COMMAND iiPaintEngineLiveStrokeRenderingTests)
 
 add_executable(iiPaintEngineBrushDynamicsMappingTests
         tests/BrushDynamicsMappingTest.cpp)
@@ -649,15 +589,6 @@ target_link_libraries(iiPaintEngineEditingToolPipelineContractTests PRIVATE
 add_test(NAME iiPaintEngineEditingToolPipelineContract
         COMMAND iiPaintEngineEditingToolPipelineContractTests)
 
-add_executable(iiPaintEngineStrokeResamplerTests
-        tests/StrokeResamplerTest.cpp)
-
-target_link_libraries(iiPaintEngineStrokeResamplerTests PRIVATE
-        iiPaintEngine)
-
-add_test(NAME iiPaintEngineStrokeResampler
-        COMMAND iiPaintEngineStrokeResamplerTests)
-
 add_executable(iiPaintEngineStrokeCompositingTests
         tests/StrokeCompositingTest.cpp)
 
@@ -721,15 +652,6 @@ target_link_libraries(iiPaintEngineCoordinateDirtyRegionTests PRIVATE
 add_test(NAME iiPaintEngineCoordinateDirtyRegion
         COMMAND iiPaintEngineCoordinateDirtyRegionTests)
 
-add_executable(iiPaintEngineCanvasEventThreadingTests
-        tests/CanvasEventThreadingTest.cpp)
-
-target_link_libraries(iiPaintEngineCanvasEventThreadingTests PRIVATE
-        iiPaintEngine)
-
-add_test(NAME iiPaintEngineCanvasEventThreading
-        COMMAND iiPaintEngineCanvasEventThreadingTests)
-
 add_executable(iiPaintEngineCanvasEventLoopLoadContractTests
         tests/CanvasEventLoopLoadContractTest.cpp)
 
@@ -739,23 +661,38 @@ target_link_libraries(iiPaintEngineCanvasEventLoopLoadContractTests PRIVATE
 add_test(NAME iiPaintEngineCanvasEventLoopLoadContract
         COMMAND iiPaintEngineCanvasEventLoopLoadContractTests)
 
-add_executable(iiPaintEngineCanvasInputBatchingContractTests
-        tests/CanvasInputBatchingContractTest.cpp)
+add_executable(iiPaintEngineBitmapOnlyArchitectureContractTests
+        tests/BitmapOnlyArchitectureContractTest.cpp)
 
-target_link_libraries(iiPaintEngineCanvasInputBatchingContractTests PRIVATE
+target_compile_definitions(iiPaintEngineBitmapOnlyArchitectureContractTests PRIVATE
+        IIPAINTENGINE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+
+target_link_libraries(iiPaintEngineBitmapOnlyArchitectureContractTests PRIVATE
         iiPaintEngine)
 
-add_test(NAME iiPaintEngineCanvasInputBatchingContract
-        COMMAND iiPaintEngineCanvasInputBatchingContractTests)
+add_test(NAME iiPaintEngineBitmapOnlyArchitectureContract
+        COMMAND iiPaintEngineBitmapOnlyArchitectureContractTests)
 
-add_executable(iiPaintEngineCanvasStrokePipelineSeparationContractTests
-        tests/CanvasStrokePipelineSeparationContractTest.cpp)
+add_executable(iiPaintEngineBitmapFileCompatibilityContractTests
+        tests/BitmapFileCompatibilityContractTest.cpp)
 
-target_link_libraries(iiPaintEngineCanvasStrokePipelineSeparationContractTests PRIVATE
+target_link_libraries(iiPaintEngineBitmapFileCompatibilityContractTests PRIVATE
         iiPaintEngine)
 
-add_test(NAME iiPaintEngineCanvasStrokePipelineSeparationContract
-        COMMAND iiPaintEngineCanvasStrokePipelineSeparationContractTests)
+add_test(NAME iiPaintEngineBitmapFileCompatibilityContract
+        COMMAND iiPaintEngineBitmapFileCompatibilityContractTests)
+
+add_executable(iiPaintEngineCanvasModuleRemovalContractTests
+        tests/CanvasModuleRemovalContractTest.cpp)
+
+target_compile_definitions(iiPaintEngineCanvasModuleRemovalContractTests PRIVATE
+        IIPAINTENGINE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+
+target_link_libraries(iiPaintEngineCanvasModuleRemovalContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineCanvasModuleRemovalContract
+        COMMAND iiPaintEngineCanvasModuleRemovalContractTests)
 
 add_test(NAME iiPaintEngineDependencyBoundary
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/DependencyBoundaryTest.cmake)

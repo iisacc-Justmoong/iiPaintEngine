@@ -2,8 +2,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "Stroke/StrokeCommand.h"
-#include "Stroke/StrokeInput.h"
+#include "tests/RasterDabTestUtils.h"
 
 namespace {
 
@@ -28,24 +27,17 @@ std::uint8_t alphaAt(const std::vector<RasterSample> &samples, DevicePixelPoint 
     return 0;
 }
 
-StrokeInput pressureInput(Types::Scalar pressure)
+std::vector<BrushDab> pressureDabs(const BrushState &brush, Types::Scalar pressure)
 {
-    StrokeInput input{{
+    return streamTestDabs(brush,
             StrokePoint{{0.0, 0.0}, pressure, 0.0, 0.0, 0.0, 0.0, 1},
-            StrokePoint{{10.0, 0.0}, pressure, 1.0, 0.0, 0.0, 0.0, 1},
-    }};
-    return input;
+            StrokePoint{{10.0, 0.0}, pressure, 1.0, 0.0, 0.0, 0.0, 1});
 }
 
 } // namespace
 
 int main()
 {
-    StrokeInput rawInput{{
-            StrokePoint{{0.0, 0.0}, 0.2, 0.0, 0.0, 0.0, 0.0, 1},
-            StrokePoint{{10.0, 0.0}, 0.8, 1.0, 0.0, 0.0, 1.0, 1},
-    }};
-
     BrushState brush{};
     brush.randomSeed = 44;
     brush.rasterizer.brushSize = 8.0;
@@ -64,13 +56,16 @@ int main()
     brush.dynamics.rotationJitter = 0.2;
     brush.dynamics.grainJitter = 0.4;
 
-    const StrokeCommand command = makeStrokeCommand(rawInput, brush, Stabilizer{0.0});
-    if (command.dabs.size() < 3) {
+    const std::vector<BrushDab> command = streamTestDabs(
+            brush,
+            StrokePoint{{0.0, 0.0}, 0.2, 0.0, 0.0, 0.0, 0.0, 1},
+            StrokePoint{{10.0, 0.0}, 0.8, 1.0, 0.0, 0.0, 1.0, 1});
+    if (command.size() < 3) {
         return 1;
     }
 
-    const BrushDab &first = command.dabs.front();
-    const BrushDab &last = command.dabs.back();
+    const BrushDab &first = command.front();
+    const BrushDab &last = command.back();
 
     if (!(last.scale > first.scale)) {
         return 1;
@@ -88,14 +83,20 @@ int main()
         return 1;
     }
 
-    const StrokeCommand sameSeed = makeStrokeCommand(rawInput, brush, Stabilizer{0.0});
+    const std::vector<BrushDab> sameSeed = streamTestDabs(
+            brush,
+            StrokePoint{{0.0, 0.0}, 0.2, 0.0, 0.0, 0.0, 0.0, 1},
+            StrokePoint{{10.0, 0.0}, 0.8, 1.0, 0.0, 0.0, 1.0, 1});
     brush.randomSeed += 1;
-    const StrokeCommand differentSeed = makeStrokeCommand(rawInput, brush, Stabilizer{0.0});
+    const std::vector<BrushDab> differentSeed = streamTestDabs(
+            brush,
+            StrokePoint{{0.0, 0.0}, 0.2, 0.0, 0.0, 0.0, 0.0, 1},
+            StrokePoint{{10.0, 0.0}, 0.8, 1.0, 0.0, 0.0, 1.0, 1});
 
-    if (!nearlyEqual(command.dabs[1].rotationRadians, sameSeed.dabs[1].rotationRadians)
-            || !nearlyEqual(command.dabs[1].grain, sameSeed.dabs[1].grain)
-            || nearlyEqual(command.dabs[1].rotationRadians, differentSeed.dabs[1].rotationRadians)
-            || nearlyEqual(command.dabs[1].grain, differentSeed.dabs[1].grain)) {
+    if (!nearlyEqual(command[1].rotationRadians, sameSeed[1].rotationRadians)
+            || !nearlyEqual(command[1].grain, sameSeed[1].grain)
+            || nearlyEqual(command[1].rotationRadians, differentSeed[1].rotationRadians)
+            || nearlyEqual(command[1].grain, differentSeed[1].grain)) {
         return 1;
     }
 
@@ -109,27 +110,27 @@ int main()
     pressureBrush.dynamics.pressureToFlow = 1.0;
     pressureBrush.dynamics.pressureToOpacity = 1.0;
 
-    const StrokeCommand lowPressure = makeStrokeCommand(pressureInput(0.0), pressureBrush, Stabilizer{0.0});
-    const StrokeCommand highPressure = makeStrokeCommand(pressureInput(1.0), pressureBrush, Stabilizer{0.0});
-    if (lowPressure.dabs.size() < 2
-            || highPressure.dabs.size() != lowPressure.dabs.size()) {
+    const std::vector<BrushDab> lowPressure = pressureDabs(pressureBrush, 0.0);
+    const std::vector<BrushDab> highPressure = pressureDabs(pressureBrush, 1.0);
+    if (lowPressure.size() < 2
+            || highPressure.size() != lowPressure.size()) {
         return 1;
     }
 
-    for (std::size_t index = 0; index < lowPressure.dabs.size(); ++index) {
-        if (!nearlyEqual(lowPressure.dabs[index].position.x, highPressure.dabs[index].position.x)
-                || !nearlyEqual(lowPressure.dabs[index].position.y, highPressure.dabs[index].position.y)) {
+    for (std::size_t index = 0; index < lowPressure.size(); ++index) {
+        if (!nearlyEqual(lowPressure[index].position.x, highPressure[index].position.x)
+                || !nearlyEqual(lowPressure[index].position.y, highPressure[index].position.y)) {
             return 1;
         }
     }
 
-    if (!(highPressure.dabs.front().scale > lowPressure.dabs.front().scale)
-            || !(highPressure.dabs.front().alpha > lowPressure.dabs.front().alpha)
-            || !(highPressure.dabs.front().opacityCapScale > lowPressure.dabs.front().opacityCapScale)
-            || !nearlyEqual(highPressure.dabs.front().hardnessScale, lowPressure.dabs.front().hardnessScale)
-            || !nearlyEqual(highPressure.dabs.front().alpha, 1.0)
-            || !nearlyEqual(highPressure.dabs.front().opacityCapScale, 1.0)
-            || !nearlyEqual(highPressure.dabs.front().hardnessScale, 1.0)) {
+    if (!(highPressure.front().scale > lowPressure.front().scale)
+            || !(highPressure.front().alpha > lowPressure.front().alpha)
+            || !(highPressure.front().opacityCapScale > lowPressure.front().opacityCapScale)
+            || !nearlyEqual(highPressure.front().hardnessScale, lowPressure.front().hardnessScale)
+            || !nearlyEqual(highPressure.front().alpha, 1.0)
+            || !nearlyEqual(highPressure.front().opacityCapScale, 1.0)
+            || !nearlyEqual(highPressure.front().hardnessScale, 1.0)) {
         return 1;
     }
 

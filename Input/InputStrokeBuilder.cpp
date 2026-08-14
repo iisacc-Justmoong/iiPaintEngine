@@ -73,21 +73,6 @@ StrokePoint makeStrokePoint(const PointerEvent &event)
     };
 }
 
-void appendDistinctPoint(InputStrokeBuilder &builder, const PointerEvent &event)
-{
-    const StrokePoint point = makeStrokePoint(event);
-    if (!builder.points.empty()) {
-        const StrokePoint &last = builder.points.back();
-        if (last.position.x == point.position.x
-                && last.position.y == point.position.y
-                && last.time == point.time) {
-            return;
-        }
-    }
-
-    builder.points.push_back(point);
-}
-
 } // namespace
 
 InputStrokeBuildResult appendPointerEvent(InputStrokeBuilder &builder, const PointerEvent &event)
@@ -100,13 +85,16 @@ InputStrokeBuildResult appendPointerEvent(InputStrokeBuilder &builder, const Poi
 
     if (event.phase == PointerEventPhase::Cancel) {
         resetInputStrokeBuilder(builder);
+        result.strokeCancelled = true;
         return result;
     }
 
     if (isPrimaryPress(event) || (!builder.active && isTabletContactMove(event))) {
         resetInputStrokeBuilder(builder);
         builder.active = true;
-        appendDistinctPoint(builder, event);
+        result.pointAvailable = true;
+        result.strokeStarted = true;
+        result.point = makeStrokePoint(event);
         return result;
     }
 
@@ -116,32 +104,23 @@ InputStrokeBuildResult appendPointerEvent(InputStrokeBuilder &builder, const Poi
 
     if (event.phase == PointerEventPhase::Move) {
         if (event.primaryButtonDown) {
-            appendDistinctPoint(builder, event);
+            result.pointAvailable = true;
+            result.point = makeStrokePoint(event);
         }
         return result;
     }
 
     if (event.phase == PointerEventPhase::Release) {
-        appendDistinctPoint(builder, event);
-        result.strokeCompleted = !builder.points.empty();
-        result.stroke.points = builder.points;
+        result.pointAvailable = true;
+        result.point = makeStrokePoint(event);
+        result.strokeCompleted = true;
         resetInputStrokeBuilder(builder);
     }
 
     return result;
 }
 
-StrokeInput activeStrokeInput(const InputStrokeBuilder &builder)
-{
-    StrokeInput input;
-    if (builder.active) {
-        input.points = builder.points;
-    }
-    return input;
-}
-
 void resetInputStrokeBuilder(InputStrokeBuilder &builder)
 {
     builder.active = false;
-    builder.points.clear();
 }

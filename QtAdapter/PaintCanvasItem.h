@@ -4,33 +4,25 @@
 
 #pragma once
 
-#include <QBasicTimer>
 #include <QColor>
 #include <QQuickPaintedItem>
 #include <QString>
-#include <QThreadPool>
 
-#include <deque>
 #include <cstdint>
 #include <vector>
 
-#include "Canvas/CanvasViewport.h"
 #include "Input/InputNormalizer.h"
 #include "Input/InputStrokeBuilder.h"
 #include "Layer/RasterLayer.h"
-#include "QtAdapter/CanvasEventWork.h"
 #include "Render/DirtyRegion.h"
-#include "Stroke/LiveStroke.h"
 #include "Stroke/Rasterizer.h"
-#include "Stroke/Stabilizer.h"
-#include "Stroke/StrokeInput.h"
+#include "Transform/ViewportTransform.h"
 
 class QMouseEvent;
 class QPainter;
 class QEvent;
 class QImage;
 class QTabletEvent;
-class QTimerEvent;
 
 class PaintCanvasItem : public QQuickPaintedItem {
     Q_OBJECT
@@ -54,10 +46,7 @@ class PaintCanvasItem : public QQuickPaintedItem {
     Q_PROPERTY(qreal pressureCurveCenter READ pressureCurveCenter WRITE setPressureCurveCenter NOTIFY strokeSettingsChanged)
     Q_PROPERTY(qreal pressureCurveMaximum READ pressureCurveMaximum WRITE setPressureCurveMaximum NOTIFY strokeSettingsChanged)
     Q_PROPERTY(bool pressureToOpacityEnabled READ pressureToOpacityEnabled WRITE setPressureToOpacityEnabled NOTIFY brushChanged)
-    Q_PROPERTY(qreal stabilizerStrength READ stabilizerStrength WRITE setStabilizerStrength NOTIFY strokeSettingsChanged)
     Q_PROPERTY(bool livePreviewEnabled READ livePreviewEnabled WRITE setLivePreviewEnabled NOTIFY livePreviewEnabledChanged)
-    Q_PROPERTY(int livePreviewFrameIntervalMs READ livePreviewFrameIntervalMs WRITE setLivePreviewFrameIntervalMs NOTIFY livePreviewFrameIntervalMsChanged)
-    Q_PROPERTY(bool multithreadedEventsEnabled READ multithreadedEventsEnabled WRITE setMultithreadedEventsEnabled NOTIFY multithreadedEventsEnabledChanged)
     Q_PROPERTY(bool liveStrokeActive READ liveStrokeActive NOTIFY liveStrokeActiveChanged)
     Q_PROPERTY(int strokeCount READ strokeCount NOTIFY strokeCountChanged)
     Q_PROPERTY(QString inputDevice READ inputDevice NOTIFY inputStateChanged)
@@ -129,17 +118,8 @@ public:
     bool pressureToOpacityEnabled() const;
     void setPressureToOpacityEnabled(bool enabled);
 
-    qreal stabilizerStrength() const;
-    void setStabilizerStrength(qreal value);
-
     bool livePreviewEnabled() const;
     void setLivePreviewEnabled(bool enabled);
-
-    int livePreviewFrameIntervalMs() const;
-    void setLivePreviewFrameIntervalMs(int value);
-
-    bool multithreadedEventsEnabled() const;
-    void setMultithreadedEventsEnabled(bool enabled);
 
     bool liveStrokeActive() const;
     int strokeCount() const;
@@ -158,15 +138,12 @@ signals:
     void brushChanged();
     void strokeSettingsChanged();
     void livePreviewEnabledChanged();
-    void livePreviewFrameIntervalMsChanged();
-    void multithreadedEventsEnabledChanged();
     void liveStrokeActiveChanged();
     void strokeCountChanged();
     void inputStateChanged();
 
 protected:
     bool event(QEvent *event) override;
-    void timerEvent(QTimerEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -175,7 +152,7 @@ protected:
                            Types::Pixel height,
                            std::uint32_t clearArgb = 0x00000000U);
     bool replaceRasterCanvas(const QImage &image);
-    bool saveRasterCanvasToFile(const QString &filePath);
+    QImage rasterCanvasImage();
     bool undoRasterChange();
     bool redoRasterChange();
     bool canUndoRasterChange() const;
@@ -217,34 +194,15 @@ private:
     RasterProjection currentRasterProjection() const;
     DevicePixelRect layerBounds() const;
     void requestTextureUpdate(DevicePixelRect dirtyBounds);
-    void requestLiveStrokePreviewFrame();
-    void processLiveStrokePreviewFrame();
-    void cancelLiveStrokePreviewFrame();
-    void updateLiveStrokePreview();
-    void startLiveStrokePreviewWork(const CanvasLiveStrokeWorkRequest &request,
-                                    std::uint64_t generation,
-                                    std::uint64_t revision);
-    void startPendingLiveStrokePreviewWork();
-    void applyLiveStrokeWorkResult(std::uint64_t generation,
-                                   std::uint64_t revision,
-                                   const CanvasLiveStrokeWorkResult &result);
-    void preserveLiveStrokePreviewForCommit();
-    void clearLiveStrokePreview();
-    void clearLiveStrokePreviewPixels();
-    Types::Scalar liveStrokeIncrementalStartDistance(const BrushState &brush) const;
-    DevicePixelRect liveStrokeTailDeviceDirtyBounds(Types::Scalar startDistance) const;
-    void enqueueStrokeCommit(const StrokeInput &stroke);
-    void requestStrokeCommitFrame();
-    void processStrokeCommitFrame();
-    void cancelStrokeCommitFrame();
-    void startCommitStrokeWork(const CanvasCommitStrokeWorkRequest &request);
-    void applyCommitStrokeWorkResult(std::uint64_t revision, const CanvasCommitStrokeWorkResult &result);
+    void applyPointerBuildResult(const InputStrokeBuildResult &result);
+    void appendPointerPointToRaster(const StrokePoint &point, bool finishStroke);
+    void commitPendingRasterStroke();
+    void clearPendingRasterStroke();
+    void syncPendingRasterLayer(DevicePixelRect dirtyBounds);
     void emitLiveStrokeActiveChangedIfNeeded(bool previousActive);
     void noteInputState(const PointerEvent &event);
     BrushState currentBrushState() const;
-    CanvasLiveStrokeWorkRequest currentLiveStrokeWorkRequest() const;
-    CanvasCommitStrokeWorkRequest currentCommitStrokeWorkRequest(const StrokeInput &stroke) const;
-    void invalidatePendingCanvasEventWork();
+    void cancelActiveRasterStroke();
     RasterSnapshot captureRasterSnapshot() const;
     RasterPatchSnapshot captureRasterPatchSnapshot(DevicePixelRect dirtyBounds) const;
     RasterHistoryEntry captureRasterHistoryEntry() const;
@@ -257,38 +215,23 @@ private:
 
     RasterLayer m_rasterLayer;
     RasterLayer m_liveRasterLayer;
-    QThreadPool m_liveEventThreadPool;
-    QThreadPool m_commitEventThreadPool;
-    QBasicTimer m_livePreviewFrameTimer;
-    QBasicTimer m_commitStrokeFrameTimer;
+    StrokeCompositeBuffer m_pendingRasterBuffer;
     InputNormalizer m_inputNormalizer;
     InputStrokeBuilder m_strokeBuilder;
-    LiveStrokeBuffer m_liveStrokeBuffer;
-    Stabilizer m_stabilizer{0.25};
+    RasterDabStream m_rasterDabStream;
+    BrushState m_activeBrush;
     Rasterizer m_rasterizer{};
-    CanvasViewport m_viewport{};
+    RasterViewport m_viewport{};
     DocumentPoint m_documentOrigin{};
-    CanvasLiveStrokeWorkRequest m_pendingLiveStrokeWorkRequest{};
-    std::deque<CanvasCommitStrokeWorkRequest> m_pendingCommitStrokeWorkRequests;
     Types::Scalar m_zoom = 1.0;
     Types::Scalar m_devicePixelRatio = 1.0;
-    Types::Scalar m_liveStrokeRenderedDistance = 0.0;
     DevicePixelRect m_liveStrokeDeviceDirtyBounds{};
-    int m_livePreviewFrameIntervalMs = 8;
     bool m_livePreviewEnabled = true;
-    bool m_multithreadedEventsEnabled = true;
-    bool m_livePreviewWorkActive = false;
-    bool m_livePreviewWorkPending = false;
     bool m_liveStrokePreviewDestinationOut = false;
     bool m_tabletPointerActive = false;
     bool m_suppressMouseAfterTablet = false;
     PointerDeviceKind m_lastInputDevice = PointerDeviceKind::Mouse;
     Types::Scalar m_lastInputPressure = 1.0;
-    std::uint64_t m_canvasEventRevision = 0;
-    std::uint64_t m_livePreviewGeneration = 0;
-    std::uint64_t m_livePreviewRevision = 0;
-    std::uint64_t m_pendingLivePreviewGeneration = 0;
-    std::uint64_t m_pendingLivePreviewRevision = 0;
     std::uint32_t m_nextStrokeSeed = 1;
     int m_committedStrokeCount = 0;
     bool m_eraserMode = false;

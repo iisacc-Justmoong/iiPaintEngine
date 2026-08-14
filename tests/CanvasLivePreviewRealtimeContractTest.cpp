@@ -156,7 +156,6 @@ int main(int argc, char **argv)
     canvas.setWidth(160);
     canvas.setHeight(96);
     canvas.setCanvasDevicePixelRatio(1.0);
-    canvas.setMultithreadedEventsEnabled(true);
     canvas.setLivePreviewEnabled(true);
     canvas.setBrush(24.0, QColor{"#101318"}, 1.0, 1.0);
     canvas.setBrushSpacingRatio(0.02);
@@ -200,10 +199,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (canvas.strokeCount() != 0) {
-        return 1;
-    }
-
     if (!waitForCommittedPaint(app, canvas, latestPosition)) {
         return 1;
     }
@@ -227,11 +222,9 @@ int main(int argc, char **argv)
     eraserCanvas.setWidth(160);
     eraserCanvas.setHeight(96);
     eraserCanvas.setCanvasDevicePixelRatio(1.0);
-    eraserCanvas.setMultithreadedEventsEnabled(true);
     eraserCanvas.setLivePreviewEnabled(true);
     eraserCanvas.setBrush(52.0, QColor{"#101318"}, 1.0, 1.0);
     eraserCanvas.setBrushSpacingRatio(0.0);
-    eraserCanvas.setStabilizerStrength(0.0);
 
     QMouseEvent basePress = mouseEvent(QEvent::MouseButtonPress,
                                        QPointF{20.0, 48.0},

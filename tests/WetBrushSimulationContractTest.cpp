@@ -5,8 +5,8 @@
 
 #include "Brush/BrushPresetSerializer.h"
 #include "Layer/RasterLayer.h"
-#include "Stroke/StrokeCommand.h"
 #include "Stroke/Rasterizer.h"
+#include "tests/RasterDabTestUtils.h"
 
 namespace {
 
@@ -30,12 +30,11 @@ const RasterSample *sampleAt(const std::vector<RasterSample> &samples, DevicePix
     return nullptr;
 }
 
-StrokeInput horizontalStroke()
+std::vector<BrushDab> horizontalDabs(const BrushState &brush)
 {
-    StrokeInput input;
-    input.points.push_back(StrokePoint{{0.0, 0.0}, 1.0, 0.0, 1.0, 0.0, 0.0, 1, 0.0});
-    input.points.push_back(StrokePoint{{12.0, 0.0}, 1.0, 1.0, 1.0, 0.0, 0.0, 1, 12.0});
-    return input;
+    return streamTestDabs(brush,
+                          StrokePoint{{0.0, 0.0}, 1.0, 0.0, 1.0, 0.0, 0.0, 1, 0.0},
+                          StrokePoint{{12.0, 0.0}, 1.0, 1.0, 1.0, 0.0, 0.0, 1, 12.0});
 }
 
 bool nearlyEqual(Types::Scalar lhs, Types::Scalar rhs)
@@ -138,7 +137,7 @@ int main()
     BrushState roundBrush;
     roundBrush.rasterizer.brushSize = 4.0;
     roundBrush.rasterizer.spacingRatio = 0.5;
-    const StrokeCommand roundCommand = makeStrokeCommand(horizontalStroke(), roundBrush, Stabilizer{0.0});
+    const std::vector<BrushDab> roundDabs = horizontalDabs(roundBrush);
 
     BrushState flatBristleBrush = roundBrush;
     flatBristleBrush.material.bristle.enabled = true;
@@ -146,12 +145,12 @@ int main()
     flatBristleBrush.material.bristle.count = 16;
     flatBristleBrush.material.bristle.length = 6.0;
     flatBristleBrush.material.bristle.stiffness = 0.4;
-    const StrokeCommand flatCommand = makeStrokeCommand(horizontalStroke(), flatBristleBrush, Stabilizer{0.0});
-    if (roundCommand.dabs.empty()
-            || flatCommand.dabs.empty()
-            || !(flatCommand.dabs.front().ellipseScaleX > roundCommand.dabs.front().ellipseScaleX)
-            || !(flatCommand.dabs.front().ellipseScaleY < roundCommand.dabs.front().ellipseScaleY)
-            || !nearlyEqual(flatCommand.dabs.front().rotationRadians, 0.0)) {
+    const std::vector<BrushDab> flatDabs = horizontalDabs(flatBristleBrush);
+    if (roundDabs.empty()
+            || flatDabs.empty()
+            || !(flatDabs.front().ellipseScaleX > roundDabs.front().ellipseScaleX)
+            || !(flatDabs.front().ellipseScaleY < roundDabs.front().ellipseScaleY)
+            || !nearlyEqual(flatDabs.front().rotationRadians, 0.0)) {
         return 30;
     }
 

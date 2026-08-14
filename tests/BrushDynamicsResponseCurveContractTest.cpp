@@ -1,7 +1,7 @@
 #include <cmath>
 
 #include "Brush/BrushPresetSerializer.h"
-#include "Stroke/StrokeCommand.h"
+#include "tests/RasterDabTestUtils.h"
 
 namespace {
 
@@ -25,12 +25,11 @@ void configureCurve(BrushDynamicsResponseCurve &curve,
     curve.jitter = jitter;
 }
 
-StrokeInput expressiveStroke()
+std::vector<BrushDab> expressiveDabs(const BrushState &brush)
 {
-    StrokeInput input;
-    input.points.push_back(StrokePoint{{0.0, 0.0}, 0.0, 0.0, 1.0, 0.0, 0.0, 1, 0.0});
-    input.points.push_back(StrokePoint{{10.0, 0.0}, 1.0, 1.0, 1.0, 0.0, 1.0, 1, 10.0});
-    return input;
+    return streamTestDabs(brush,
+                          StrokePoint{{0.0, 0.0}, 0.0, 0.0, 1.0, 0.0, 0.0, 1, 0.0},
+                          StrokePoint{{10.0, 0.0}, 1.0, 1.0, 1.0, 0.0, 1.0, 1, 10.0});
 }
 
 } // namespace
@@ -134,12 +133,12 @@ int main()
     brush.material.bristle.count = 16;
     brush.material.bristle.length = 4.0;
     brush.material.bristle.stiffness = 0.5;
-    const StrokeCommand command = makeStrokeCommand(expressiveStroke(), brush, Stabilizer{0.0});
-    if (command.dabs.size() < 2) {
+    const std::vector<BrushDab> dabs = expressiveDabs(brush);
+    if (dabs.size() < 2) {
         return 6;
     }
-    const BrushDab &first = command.dabs.front();
-    const BrushDab &last = command.dabs.back();
+    const BrushDab &first = dabs.front();
+    const BrushDab &last = dabs.back();
     if (!nearlyEqual(first.scatterScale, 0.0)
             || !nearlyEqual(first.position.x, 0.0)
             || !(last.scale > first.scale)

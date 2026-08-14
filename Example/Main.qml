@@ -58,7 +58,7 @@ LV.ApplicationWindow {
             "color": "#7c3aed"
         }
     ]
-    readonly property bool demoReady: demoCanvas.width > 0 && demoCanvas.height > 0 && paintControls.width > 0 && clearButton !== null && livePreviewToggle !== null && pressureCurveGraph !== null && pressureOpacityArgumentToggle !== null && stabilizerStrengthSlider !== null && previewFrameIntervalSlider !== null
+    readonly property bool demoReady: demoCanvas.width > 0 && demoCanvas.height > 0 && paintControls.width > 0 && clearButton !== null && livePreviewToggle !== null && pressureCurveGraph !== null && pressureOpacityArgumentToggle !== null
 
     property int activeSwatchIndex: 0
     property color activeBrushColor: swatches[activeSwatchIndex].color
@@ -70,8 +70,6 @@ LV.ApplicationWindow {
     property real currentPressureCurveMinimum: 0.0
     property real currentPressureCurveCenter: 0.5
     property real currentPressureCurveMaximum: 1.0
-    property real currentStabilizerStrength: 0.25
-    property int currentLivePreviewFrameIntervalMs: 8
     property real currentZoom: 1.0
     property bool flowArgumentEnabled: true
     property bool opacityArgumentEnabled: true
@@ -91,8 +89,6 @@ LV.ApplicationWindow {
         demoCanvas.pressureCurveMinimum = currentPressureCurveMinimum;
         demoCanvas.pressureCurveCenter = currentPressureCurveCenter;
         demoCanvas.pressureCurveMaximum = currentPressureCurveMaximum;
-        demoCanvas.stabilizerStrength = currentStabilizerStrength;
-        demoCanvas.livePreviewFrameIntervalMs = currentLivePreviewFrameIntervalMs;
         demoCanvas.livePreviewEnabled = livePreviewToggle.checked;
     }
 
@@ -319,7 +315,7 @@ LV.ApplicationWindow {
                 width: parent.width
                 label: "Size"
                 valueText: Math.round(root.currentBrushSize) + " px"
-                from: 2
+                2
                 to: 72
                 value: root.currentBrushSize
                 onMoved: function (value) {
@@ -333,7 +329,7 @@ LV.ApplicationWindow {
                 width: parent.width
                 label: "Flow"
                 valueText: Math.round(root.currentFlow * 100) + "%"
-                from: 0.05
+                0.05
                 to: 1
                 value: root.currentFlow
                 toggleVisible: true
@@ -354,7 +350,7 @@ LV.ApplicationWindow {
                 width: parent.width
                 label: "Opacity"
                 valueText: Math.round(root.currentOpacity * 100) + "%"
-                from: 0.05
+                0.05
                 to: 1
                 value: root.currentOpacity
                 toggleVisible: true
@@ -406,7 +402,7 @@ LV.ApplicationWindow {
                 width: parent.width
                 label: "Hardness"
                 valueText: Math.round(root.currentHardness * 100) + "%"
-                from: 0.05
+                0.05
                 to: 1
                 value: root.currentHardness
                 toggleVisible: true
@@ -427,7 +423,7 @@ LV.ApplicationWindow {
                 width: parent.width
                 label: "Spacing"
                 valueText: Math.round(root.currentSpacingRatio * 100) + "%"
-                from: 0
+                0
                 to: 1
                 value: root.currentSpacingRatio
                 toggleVisible: true
@@ -452,35 +448,6 @@ LV.ApplicationWindow {
                 maximum: root.currentPressureCurveMaximum
             }
 
-            BrushSlider {
-                id: stabilizerStrengthSlider
-                objectName: "stabilizerStrengthSlider"
-                width: parent.width
-                label: "Stabilizer"
-                valueText: Math.round(root.currentStabilizerStrength * 100) + "%"
-                from: 0
-                to: 1
-                value: root.currentStabilizerStrength
-                onMoved: function (value) {
-                    root.currentStabilizerStrength = value;
-                    root.applyBrushSettings();
-                }
-            }
-
-            BrushSlider {
-                id: previewFrameIntervalSlider
-                objectName: "previewFrameIntervalSlider"
-                width: parent.width
-                label: "Frame"
-                valueText: root.currentLivePreviewFrameIntervalMs + " ms"
-                from: 0
-                to: 33
-                value: root.currentLivePreviewFrameIntervalMs
-                onMoved: function (value) {
-                    root.currentLivePreviewFrameIntervalMs = Math.round(value);
-                    root.applyBrushSettings();
-                }
-            }
         }
     }
 
@@ -548,10 +515,7 @@ LV.ApplicationWindow {
             pressureCurveMinimum: root.currentPressureCurveMinimum
             pressureCurveCenter: root.currentPressureCurveCenter
             pressureCurveMaximum: root.currentPressureCurveMaximum
-            stabilizerStrength: root.currentStabilizerStrength
-            livePreviewFrameIntervalMs: root.currentLivePreviewFrameIntervalMs
             livePreviewEnabled: livePreviewToggle.checked
-            multithreadedEventsEnabled: true
         }
     }
 
@@ -727,7 +691,7 @@ LV.ApplicationWindow {
             y: 16
             width: miniRoot.width
             height: 22
-            from: miniRoot.from
+            miniRoot.from
             to: miniRoot.to
             onMoved: miniRoot.moved(value)
         }
@@ -791,7 +755,7 @@ LV.ApplicationWindow {
             y: 22
             width: sliderRoot.width
             height: 24
-            from: sliderRoot.from
+            sliderRoot.from
             to: sliderRoot.to
             onMoved: sliderRoot.moved(value)
         }

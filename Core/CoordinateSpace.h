@@ -8,17 +8,12 @@
 
 enum class CoordinateSpaceKind {
     Document,
-    Canvas,
     View,
     DevicePixel,
 };
 
 struct DocumentCoordinateSpace {
     static constexpr CoordinateSpaceKind kind = CoordinateSpaceKind::Document;
-};
-
-struct CanvasCoordinateSpace {
-    static constexpr CoordinateSpaceKind kind = CoordinateSpaceKind::Canvas;
 };
 
 struct ViewCoordinateSpace {
@@ -40,5 +35,5 @@ struct CoordinateScalar<DevicePixelCoordinateSpace> {
 };
 
 struct CoordinateSpace {
-    CoordinateSpaceKind kind = CoordinateSpaceKind::Canvas;
+    CoordinateSpaceKind kind = CoordinateSpaceKind::Document;
 };

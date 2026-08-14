@@ -29,13 +29,9 @@ public:
 struct CanvasRuntimeConfig {
     Q_GADGET
     Q_PROPERTY(bool livePreviewEnabled MEMBER livePreviewEnabled)
-    Q_PROPERTY(int livePreviewFrameIntervalMs MEMBER livePreviewFrameIntervalMs)
-    Q_PROPERTY(bool multithreadedEventsEnabled MEMBER multithreadedEventsEnabled)
 
 public:
     bool livePreviewEnabled = true;
-    int livePreviewFrameIntervalMs = 8;
-    bool multithreadedEventsEnabled = true;
 };
 
 struct CanvasStateSnapshot {

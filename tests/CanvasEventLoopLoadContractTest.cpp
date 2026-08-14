@@ -68,7 +68,6 @@ int main(int argc, char **argv)
     canvas.setWidth(256);
     canvas.setHeight(128);
     canvas.setCanvasDevicePixelRatio(1.0);
-    canvas.setMultithreadedEventsEnabled(true);
     canvas.setLivePreviewEnabled(true);
     canvas.setBrush(18.0, QColor{"#101318"}, 1.0, 1.0);
 

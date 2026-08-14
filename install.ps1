@@ -386,11 +386,8 @@ $IiPaintEngineHostTestTargets = @(
     "iiPaintEnginePointerStrokeFlowTests",
     "iiPaintEnginePressureInputContractTests",
     "iiPaintEngineTabletInputSurfaceTests",
-    "iiPaintEngineHybridPaintingModelTests",
+    "iiPaintEngineRasterPaintingModelTests",
     "iiPaintEngineStrokePhysicalContractTests",
-    "iiPaintEngineStrokeGeometryReportContractTests",
-    "iiPaintEngineStabilizerAdvancedContractTests",
-    "iiPaintEngineLiveStrokeRenderingTests",
     "iiPaintEngineBrushDynamicsMappingTests",
     "iiPaintEngineBrushDynamicsResponseCurveContractTests",
     "iiPaintEngineBrushFeatureToggleContractTests",
@@ -399,7 +396,6 @@ $IiPaintEngineHostTestTargets = @(
     "iiPaintEngineWetBrushSimulationContractTests",
     "iiPaintEngineHistoryUndoRedoContractTests",
     "iiPaintEngineEditingToolPipelineContractTests",
-    "iiPaintEngineStrokeResamplerTests",
     "iiPaintEngineStrokeCompositingTests",
     "iiPaintEngineLayerCompositingContractTests",
     "iiPaintEngineRendererProjectionContractTests",
@@ -407,10 +403,10 @@ $IiPaintEngineHostTestTargets = @(
     "iiPaintEngineColorManagementContractTests",
     "iiPaintEngineBrushMaskSamplingTests",
     "iiPaintEngineCoordinateDirtyRegionTests",
-    "iiPaintEngineCanvasEventThreadingTests",
     "iiPaintEngineCanvasEventLoopLoadContractTests",
-    "iiPaintEngineCanvasInputBatchingContractTests",
-    "iiPaintEngineCanvasStrokePipelineSeparationContractTests"
+    "iiPaintEngineBitmapOnlyArchitectureContractTests",
+    "iiPaintEngineBitmapFileCompatibilityContractTests",
+    "iiPaintEngineCanvasModuleRemovalContractTests"
 )
 
 function Build-HostTests {

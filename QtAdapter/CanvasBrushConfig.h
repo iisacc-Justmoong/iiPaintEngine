@@ -24,7 +24,6 @@ struct CanvasBrushConfig {
     Q_PROPERTY(qreal pressureCurveCenter MEMBER pressureCurveCenter)
     Q_PROPERTY(qreal pressureCurveMaximum MEMBER pressureCurveMaximum)
     Q_PROPERTY(bool pressureToOpacityEnabled MEMBER pressureToOpacityEnabled)
-    Q_PROPERTY(qreal stabilizerStrength MEMBER stabilizerStrength)
 
 public:
     QColor color = QColor{Qt::black};
@@ -42,7 +41,6 @@ public:
     qreal pressureCurveCenter = 0.5;
     qreal pressureCurveMaximum = 1.0;
     bool pressureToOpacityEnabled = true;
-    qreal stabilizerStrength = 0.25;
 };
 
 Q_DECLARE_METATYPE(CanvasBrushConfig)

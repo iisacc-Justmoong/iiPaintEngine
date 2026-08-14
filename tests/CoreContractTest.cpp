@@ -26,25 +26,20 @@ static_assert(sizeof(PaintUuid::bytes) == 16);
 
 static_assert(coreValueType<CoordinateSpace>);
 static_assert(DocumentCoordinateSpace::kind == CoordinateSpaceKind::Document);
-static_assert(CanvasCoordinateSpace::kind == CoordinateSpaceKind::Canvas);
 static_assert(ViewCoordinateSpace::kind == CoordinateSpaceKind::View);
 static_assert(DevicePixelCoordinateSpace::kind == CoordinateSpaceKind::DevicePixel);
 
 static_assert(coreValueType<DocumentPoint>);
-static_assert(coreValueType<CanvasPoint>);
 static_assert(coreValueType<ViewPoint>);
 static_assert(coreValueType<DevicePixelPoint>);
 static_assert(coreValueType<DocumentRect>);
-static_assert(coreValueType<CanvasRect>);
 static_assert(coreValueType<ViewRect>);
 static_assert(coreValueType<DevicePixelRect>);
 
 static_assert(std::is_same_v<DocumentPoint::Scalar, Types::Scalar>);
-static_assert(std::is_same_v<CanvasPoint::Scalar, Types::Scalar>);
 static_assert(std::is_same_v<ViewPoint::Scalar, Types::Scalar>);
 static_assert(std::is_same_v<DevicePixelPoint::Scalar, Types::Pixel>);
 
-static_assert(std::is_same_v<DocumentPoint, CanvasPoint>);
 static_assert(!std::is_same_v<DocumentPoint, ViewPoint>);
 static_assert(!std::is_same_v<DocumentPoint, DevicePixelPoint>);
 static_assert(!std::is_assignable_v<DocumentPoint &, ViewPoint>);
@@ -59,11 +54,9 @@ int main()
 {
     PaintUuid uuid{};
     DocumentPoint documentPoint{1.0, 2.0};
-    CanvasPoint canvasPoint{1.0, 2.0};
     ViewPoint viewPoint{3.0, 4.0};
     DevicePixelPoint devicePoint{5, 6};
     DocumentRect documentRect{{0.0, 0.0}, 100.0, 200.0};
-    CanvasRect canvasRect{{0.0, 0.0}, 100.0, 200.0};
     EngineError error{};
     EngineConfig config{};
 
@@ -71,12 +64,11 @@ int main()
         return 1;
     }
 
-    if (documentPoint.x != 1.0 || canvasPoint.x != 1.0 || viewPoint.y != 4.0 || devicePoint.x != 5) {
+    if (documentPoint.x != 1.0 || viewPoint.y != 4.0 || devicePoint.x != 5) {
         return 1;
     }
 
     if (documentRect.width != 100.0
-            || canvasRect.width != 100.0
             || error.code != EngineErrorCode::None
             || EngineError{EngineErrorCode::UnsupportedColorTransform, nullptr}.code != EngineErrorCode::UnsupportedColorTransform
             || config.defaultDpi <= 0.0) {

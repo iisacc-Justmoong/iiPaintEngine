@@ -38,6 +38,6 @@ bool addPaintLayer(PaintEngineController &controller,
 
 bool selectPaintLayer(PaintEngineController &controller, std::size_t layerIndex);
 
-bool commitPaintStroke(PaintEngineController &controller,
-                       const StrokeCommand &command,
-                       const std::vector<RasterSample> &samples);
+bool commitPaintSamples(PaintEngineController &controller,
+                        const std::vector<RasterSample> &samples,
+                        DocumentRect dirtyBounds = {});

@@ -1,64 +1,60 @@
 #include <cstdint>
 
 #include "Document/PaintDocument.h"
+#include "Input/InputStrokeBuilder.h"
 #include "Layer/DrawingSurface.h"
 #include "Layer/RasterLayer.h"
 #include "Stroke/Rasterizer.h"
-#include "Stroke/Stabilizer.h"
-#include "Stroke/StrokeCurve.h"
-#include "Stroke/StrokeInput.h"
+
+namespace {
+
+PointerEvent mouseEvent(PointerEventPhase phase,
+                        DocumentPoint position,
+                        Types::Scalar time,
+                        PointerButton button,
+                        bool down)
+{
+    return PointerEvent{PointerDeviceKind::Mouse, phase, position, 1.0, time, button, down};
+}
+
+} // namespace
 
 int main()
 {
-    StrokeInput input{{
-            StrokePoint{{4.0, 4.0}, 1.0, 0.0},
-            StrokePoint{{5.0, 7.0}, 1.0, 1.0},
-            StrokePoint{{6.0, 4.0}, 1.0, 2.0},
-    }};
-
-    Stabilizer stabilizer{0.5};
-    StrokeInput stabilized = stabilizeStrokeInput(input, stabilizer);
-    if (stabilized.points.size() != input.points.size()) {
-        return 1;
-    }
-
-    if (stabilized.points.front().position.x != input.points.front().position.x
-            || stabilized.points.back().position.x != input.points.back().position.x) {
-        return 1;
-    }
-
-    if (stabilized.points[1].position.y >= input.points[1].position.y) {
-        return 1;
-    }
-
-    StrokeCurve curve = makeStrokeCurve(stabilized);
-    if (curve.samples.size() != stabilized.points.size()) {
-        return 1;
-    }
-
-    Rasterizer rasterizer{};
-    auto samples = rasterizeStrokeCurve(curve, rasterizer);
-    if (samples.empty()) {
-        return 1;
-    }
-
+    InputStrokeBuilder input{};
+    RasterDabStream dabs{};
+    BrushState brush{};
+    brush.rasterizer.argb = 0xFF000000U;
+    brush.rasterizer.radius = 1;
+    brush.rasterizer.spacing = 1.0;
     RasterLayer layer = makeRasterLayer(16, 16);
-    paintRasterSamples(layer, samples);
 
-    constexpr std::uint32_t black = 0xFF000000U;
-    if (rasterLayerPixelAt(layer, {5, 5}) != black) {
+    const PointerEvent events[]{
+            mouseEvent(PointerEventPhase::Press, {4.0, 4.0}, 0.0, PointerButton::Primary, true),
+            mouseEvent(PointerEventPhase::Move, {5.0, 7.0}, 1.0, PointerButton::None, true),
+            mouseEvent(PointerEventPhase::Release, {6.0, 4.0}, 2.0, PointerButton::Primary, false),
+    };
+    for (const PointerEvent &event : events) {
+        const InputStrokeBuildResult result = appendPointerEvent(input, event);
+        if (!result.pointAvailable) {
+            return 1;
+        }
+        const std::vector<BrushDab> eventDabs = appendRasterDabs(dabs,
+                                                                 result.point,
+                                                                 brush,
+                                                                 result.strokeCompleted);
+        paintRasterSamples(layer, projectBrushDabs(eventDabs, brush.rasterizer));
+    }
+
+    if (input.active || dabs.active || rasterLayerPixelAt(layer, {4, 4}) != 0xFF000000U) {
         return 1;
     }
 
     PaintDocument document = makePaintDocument(layer);
-    if (document.canvases.size() != 1
-            || document.canvases.front().layers.layers.size() != 1) {
+    if (document.layers.layers.size() != 1
+            || drawingSurfacePixelAt(document.layers.layers.front().surface, {4, 4})
+                    != 0xFF000000U) {
         return 1;
     }
-
-    if (drawingSurfacePixelAt(document.canvases.front().layers.layers.front().surface, {5, 5}) != black) {
-        return 1;
-    }
-
     return 0;
 }

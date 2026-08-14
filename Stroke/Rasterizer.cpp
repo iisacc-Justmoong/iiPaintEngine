@@ -414,8 +414,8 @@ Types::Scalar applyHardness(Types::Scalar maskAlpha, Types::Scalar hardness)
 
 Types::Scalar transformedBrushMaskAt(const Rasterizer &rasterizer,
                                      const BrushDab &dab,
-                                     Types::Scalar canvasX,
-                                     Types::Scalar canvasY,
+                                     Types::Scalar documentX,
+                                     Types::Scalar documentY,
                                      Types::Scalar scaleX,
                                      Types::Scalar scaleY,
                                      Types::Scalar cosTheta,
@@ -423,8 +423,8 @@ Types::Scalar transformedBrushMaskAt(const Rasterizer &rasterizer,
                                      Types::Scalar centerOffsetX,
                                      Types::Scalar centerOffsetY)
 {
-    const Types::Scalar dx = canvasX - dab.position.x;
-    const Types::Scalar dy = canvasY - dab.position.y;
+    const Types::Scalar dx = documentX - dab.position.x;
+    const Types::Scalar dy = documentY - dab.position.y;
     const Types::Scalar localX = (dx * cosTheta + dy * sinTheta) / scaleX;
     const Types::Scalar localY = (-dx * sinTheta + dy * cosTheta) / scaleY;
     const Types::Scalar sourceX = localX + centerOffsetX;
@@ -462,7 +462,7 @@ Types::Scalar projectedBrushMaskAt(const Rasterizer &rasterizer,
                                       centerOffsetY);
     }
 
-    const std::array<CanvasPoint, 5> offsets{{
+    const std::array<DocumentPoint, 5> offsets{{
             {0.0, 0.0},
             {-0.25, -0.25},
             {0.25, -0.25},
@@ -470,7 +470,7 @@ Types::Scalar projectedBrushMaskAt(const Rasterizer &rasterizer,
             {0.25, 0.25},
     }};
     Types::Scalar maskAlpha = 0.0;
-    for (const CanvasPoint offset : offsets) {
+    for (const DocumentPoint offset : offsets) {
         maskAlpha += transformedBrushMaskAt(rasterizer,
                                             dab,
                                             centerX + offset.x,
@@ -534,13 +534,13 @@ ScalarBounds brushImageBoundsForDab(const BrushDab &dab, const Rasterizer &raste
     Types::Scalar top = dab.position.y;
     Types::Scalar right = dab.position.x;
     Types::Scalar bottom = dab.position.y;
-    const std::array<CanvasPoint, 4> sourceCorners{{
+    const std::array<DocumentPoint, 4> sourceCorners{{
             {sourceLeft, sourceTop},
             {sourceRight, sourceTop},
             {sourceRight, sourceBottom},
             {sourceLeft, sourceBottom},
     }};
-    for (const CanvasPoint sourceCorner : sourceCorners) {
+    for (const DocumentPoint sourceCorner : sourceCorners) {
         const Types::Scalar localX = sourceCorner.x * scaleX;
         const Types::Scalar localY = sourceCorner.y * scaleY;
         const Types::Scalar rotatedX = localX * cosTheta - localY * sinTheta;
@@ -581,13 +581,13 @@ void appendBrushImage(std::vector<RasterSample> &samples,
     Types::Scalar right = dab.position.x;
     Types::Scalar bottom = dab.position.y;
 
-    const std::array<CanvasPoint, 4> sourceCorners{{
+    const std::array<DocumentPoint, 4> sourceCorners{{
                  {sourceLeft, sourceTop},
                  {sourceRight, sourceTop},
                  {sourceRight, sourceBottom},
                  {sourceLeft, sourceBottom},
     }};
-    for (const CanvasPoint sourceCorner : sourceCorners) {
+    for (const DocumentPoint sourceCorner : sourceCorners) {
         const Types::Scalar localX = sourceCorner.x * scaleX;
         const Types::Scalar localY = sourceCorner.y * scaleY;
         const Types::Scalar rotatedX = localX * cosTheta - localY * sinTheta;
@@ -687,17 +687,6 @@ Types::Scalar effectiveSpacing(const Rasterizer &rasterizer,
     return std::max<Types::Scalar>(
             0.01,
             baseSpacing * std::max<Types::Scalar>(0.01, velocityScale) * dynamicsResult.spacingScale / density);
-}
-
-Types::Scalar totalCurveLength(const StrokeCurve &curve)
-{
-    Types::Scalar totalLength = 0.0;
-    for (std::size_t index = 0; index + 1 < curve.samples.size(); ++index) {
-        const StrokePoint &start = curve.samples[index];
-        const StrokePoint &end = curve.samples[index + 1];
-        totalLength += std::hypot(end.position.x - start.position.x, end.position.y - start.position.y);
-    }
-    return totalLength;
 }
 
 Types::Scalar deterministicUnit(std::uint32_t randomSeed, std::uint32_t sequenceIndex)
@@ -952,7 +941,7 @@ DocumentPoint scatterPosition(DocumentPoint position,
     return {position.x + dx, position.y + dy};
 }
 
-Types::Scalar taperFactor(const Rasterizer &rasterizer, Types::Scalar distanceOnCurve, Types::Scalar curveLength)
+Types::Scalar taperFactor(const Rasterizer &rasterizer, Types::Scalar distanceOnTrajectory)
 {
     const auto shapedProgress = [](StrokeTaperShape shape, Types::Scalar progress) {
         const Types::Scalar t = clamp01(progress);
@@ -975,13 +964,8 @@ Types::Scalar taperFactor(const Rasterizer &rasterizer, Types::Scalar distanceOn
 
     Types::Scalar factor = 1.0;
     if (rasterizer.warmupDistance > 0.0) {
-        const Types::Scalar warmup = std::clamp(distanceOnCurve / rasterizer.warmupDistance, 0.0, 1.0);
+        const Types::Scalar warmup = std::clamp(distanceOnTrajectory / rasterizer.warmupDistance, 0.0, 1.0);
         factor = std::min(factor, tapered(rasterizer.warmupTaperShape, warmup));
-    }
-    if (rasterizer.taperDistance > 0.0) {
-        const Types::Scalar remaining = std::max<Types::Scalar>(0.0, curveLength - distanceOnCurve);
-        const Types::Scalar taper = std::clamp(remaining / rasterizer.taperDistance, 0.0, 1.0);
-        factor = std::min(factor, tapered(rasterizer.endTaperShape, taper));
     }
     return factor;
 }
@@ -1045,8 +1029,7 @@ BrushDab makeBrushDab(const StrokePoint &sample,
                       const Rasterizer &rasterizer,
                       const BrushDynamics &dynamics,
                       const BrushMaterial &material,
-                      Types::Scalar distanceOnCurve,
-                      Types::Scalar curveLength,
+                      Types::Scalar distanceOnTrajectory,
                       std::uint32_t randomSeed,
                       std::uint32_t sequenceIndex)
 {
@@ -1103,7 +1086,7 @@ BrushDab makeBrushDab(const StrokePoint &sample,
     dab.scale = scale * dynamicsResult.sizeScale
             * (material.dualBrush.enabled ? std::max<Types::Scalar>(0.01, material.dualBrush.scale) : 1.0);
     dab.rotationRadians = baseRotation + jitter + dynamicsResult.rotationOffsetRadians;
-    dab.alpha = clamp01(flow) * dynamicsResult.flowScale * taperFactor(rasterizer, distanceOnCurve, curveLength)
+    dab.alpha = clamp01(flow) * dynamicsResult.flowScale * taperFactor(rasterizer, distanceOnTrajectory)
             * materialFlowScale(material,
                                 textureAlpha,
                                 dynamicsResult.textureDepthScale,
@@ -1128,7 +1111,7 @@ BrushDab makeBrushDab(const StrokePoint &sample,
     dab.scatterScale = dynamicsResult.scatterScale;
     dab.dualBrushScale = std::max<Types::Scalar>(0.01, 1.0 + dualBrushScaleJitter);
     dab.dualBrushRotationRadians = dualBrushRotationJitter;
-    dab.strokeDistance = distanceOnCurve;
+    dab.strokeDistance = distanceOnTrajectory;
     dab.dualBrush = material.dualBrush.enabled;
     dab.colorArgb = rasterizer.argb;
     dab.blendMode = rasterizer.blendMode;
@@ -1137,12 +1120,12 @@ BrushDab makeBrushDab(const StrokePoint &sample,
 }
 
 void appendDabAtDistance(std::vector<BrushDab> &dabs,
+                         RasterDabStream &stream,
                          const StrokePoint &start,
                          const StrokePoint &end,
                          Types::Scalar distanceWithinSegment,
                          Types::Scalar segmentLength,
-                         Types::Scalar distanceOnCurve,
-                         Types::Scalar curveLength,
+                         Types::Scalar distanceOnTrajectory,
                          const Rasterizer &rasterizer,
                          const BrushDynamics &dynamics,
                          const BrushMaterial &material,
@@ -1152,120 +1135,109 @@ void appendDabAtDistance(std::vector<BrushDab> &dabs,
     const Types::Scalar dy = end.position.y - start.position.y;
     const Types::Scalar t = segmentLength > 0.0 ? distanceWithinSegment / segmentLength : 0.0;
     const StrokePoint sample = interpolateSample(start, end, std::clamp(t, 0.0, 1.0));
-    const auto sequenceIndex = static_cast<std::uint32_t>(dabs.size());
     dabs.push_back(makeBrushDab(sample,
                                 std::atan2(dy, dx),
                                 rasterizer,
                                 dynamics,
                                 material,
-                                distanceOnCurve,
-                                curveLength,
+                                distanceOnTrajectory,
                                 randomSeed,
-                                sequenceIndex));
+                                stream.sequenceIndex++));
 }
 
 } // namespace
 
-std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve, const Rasterizer &rasterizer)
-{
-    return placeBrushDabs(curve, rasterizer, 0);
-}
-
-std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
-                                     const Rasterizer &rasterizer,
-                                     std::uint32_t randomSeed)
-{
-    return placeBrushDabs(curve, rasterizer, BrushDynamics{}, randomSeed);
-}
-
-std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
-                                     const Rasterizer &rasterizer,
-                                     const BrushDynamics &dynamics,
-                                     std::uint32_t randomSeed)
-{
-    return placeBrushDabs(curve, rasterizer, dynamics, BrushMaterial{}, randomSeed);
-}
-
-std::vector<BrushDab> placeBrushDabs(const StrokeCurve &curve,
-                                     const Rasterizer &rasterizer,
-                                     const BrushDynamics &dynamics,
-                                     const BrushMaterial &material,
-                                     std::uint32_t randomSeed)
+std::vector<BrushDab> appendRasterDabs(RasterDabStream &stream,
+                                       const StrokePoint &point,
+                                       const BrushState &brush,
+                                       bool finishStroke)
 {
     std::vector<BrushDab> dabs;
-    if (curve.samples.empty()) {
+    StrokePoint next = point;
+    if (!stream.active) {
+        next.velocity = 0.0;
+        next.arcLength = 0.0;
+        stream.active = true;
+        stream.previousPoint = next;
+        stream.traveledDistance = 0.0;
+        stream.lastDabDistance = 0.0;
+        dabs.push_back(makeBrushDab(next,
+                                   0.0,
+                                   brush.rasterizer,
+                                   brush.dynamics,
+                                   brush.material,
+                                   0.0,
+                                   brush.randomSeed,
+                                   stream.sequenceIndex++));
+        stream.nextDabDistance = effectiveSpacing(brush.rasterizer, brush.dynamics, next);
+        if (finishStroke) {
+            stream.active = false;
+        }
         return dabs;
     }
 
-    if (curve.samples.size() == 1) {
-        dabs.push_back(makeBrushDab(curve.samples.front(), 0.0, rasterizer, dynamics, material, 0.0, 0.0, randomSeed, 0));
-        return dabs;
-    }
-
-    const Types::Scalar curveLength = totalCurveLength(curve);
-    Types::Scalar segmentStartDistance = 0.0;
-    Types::Scalar nextDabDistance = 0.0;
-    Types::Scalar lastPlacedDistance = -1.0;
+    const StrokePoint start = stream.previousPoint;
+    const Types::Scalar dx = next.position.x - start.position.x;
+    const Types::Scalar dy = next.position.y - start.position.y;
+    const Types::Scalar segmentLength = std::hypot(dx, dy);
+    const Types::Scalar duration = next.time - start.time;
+    next.velocity = duration > 0.0 ? segmentLength / duration : 0.0;
+    next.arcLength = stream.traveledDistance + segmentLength;
+    const Types::Scalar segmentEndDistance = next.arcLength;
     constexpr Types::Scalar epsilon = 0.000001;
 
-    for (std::size_t index = 0; index + 1 < curve.samples.size(); ++index) {
-        const StrokePoint &start = curve.samples[index];
-        const StrokePoint &end = curve.samples[index + 1];
-        const Types::Scalar segmentLength = std::hypot(end.position.x - start.position.x,
-                                                       end.position.y - start.position.y);
-        if (segmentLength <= 0.0) {
-            continue;
-        }
-
-        const Types::Scalar segmentEndDistance = segmentStartDistance + segmentLength;
-        while (nextDabDistance <= segmentEndDistance + epsilon) {
-            if (nextDabDistance + epsilon >= segmentStartDistance) {
-                const Types::Scalar distanceWithinSegment = nextDabDistance - segmentStartDistance;
+    if (segmentLength > 0.0) {
+        while (stream.nextDabDistance <= segmentEndDistance + epsilon) {
+            if (stream.nextDabDistance + epsilon >= stream.traveledDistance) {
+                const Types::Scalar distanceWithinSegment = stream.nextDabDistance - stream.traveledDistance;
                 const StrokePoint sample = interpolateSample(start,
-                                                             end,
-                                                             std::clamp(distanceWithinSegment / segmentLength,
-                                                                        0.0,
-                                                                        1.0));
+                                                             next,
+                                                             std::clamp(distanceWithinSegment / segmentLength, 0.0, 1.0));
                 appendDabAtDistance(dabs,
+                                    stream,
                                     start,
-                                    end,
+                                    next,
                                     distanceWithinSegment,
                                     segmentLength,
-                                    nextDabDistance,
-                                    curveLength,
-                                    rasterizer,
-                                    dynamics,
-                                    material,
-                                    randomSeed);
-                lastPlacedDistance = nextDabDistance;
-                nextDabDistance += effectiveSpacing(rasterizer, dynamics, sample);
+                                    stream.nextDabDistance,
+                                    brush.rasterizer,
+                                    brush.dynamics,
+                                    brush.material,
+                                    brush.randomSeed);
+                stream.lastDabDistance = stream.nextDabDistance;
+                stream.nextDabDistance += effectiveSpacing(brush.rasterizer, brush.dynamics, sample);
             } else {
-                nextDabDistance += effectiveSpacing(rasterizer, dynamics, start);
+                stream.nextDabDistance += effectiveSpacing(brush.rasterizer, brush.dynamics, start);
             }
         }
-
-        segmentStartDistance = segmentEndDistance;
     }
 
-    if (dabs.empty() || curveLength - lastPlacedDistance > epsilon) {
-        const StrokePoint &previous = curve.samples[curve.samples.size() - 2];
-        const StrokePoint &last = curve.samples.back();
+    if (finishStroke && segmentLength > 0.0 && segmentEndDistance - stream.lastDabDistance > epsilon) {
         appendDabAtDistance(dabs,
-                            previous,
-                            last,
-                            std::hypot(last.position.x - previous.position.x,
-                                       last.position.y - previous.position.y),
-                            std::hypot(last.position.x - previous.position.x,
-                                       last.position.y - previous.position.y),
-                            curveLength,
-                            curveLength,
-                            rasterizer,
-                            dynamics,
-                            material,
-                            randomSeed);
+                            stream,
+                            start,
+                            next,
+                            segmentLength,
+                            segmentLength,
+                            segmentEndDistance,
+                            brush.rasterizer,
+                            brush.dynamics,
+                            brush.material,
+                            brush.randomSeed);
+        stream.lastDabDistance = segmentEndDistance;
     }
 
+    stream.previousPoint = next;
+    stream.traveledDistance = segmentEndDistance;
+    if (finishStroke) {
+        stream.active = false;
+    }
     return dabs;
+}
+
+void resetRasterDabStream(RasterDabStream &stream)
+{
+    stream = {};
 }
 
 std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs, const Rasterizer &rasterizer)
@@ -1358,18 +1330,6 @@ std::vector<RasterSample> projectBrushDabs(BrushDabSpan dabs,
     }
 
     return samples;
-}
-
-std::vector<RasterSample> rasterizeStrokeCurve(const StrokeCurve &curve, const Rasterizer &rasterizer)
-{
-    return projectBrushDabs(placeBrushDabs(curve, rasterizer), rasterizer);
-}
-
-std::vector<RasterSample> rasterizeStrokeCurve(const StrokeCurve &curve,
-                                               const Rasterizer &rasterizer,
-                                               const RasterProjection &projection)
-{
-    return projectBrushDabs(placeBrushDabs(curve, rasterizer), rasterizer, projection);
 }
 
 DocumentRect documentBoundsForBrushDab(const BrushDab &dab, const Rasterizer &rasterizer)

@@ -196,6 +196,27 @@ void compositeStrokeBufferOntoLayer(RasterLayer &layer, const StrokeCompositeBuf
     }
 }
 
+void eraseStrokeBufferFromLayer(RasterLayer &layer, const StrokeCompositeBuffer &buffer)
+{
+    const Types::Pixel width = std::min(layer.width, buffer.width);
+    const Types::Pixel height = std::min(layer.height, buffer.height);
+    for (Types::Pixel y = 0; y < height; ++y) {
+        for (Types::Pixel x = 0; x < width; ++x) {
+            const DevicePixelPoint position{x, y};
+            const std::size_t layerIndex = pixelIndex(layer, position);
+            const std::size_t bufferIndex = pixelIndex(buffer, position);
+            const PremultipliedPixel mask = buffer.pixels[bufferIndex];
+            if (mask.alpha <= 0.0) {
+                continue;
+            }
+
+            const std::uint32_t maskArgb = static_cast<std::uint32_t>(
+                    std::lround(std::clamp(mask.alpha, 0.0, 1.0) * 255.0)) << 24U;
+            layer.pixels[layerIndex] = destinationOut(layer.pixels[layerIndex], maskArgb);
+        }
+    }
+}
+
 void flushSourceOverSamples(RasterLayer &layer, std::vector<RasterSample> &samples)
 {
     if (samples.empty()) {

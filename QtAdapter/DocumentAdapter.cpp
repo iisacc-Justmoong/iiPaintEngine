@@ -1,7 +1,3 @@
-//
-// Created by Justmoong on 2026 May 24.
-//
-
 #include "DocumentAdapter.h"
 
 #include "Document/PaintDocument.h"
@@ -11,79 +7,62 @@
 #include "Render/Compositor.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace {
-
-Canvas *canvasAt(DocumentAdapter &adapter, std::size_t canvasIndex)
-{
-    if (canvasIndex >= adapter.archive.document.canvases.size()) {
-        return nullptr;
-    }
-    return &adapter.archive.document.canvases[canvasIndex];
-}
-
-const Canvas *canvasAt(const DocumentAdapter &adapter, std::size_t canvasIndex)
-{
-    if (canvasIndex >= adapter.archive.document.canvases.size()) {
-        return nullptr;
-    }
-    return &adapter.archive.document.canvases[canvasIndex];
-}
 
 Types::Scalar clampUnit(Types::Scalar value)
 {
     return std::clamp(value, 0.0, 1.0);
 }
 
-Types::Pixel canvasWidth(const Canvas &canvas)
+Types::Pixel documentWidth(const PaintDocument &document)
 {
-    if (canvas.surface.width > 0) {
-        return canvas.surface.width;
+    if (document.surface.width > 0) {
+        return document.surface.width;
     }
-    if (!canvas.layers.layers.empty()) {
-        return canvas.layers.layers.front().surface.width;
+    if (!document.layers.layers.empty()) {
+        return document.layers.layers.front().surface.width;
     }
     return 0;
 }
 
-Types::Pixel canvasHeight(const Canvas &canvas)
+Types::Pixel documentHeight(const PaintDocument &document)
 {
-    if (canvas.surface.height > 0) {
-        return canvas.surface.height;
+    if (document.surface.height > 0) {
+        return document.surface.height;
     }
-    if (!canvas.layers.layers.empty()) {
-        return canvas.layers.layers.front().surface.height;
+    if (!document.layers.layers.empty()) {
+        return document.layers.layers.front().surface.height;
     }
     return 0;
 }
 
-Command makePaintStrokeHistoryCommand(const Layer &layer, const StrokeCommand &stroke)
+Command makeRasterPaintHistoryCommand(const Layer &layer, DocumentRect dirtyBounds)
 {
     Command command;
     command.label = "Paint stroke";
     command.kind = CommandKind::PaintStroke;
     command.scope = CommandScope::Layer;
     command.targetId = layer.metadata.id;
-    command.dirtyBounds = stroke.dirtyBounds;
+    command.dirtyBounds = dirtyBounds;
 
     CommandPatch patch;
     patch.targetId = layer.metadata.id;
     patch.scope = CommandScope::Layer;
-    patch.dirtyBounds = stroke.dirtyBounds;
+    patch.dirtyBounds = dirtyBounds;
     patch.beforeState.storage = CommandPayloadStorage::None;
     patch.afterState.storage = CommandPayloadStorage::None;
     command.patches.push_back(patch);
     return command;
 }
 
-void refreshCanvasSurface(Canvas &canvas)
+void refreshSurface(PaintDocument &document)
 {
-    const Types::Pixel width = canvasWidth(canvas);
-    const Types::Pixel height = canvasHeight(canvas);
-    const RasterLayer composite = compositeLayerStack(canvas.layers,
-                                                      width,
-                                                      height);
-    canvas.surface = drawingSurfaceFromRasterLayer(composite);
+    const RasterLayer composite = compositeLayerStack(document.layers,
+                                                      documentWidth(document),
+                                                      documentHeight(document));
+    document.surface = drawingSurfaceFromRasterLayer(composite);
 }
 
 } // namespace
@@ -91,29 +70,28 @@ void refreshCanvasSurface(Canvas &canvas)
 DocumentAdapter makeDocumentAdapter(Types::Pixel width, Types::Pixel height, std::uint32_t clearArgb)
 {
     DocumentAdapter adapter;
-    const RasterLayer baseLayer = makeRasterLayer(width, height, clearArgb);
-    adapter.archive = makeDocumentArchive(makePaintDocument(baseLayer));
-    adapter.activeCanvasIndex = 0;
+    adapter.archive = makeDocumentArchive(makePaintDocument(makeRasterLayer(width, height, clearArgb)));
     return adapter;
 }
 
 bool loadDocumentArchivePayload(DocumentAdapter &adapter, const std::string &payload)
 {
     DocumentArchive archive = deserializeDocumentArchive(payload);
-    if (archive.document.canvases.empty()) {
+    if (!archive.compatible || archive.document.layers.layers.empty()) {
         return false;
     }
 
-    adapter.archive = archive;
-    adapter.activeCanvasIndex = 0;
-    for (Canvas &canvas : adapter.archive.document.canvases) {
-        if (canvas.layers.activeLayerIndex >= canvas.layers.layers.size()) {
-            canvas.layers.activeLayerIndex = 0;
-        }
-        if (canvas.surface.width <= 0 || canvas.surface.height <= 0) {
-            refreshCanvasSurface(canvas);
-        }
+    if (archive.document.layers.activeLayerIndex >= archive.document.layers.layers.size()) {
+        archive.document.layers.activeLayerIndex = 0;
     }
+    if (archive.document.surface.width <= 0 || archive.document.surface.height <= 0) {
+        refreshSurface(archive.document);
+    }
+    if (archive.document.surface.width <= 0 || archive.document.surface.height <= 0) {
+        return false;
+    }
+
+    adapter.archive = std::move(archive);
     return true;
 }
 
@@ -124,88 +102,57 @@ std::string saveDocumentArchivePayload(const DocumentAdapter &adapter)
 
 bool documentAdapterHasDocument(const DocumentAdapter &adapter)
 {
-    return activeDocumentCanvas(adapter) != nullptr;
-}
-
-std::size_t documentCanvasCount(const DocumentAdapter &adapter)
-{
-    return adapter.archive.document.canvases.size();
+    return !adapter.archive.document.layers.layers.empty()
+            && documentWidth(adapter.archive.document) > 0
+            && documentHeight(adapter.archive.document) > 0;
 }
 
 std::size_t documentLayerCount(const DocumentAdapter &adapter)
 {
-    const Canvas *canvas = activeDocumentCanvas(adapter);
-    if (canvas == nullptr) {
-        return 0;
-    }
-    return canvas->layers.layers.size();
-}
-
-bool selectDocumentCanvas(DocumentAdapter &adapter, std::size_t canvasIndex)
-{
-    if (canvasAt(adapter, canvasIndex) == nullptr) {
-        return false;
-    }
-
-    adapter.activeCanvasIndex = canvasIndex;
-    return true;
+    return adapter.archive.document.layers.layers.size();
 }
 
 bool selectDocumentLayer(DocumentAdapter &adapter, std::size_t layerIndex)
 {
-    Canvas *canvas = activeDocumentCanvas(adapter);
-    if (canvas == nullptr || layerIndex >= canvas->layers.layers.size()) {
+    if (layerIndex >= adapter.archive.document.layers.layers.size()) {
         return false;
     }
-
-    canvas->layers.activeLayerIndex = layerIndex;
+    adapter.archive.document.layers.activeLayerIndex = layerIndex;
     return true;
-}
-
-Canvas *activeDocumentCanvas(DocumentAdapter &adapter)
-{
-    return canvasAt(adapter, adapter.activeCanvasIndex);
-}
-
-const Canvas *activeDocumentCanvas(const DocumentAdapter &adapter)
-{
-    return canvasAt(adapter, adapter.activeCanvasIndex);
 }
 
 Layer *activeDocumentLayer(DocumentAdapter &adapter)
 {
-    Canvas *canvas = activeDocumentCanvas(adapter);
-    if (canvas == nullptr || canvas->layers.activeLayerIndex >= canvas->layers.layers.size()) {
+    LayerStack &layers = adapter.archive.document.layers;
+    if (layers.activeLayerIndex >= layers.layers.size()) {
         return nullptr;
     }
-    return &canvas->layers.layers[canvas->layers.activeLayerIndex];
+    return &layers.layers[layers.activeLayerIndex];
 }
 
 const Layer *activeDocumentLayer(const DocumentAdapter &adapter)
 {
-    const Canvas *canvas = activeDocumentCanvas(adapter);
-    if (canvas == nullptr || canvas->layers.activeLayerIndex >= canvas->layers.layers.size()) {
+    const LayerStack &layers = adapter.archive.document.layers;
+    if (layers.activeLayerIndex >= layers.layers.size()) {
         return nullptr;
     }
-    return &canvas->layers.layers[canvas->layers.activeLayerIndex];
+    return &layers.layers[layers.activeLayerIndex];
 }
 
 Layer *documentLayerAt(DocumentAdapter &adapter, std::size_t layerIndex)
 {
-    Canvas *canvas = activeDocumentCanvas(adapter);
-    if (canvas == nullptr || layerIndex >= canvas->layers.layers.size()) {
+    if (layerIndex >= adapter.archive.document.layers.layers.size()) {
         return nullptr;
     }
-    return &canvas->layers.layers[layerIndex];
+    return &adapter.archive.document.layers.layers[layerIndex];
 }
 
 const Layer *documentLayerAt(const DocumentAdapter &adapter, std::size_t layerIndex)
 {
-    const Canvas *canvas = activeDocumentCanvas(adapter);
-    if (canvas == nullptr || layerIndex >= canvas->layers.layers.size()) {
+    if (layerIndex >= adapter.archive.document.layers.layers.size()) {
         return nullptr;
     }
-    return &canvas->layers.layers[layerIndex];
+    return &adapter.archive.document.layers.layers[layerIndex];
 }
 
 bool addDocumentRasterLayer(DocumentAdapter &adapter,
@@ -213,20 +160,22 @@ bool addDocumentRasterLayer(DocumentAdapter &adapter,
                             std::uint32_t clearArgb,
                             bool selectCreatedLayer)
 {
-    Canvas *canvas = activeDocumentCanvas(adapter);
-    if (canvas == nullptr) {
+    PaintDocument &document = adapter.archive.document;
+    const Types::Pixel width = documentWidth(document);
+    const Types::Pixel height = documentHeight(document);
+    if (width <= 0 || height <= 0) {
         return false;
     }
 
     Layer layer;
-    layer.surface = makeDrawingSurface(canvasWidth(*canvas), canvasHeight(*canvas), clearArgb);
+    layer.surface = makeDrawingSurface(width, height, clearArgb);
     layer.metadata.name = name;
-    layer.metadata.id.bytes[0] = static_cast<std::uint8_t>(canvas->layers.layers.size() + 1U);
-    canvas->layers.layers.push_back(layer);
+    layer.metadata.id.bytes[0] = static_cast<std::uint8_t>(document.layers.layers.size() + 1U);
+    document.layers.layers.push_back(layer);
     if (selectCreatedLayer) {
-        canvas->layers.activeLayerIndex = canvas->layers.layers.size() - 1U;
+        document.layers.activeLayerIndex = document.layers.layers.size() - 1U;
     }
-    refreshActiveDocumentCanvasSurface(adapter);
+    refreshDocumentSurface(adapter);
     return true;
 }
 
@@ -236,7 +185,6 @@ bool renameDocumentLayer(DocumentAdapter &adapter, std::size_t layerIndex, const
     if (layer == nullptr) {
         return false;
     }
-
     layer->metadata.name = name;
     return true;
 }
@@ -247,9 +195,8 @@ bool setDocumentLayerVisible(DocumentAdapter &adapter, std::size_t layerIndex, b
     if (layer == nullptr) {
         return false;
     }
-
     layer->metadata.visible = visible;
-    refreshActiveDocumentCanvasSurface(adapter);
+    refreshDocumentSurface(adapter);
     return true;
 }
 
@@ -259,37 +206,31 @@ bool setDocumentLayerOpacity(DocumentAdapter &adapter, std::size_t layerIndex, T
     if (layer == nullptr) {
         return false;
     }
-
     layer->metadata.opacity = clampUnit(opacity);
-    refreshActiveDocumentCanvasSurface(adapter);
+    refreshDocumentSurface(adapter);
     return true;
 }
 
-bool commitStrokeToActiveDocumentLayer(DocumentAdapter &adapter,
-                                       const StrokeCommand &command,
-                                       const std::vector<RasterSample> &samples)
+bool commitRasterSamplesToActiveDocumentLayer(DocumentAdapter &adapter,
+                                              const std::vector<RasterSample> &samples,
+                                              DocumentRect dirtyBounds)
 {
-    Canvas *canvas = activeDocumentCanvas(adapter);
     Layer *layer = activeDocumentLayer(adapter);
-    if (canvas == nullptr || layer == nullptr) {
+    if (layer == nullptr) {
         return false;
     }
 
     RasterLayer rasterLayer = rasterLayerFromDrawingSurface(layer->surface);
     paintRasterSamples(rasterLayer, samples);
     layer->surface = drawingSurfaceFromRasterLayer(rasterLayer);
-    canvas->strokes.strokes.push_back(command);
-    recordHistoryCommand(adapter.archive.history, makePaintStrokeHistoryCommand(*layer, command));
-    refreshActiveDocumentCanvasSurface(adapter);
+    recordHistoryCommand(adapter.archive.history, makeRasterPaintHistoryCommand(*layer, dirtyBounds));
+    refreshDocumentSurface(adapter);
     return true;
 }
 
-void refreshActiveDocumentCanvasSurface(DocumentAdapter &adapter)
+void refreshDocumentSurface(DocumentAdapter &adapter)
 {
-    Canvas *canvas = activeDocumentCanvas(adapter);
-    if (canvas == nullptr) {
-        return;
+    if (!adapter.archive.document.layers.layers.empty()) {
+        refreshSurface(adapter.archive.document);
     }
-
-    refreshCanvasSurface(*canvas);
 }

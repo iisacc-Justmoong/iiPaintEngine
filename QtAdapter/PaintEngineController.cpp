@@ -72,12 +72,12 @@ bool selectPaintLayer(PaintEngineController &controller, std::size_t layerIndex)
     return true;
 }
 
-bool commitPaintStroke(PaintEngineController &controller,
-                       const StrokeCommand &command,
-                       const std::vector<RasterSample> &samples)
+bool commitPaintSamples(PaintEngineController &controller,
+                        const std::vector<RasterSample> &samples,
+                        DocumentRect dirtyBounds)
 {
     if (!controller.documentOpen
-            || !commitStrokeToActiveDocumentLayer(controller.document, command, samples)) {
+            || !commitRasterSamplesToActiveDocumentLayer(controller.document, samples, dirtyBounds)) {
         return false;
     }
 

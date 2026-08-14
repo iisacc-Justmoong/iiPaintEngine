@@ -12,11 +12,6 @@
 #include "Brush/BrushShape.h"
 #include "Brush/BrushSnapshot.h"
 #include "Brush/BrushTip.h"
-#include "Canvas/Canvas.h"
-#include "Canvas/CanvasMetadata.h"
-#include "Canvas/CanvasSession.h"
-#include "Canvas/CanvasState.h"
-#include "Canvas/CanvasViewport.h"
 #include "Color/ColorSpace.h"
 #include "Color/Gradient.h"
 #include "Color/PaintColor.h"
@@ -45,9 +40,6 @@
 #include "Layer/LayerMetadata.h"
 #include "Layer/LayerStack.h"
 #include "Layer/RasterLayer.h"
-#include "Layer/StrokeLayer.h"
-#include "Layer/TextLayer.h"
-#include "Layer/VectorLayer.h"
 #include "QtAdapter/DocumentAdapter.h"
 #include "QtAdapter/LayerListModel.h"
 #include "QtAdapter/PaintCanvasItem.h"
@@ -60,20 +52,13 @@
 #include "Render/RenderContext.h"
 #include "Render/Renderer.h"
 #include "Selection/Selection.h"
-#include "Stroke/LiveStroke.h"
 #include "Stroke/Rasterizer.h"
-#include "Stroke/Stabilizer.h"
-#include "Stroke/Stroke.h"
-#include "Stroke/StrokeCommand.h"
-#include "Stroke/StrokeCurve.h"
-#include "Stroke/StrokeInput.h"
 #include "Stroke/StrokePoint.h"
-#include "Stroke/StrokeRepository.h"
-#include "Stroke/StrokeResampler.h"
 #include "Filter/FilterPipeline.h"
 #include "Tool/RasterEditTool.h"
 #include "Tool/ToolStateMachine.h"
 #include "Transform/Transform.h"
+#include "Transform/ViewportTransform.h"
 
 namespace {
 
@@ -92,11 +77,9 @@ static_assert(blueprintStruct<EngineConfig>);
 static_assert(blueprintStruct<EngineError>);
 static_assert(blueprintStruct<PaintUuid>);
 static_assert(blueprintStruct<DocumentPoint>);
-static_assert(blueprintStruct<CanvasPoint>);
 static_assert(blueprintStruct<ViewPoint>);
 static_assert(blueprintStruct<DevicePixelPoint>);
 static_assert(blueprintStruct<DocumentRect>);
-static_assert(blueprintStruct<CanvasRect>);
 static_assert(blueprintStruct<ViewRect>);
 static_assert(blueprintStruct<DevicePixelRect>);
 static_assert(blueprintStruct<CoordinateSpace>);
@@ -108,11 +91,7 @@ static_assert(blueprintStruct<DocumentArchive>);
 static_assert(blueprintStruct<DocumentSnapshot>);
 static_assert(blueprintStruct<DocumentSerializer>);
 
-static_assert(blueprintStruct<Canvas>);
-static_assert(blueprintStruct<CanvasMetadata>);
-static_assert(blueprintStruct<CanvasState>);
-static_assert(blueprintStruct<CanvasViewport>);
-static_assert(blueprintStruct<CanvasSession>);
+static_assert(blueprintStruct<RasterViewport>);
 
 static_assert(blueprintStruct<Layer>);
 static_assert(blueprintStruct<LayerMetadata>);
@@ -122,23 +101,11 @@ static_assert(blueprintStruct<DrawingSurface>);
 static_assert(blueprintStruct<RasterLayer>);
 static_assert(blueprintStruct<PremultipliedPixel>);
 static_assert(blueprintStruct<StrokeCompositeBuffer>);
-static_assert(blueprintStruct<StrokeLayer>);
-static_assert(blueprintStruct<TextLayer>);
-static_assert(blueprintStruct<VectorLayer>);
 
-static_assert(blueprintStruct<Stroke>);
 static_assert(blueprintStruct<StrokePoint>);
-static_assert(blueprintStruct<StrokeInput>);
-static_assert(blueprintStruct<Stabilizer>);
-static_assert(blueprintStruct<StrokeCurve>);
 static_assert(blueprintStruct<BrushDab>);
-static_assert(blueprintStruct<StrokePath>);
 static_assert(blueprintStruct<BrushState>);
-static_assert(blueprintStruct<StrokeCommand>);
-static_assert(blueprintStruct<LiveStrokeFrame>);
-static_assert(blueprintStruct<LiveStrokeBuffer>);
-static_assert(blueprintStruct<StrokeRepository>);
-static_assert(blueprintStruct<StrokeResampler>);
+static_assert(blueprintStruct<RasterDabStream>);
 static_assert(blueprintStruct<Rasterizer>);
 
 static_assert(blueprintStruct<BrushPreset>);
@@ -171,9 +138,6 @@ static_assert(blueprintStruct<RenderTileCache>);
 static_assert(blueprintStruct<BrushStampAtlasKey>);
 static_assert(blueprintStruct<BrushStampAtlasEntry>);
 static_assert(blueprintStruct<BrushStampAtlas>);
-static_assert(blueprintStruct<StrokeReplayCacheKey>);
-static_assert(blueprintStruct<StrokeReplayCacheEntry>);
-static_assert(blueprintStruct<StrokeReplayCache>);
 static_assert(blueprintStruct<Compositor>);
 static_assert(blueprintStruct<CpuRenderer>);
 static_assert(blueprintStruct<GpuRenderer>);
@@ -224,12 +188,10 @@ static_assert(publiclyInheritsQObject<PaintCanvasItem>);
 int main()
 {
     PaintDocument document{};
-    Canvas canvasValue{};
-    CanvasSession canvas{};
+    RasterViewport viewport{};
     DrawingSurface surface{};
     LayerStack layers{};
-    StrokeRepository strokeRepository{};
-    Stroke stroke{};
+    RasterDabStream rasterDabs{};
     BrushPreset brush{};
     RenderContext renderContext{};
     HistoryStack history{};
@@ -249,12 +211,10 @@ int main()
     }
 
     (void) document;
-    (void) canvasValue;
-    (void) canvas;
+    (void) viewport;
     (void) surface;
     (void) layers;
-    (void) strokeRepository;
-    (void) stroke;
+    (void) rasterDabs;
     (void) brush;
     (void) renderContext;
     (void) history;

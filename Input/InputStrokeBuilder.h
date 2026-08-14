@@ -4,23 +4,21 @@
 
 #pragma once
 
-#include <vector>
-
 #include "Input/PointerEvent.h"
-#include "Stroke/StrokeInput.h"
+#include "Stroke/StrokePoint.h"
 
 struct InputStrokeBuildResult {
+    bool pointAvailable = false;
+    bool strokeStarted = false;
     bool strokeCompleted = false;
-    StrokeInput stroke;
+    bool strokeCancelled = false;
+    StrokePoint point{};
 };
 
 struct InputStrokeBuilder {
     bool active = false;
-    std::vector<StrokePoint> points;
 };
 
 InputStrokeBuildResult appendPointerEvent(InputStrokeBuilder &builder, const PointerEvent &event);
-
-StrokeInput activeStrokeInput(const InputStrokeBuilder &builder);
 
 void resetInputStrokeBuilder(InputStrokeBuilder &builder);

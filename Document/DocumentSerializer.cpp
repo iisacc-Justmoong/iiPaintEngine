@@ -294,6 +294,14 @@ void writeDocumentMetadata(std::ostringstream &output,
     writeLine(output, prefix + ".modifiedAt", stringText(metadata.modifiedAt));
     writeLine(output, prefix + ".documentId", uuidText(metadata.documentId));
     writeLine(output, prefix + ".version", numberText(metadata.version));
+    writeLine(output, prefix + ".thumbnail", u32VectorText(metadata.thumbnail));
+    writeLine(output, prefix + ".backgroundColor", numberText(metadata.backgroundColor));
+    writeLine(output, prefix + ".unit", numberText(static_cast<int>(metadata.unit)));
+    writeLine(output, prefix + ".intendedExportWidth", numberText(metadata.intendedExportWidth));
+    writeLine(output, prefix + ".intendedExportHeight", numberText(metadata.intendedExportHeight));
+    writeLine(output, prefix + ".dpiX", numberText(metadata.dpiX));
+    writeLine(output, prefix + ".dpiY", numberText(metadata.dpiY));
+    writeLine(output, prefix + ".colorSpace", stringText(metadata.colorSpace));
     writeLine(output, prefix + ".appVersion", stringText(metadata.appVersion));
 }
 
@@ -308,42 +316,9 @@ DocumentMetadata readDocumentMetadata(const std::map<std::string, std::string> &
     metadata.modifiedAt = readString(values, prefix + ".modifiedAt");
     metadata.documentId = readUuid(values, prefix + ".documentId");
     metadata.version = readNumber<std::uint32_t>(values, prefix + ".version", 1);
-    metadata.appVersion = readString(values, prefix + ".appVersion");
-    return metadata;
-}
-
-void writeCanvasMetadata(std::ostringstream &output,
-                         const std::string &prefix,
-                         const CanvasMetadata &metadata)
-{
-    writeLine(output, prefix + ".title", stringText(metadata.title));
-    writeLine(output, prefix + ".author", stringText(metadata.author));
-    writeLine(output, prefix + ".createdAt", stringText(metadata.createdAt));
-    writeLine(output, prefix + ".modifiedAt", stringText(metadata.modifiedAt));
-    writeLine(output, prefix + ".documentId", uuidText(metadata.documentId));
-    writeLine(output, prefix + ".thumbnail", u32VectorText(metadata.thumbnail));
-    writeLine(output, prefix + ".backgroundColor", numberText(metadata.backgroundColor));
-    writeLine(output, prefix + ".unit", numberText(static_cast<int>(metadata.unit)));
-    writeLine(output, prefix + ".intendedExportWidth", numberText(metadata.intendedExportWidth));
-    writeLine(output, prefix + ".intendedExportHeight", numberText(metadata.intendedExportHeight));
-    writeLine(output, prefix + ".dpiX", numberText(metadata.dpiX));
-    writeLine(output, prefix + ".dpiY", numberText(metadata.dpiY));
-    writeLine(output, prefix + ".colorSpace", stringText(metadata.colorSpace));
-    writeLine(output, prefix + ".appVersion", stringText(metadata.appVersion));
-}
-
-CanvasMetadata readCanvasMetadata(const std::map<std::string, std::string> &values,
-                                  const std::string &prefix)
-{
-    CanvasMetadata metadata;
-    metadata.title = readString(values, prefix + ".title");
-    metadata.author = readString(values, prefix + ".author");
-    metadata.createdAt = readString(values, prefix + ".createdAt");
-    metadata.modifiedAt = readString(values, prefix + ".modifiedAt");
-    metadata.documentId = readUuid(values, prefix + ".documentId");
     metadata.thumbnail = readU32Vector(values, prefix + ".thumbnail");
     metadata.backgroundColor = readNumber<std::uint32_t>(values, prefix + ".backgroundColor");
-    metadata.unit = static_cast<CanvasUnit>(readNumber<int>(values, prefix + ".unit"));
+    metadata.unit = static_cast<DocumentUnit>(readNumber<int>(values, prefix + ".unit"));
     metadata.intendedExportWidth = readNumber<Types::Pixel>(values, prefix + ".intendedExportWidth");
     metadata.intendedExportHeight = readNumber<Types::Pixel>(values, prefix + ".intendedExportHeight");
     metadata.dpiX = readNumber<Types::Scalar>(values, prefix + ".dpiX", 72.0);
@@ -351,6 +326,38 @@ CanvasMetadata readCanvasMetadata(const std::map<std::string, std::string> &valu
     metadata.colorSpace = readString(values, prefix + ".colorSpace", "sRGB");
     metadata.appVersion = readString(values, prefix + ".appVersion");
     return metadata;
+}
+
+void readLegacyCanvasMetadata(const std::map<std::string, std::string> &values,
+                              const std::string &prefix,
+                              DocumentMetadata &metadata)
+{
+    if (metadata.title.empty()) {
+        metadata.title = readString(values, prefix + ".title");
+    }
+    if (metadata.author.empty()) {
+        metadata.author = readString(values, prefix + ".author");
+    }
+    if (metadata.createdAt.empty()) {
+        metadata.createdAt = readString(values, prefix + ".createdAt");
+    }
+    if (metadata.modifiedAt.empty()) {
+        metadata.modifiedAt = readString(values, prefix + ".modifiedAt");
+    }
+    if (metadata.documentId.bytes == PaintUuid{}.bytes) {
+        metadata.documentId = readUuid(values, prefix + ".documentId");
+    }
+    metadata.thumbnail = readU32Vector(values, prefix + ".thumbnail");
+    metadata.backgroundColor = readNumber<std::uint32_t>(values, prefix + ".backgroundColor");
+    metadata.unit = static_cast<DocumentUnit>(readNumber<int>(values, prefix + ".unit"));
+    metadata.intendedExportWidth = readNumber<Types::Pixel>(values, prefix + ".intendedExportWidth");
+    metadata.intendedExportHeight = readNumber<Types::Pixel>(values, prefix + ".intendedExportHeight");
+    metadata.dpiX = readNumber<Types::Scalar>(values, prefix + ".dpiX", 72.0);
+    metadata.dpiY = readNumber<Types::Scalar>(values, prefix + ".dpiY", 72.0);
+    metadata.colorSpace = readString(values, prefix + ".colorSpace", "sRGB");
+    if (metadata.appVersion.empty()) {
+        metadata.appVersion = readString(values, prefix + ".appVersion");
+    }
 }
 
 void writeLayerMetadata(std::ostringstream &output,
@@ -472,144 +479,6 @@ Layer readLayer(const std::map<std::string, std::string> &values,
         layer.children.push_back(readLayer(values, prefix + ".children." + numberText(index)));
     }
     return layer;
-}
-
-void writeStrokePoint(std::ostringstream &output,
-                      const std::string &prefix,
-                      const StrokePoint &point)
-{
-    writeLine(output, prefix + ".position", pointText(point.position));
-    writeLine(output, prefix + ".pressure", numberText(point.pressure));
-    writeLine(output, prefix + ".time", numberText(point.time));
-    writeLine(output, prefix + ".velocity", numberText(point.velocity));
-    writeLine(output, prefix + ".tiltX", numberText(point.tiltX));
-    writeLine(output, prefix + ".tiltY", numberText(point.tiltY));
-    writeLine(output, prefix + ".deviceState", numberText(point.deviceState));
-    writeLine(output, prefix + ".arcLength", numberText(point.arcLength));
-    writeLine(output, prefix + ".rotationRadians", numberText(point.rotationRadians));
-}
-
-StrokePoint readStrokePoint(const std::map<std::string, std::string> &values,
-                            const std::string &prefix)
-{
-    StrokePoint point;
-    point.position = readPoint<DocumentPoint>(values, prefix + ".position");
-    point.pressure = readNumber<Types::Scalar>(values, prefix + ".pressure", 1.0);
-    point.time = readNumber<Types::Scalar>(values, prefix + ".time");
-    point.velocity = readNumber<Types::Scalar>(values, prefix + ".velocity");
-    point.tiltX = readNumber<Types::Scalar>(values, prefix + ".tiltX");
-    point.tiltY = readNumber<Types::Scalar>(values, prefix + ".tiltY");
-    point.deviceState = readNumber<std::uint32_t>(values, prefix + ".deviceState");
-    point.arcLength = readNumber<Types::Scalar>(values, prefix + ".arcLength");
-    point.rotationRadians = readNumber<Types::Scalar>(values, prefix + ".rotationRadians");
-    return point;
-}
-
-void writeStrokeInput(std::ostringstream &output,
-                      const std::string &prefix,
-                      const StrokeInput &input)
-{
-    writeLine(output, prefix + ".count", numberText(input.points.size()));
-    for (std::size_t index = 0; index < input.points.size(); ++index) {
-        writeStrokePoint(output, prefix + "." + numberText(index), input.points[index]);
-    }
-}
-
-StrokeInput readStrokeInput(const std::map<std::string, std::string> &values,
-                            const std::string &prefix)
-{
-    StrokeInput input;
-    const std::size_t count = readNumber<std::size_t>(values, prefix + ".count");
-    input.points.reserve(count);
-    for (std::size_t index = 0; index < count; ++index) {
-        input.points.push_back(readStrokePoint(values, prefix + "." + numberText(index)));
-    }
-    return input;
-}
-
-void writeStrokeCurve(std::ostringstream &output,
-                      const std::string &prefix,
-                      const StrokeCurve &curve)
-{
-    writeLine(output, prefix + ".count", numberText(curve.samples.size()));
-    for (std::size_t index = 0; index < curve.samples.size(); ++index) {
-        writeStrokePoint(output, prefix + "." + numberText(index), curve.samples[index]);
-    }
-}
-
-StrokeCurve readStrokeCurve(const std::map<std::string, std::string> &values,
-                            const std::string &prefix)
-{
-    StrokeCurve curve;
-    const std::size_t count = readNumber<std::size_t>(values, prefix + ".count");
-    curve.samples.reserve(count);
-    for (std::size_t index = 0; index < count; ++index) {
-        curve.samples.push_back(readStrokePoint(values, prefix + "." + numberText(index)));
-    }
-    return curve;
-}
-
-void writeRasterizer(std::ostringstream &output,
-                     const std::string &prefix,
-                     const Rasterizer &rasterizer)
-{
-    writeLine(output, prefix + ".radius", numberText(rasterizer.radius));
-    writeLine(output, prefix + ".argb", numberText(rasterizer.argb));
-    writeLine(output, prefix + ".brushSize", numberText(rasterizer.brushSize));
-    writeLine(output, prefix + ".brushWidth", numberText(rasterizer.brushWidth));
-    writeLine(output, prefix + ".brushHeight", numberText(rasterizer.brushHeight));
-    writeLine(output, prefix + ".brushAlpha", byteVectorText(rasterizer.brushAlpha));
-    writeLine(output, prefix + ".spacing", numberText(rasterizer.spacing));
-    writeLine(output, prefix + ".spacingRatio", numberText(rasterizer.spacingRatio));
-    writeLine(output, prefix + ".spacingEnabled", boolText(rasterizer.spacingEnabled));
-    writeLine(output, prefix + ".opacity", numberText(rasterizer.opacity));
-    writeLine(output, prefix + ".opacityEnabled", boolText(rasterizer.opacityEnabled));
-    writeLine(output, prefix + ".flow", numberText(rasterizer.flow));
-    writeLine(output, prefix + ".flowEnabled", boolText(rasterizer.flowEnabled));
-    writeLine(output, prefix + ".hardness", numberText(rasterizer.hardness));
-    writeLine(output, prefix + ".hardnessEnabled", boolText(rasterizer.hardnessEnabled));
-    writeLine(output, prefix + ".density", numberText(rasterizer.density));
-    writeLine(output, prefix + ".pressureScale", numberText(rasterizer.pressureScale));
-    writeLine(output, prefix + ".velocitySpacing", numberText(rasterizer.velocitySpacing));
-    writeLine(output, prefix + ".warmupDistance", numberText(rasterizer.warmupDistance));
-    writeLine(output, prefix + ".taperDistance", numberText(rasterizer.taperDistance));
-    writeLine(output, prefix + ".taperMinimum", numberText(rasterizer.taperMinimum));
-    writeLine(output, prefix + ".warmupTaperShape", numberText(static_cast<int>(rasterizer.warmupTaperShape)));
-    writeLine(output, prefix + ".endTaperShape", numberText(static_cast<int>(rasterizer.endTaperShape)));
-    writeLine(output, prefix + ".rotationJitter", numberText(rasterizer.rotationJitter));
-}
-
-Rasterizer readRasterizer(const std::map<std::string, std::string> &values,
-                          const std::string &prefix)
-{
-    Rasterizer rasterizer;
-    rasterizer.radius = readNumber<Types::Pixel>(values, prefix + ".radius", 2);
-    rasterizer.argb = readNumber<std::uint32_t>(values, prefix + ".argb", 0xFF000000U);
-    rasterizer.brushSize = readNumber<Types::Scalar>(values, prefix + ".brushSize");
-    rasterizer.brushWidth = readNumber<Types::Pixel>(values, prefix + ".brushWidth");
-    rasterizer.brushHeight = readNumber<Types::Pixel>(values, prefix + ".brushHeight");
-    rasterizer.brushAlpha = readTypesByteVector(values, prefix + ".brushAlpha");
-    rasterizer.spacing = readNumber<Types::Scalar>(values, prefix + ".spacing", 1.0);
-    rasterizer.spacingRatio = readNumber<Types::Scalar>(values, prefix + ".spacingRatio", 1.0);
-    rasterizer.spacingEnabled = readBool(values, prefix + ".spacingEnabled", true);
-    rasterizer.opacity = readNumber<Types::Scalar>(values, prefix + ".opacity", 1.0);
-    rasterizer.opacityEnabled = readBool(values, prefix + ".opacityEnabled", true);
-    rasterizer.flow = readNumber<Types::Scalar>(values, prefix + ".flow", 1.0);
-    rasterizer.flowEnabled = readBool(values, prefix + ".flowEnabled", true);
-    rasterizer.hardness = readNumber<Types::Scalar>(values, prefix + ".hardness", 1.0);
-    rasterizer.hardnessEnabled = readBool(values, prefix + ".hardnessEnabled", true);
-    rasterizer.density = readNumber<Types::Scalar>(values, prefix + ".density", 1.0);
-    rasterizer.pressureScale = readNumber<Types::Scalar>(values, prefix + ".pressureScale");
-    rasterizer.velocitySpacing = readNumber<Types::Scalar>(values, prefix + ".velocitySpacing");
-    rasterizer.warmupDistance = readNumber<Types::Scalar>(values, prefix + ".warmupDistance");
-    rasterizer.taperDistance = readNumber<Types::Scalar>(values, prefix + ".taperDistance");
-    rasterizer.taperMinimum = readNumber<Types::Scalar>(values, prefix + ".taperMinimum", 0.25);
-    rasterizer.warmupTaperShape = static_cast<StrokeTaperShape>(
-            readNumber<int>(values, prefix + ".warmupTaperShape", static_cast<int>(StrokeTaperShape::Linear)));
-    rasterizer.endTaperShape = static_cast<StrokeTaperShape>(
-            readNumber<int>(values, prefix + ".endTaperShape", static_cast<int>(StrokeTaperShape::Linear)));
-    rasterizer.rotationJitter = readNumber<Types::Scalar>(values, prefix + ".rotationJitter");
-    return rasterizer;
 }
 
 void writeBrushDynamicsResponses(std::ostringstream &output,
@@ -765,23 +634,6 @@ BrushDynamics readBrushDynamics(const std::map<std::string, std::string> &values
     return dynamics;
 }
 
-void writeStrokeResampler(std::ostringstream &output,
-                          const std::string &prefix,
-                          const StrokeResampler &resampler)
-{
-    writeLine(output, prefix + ".mode", numberText(static_cast<int>(resampler.mode)));
-    writeLine(output, prefix + ".sampleSpacing", numberText(resampler.sampleSpacing));
-}
-
-StrokeResampler readStrokeResampler(const std::map<std::string, std::string> &values,
-                                    const std::string &prefix)
-{
-    StrokeResampler resampler;
-    resampler.mode = static_cast<StrokeInterpolationMode>(readNumber<int>(values, prefix + ".mode", 1));
-    resampler.sampleSpacing = readNumber<Types::Scalar>(values, prefix + ".sampleSpacing", 1.0);
-    return resampler;
-}
-
 void writeBrushTextureAssetCache(std::ostringstream &output,
                                  const std::string &prefix,
                                  const BrushTextureAssetCache &cache)
@@ -924,138 +776,6 @@ BrushMaterial readBrushMaterial(const std::map<std::string, std::string> &values
     material.bristle.length = readNumber<Types::Scalar>(values, prefix + ".bristle.length");
     material.bristle.stiffness = readNumber<Types::Scalar>(values, prefix + ".bristle.stiffness", 1.0);
     return material;
-}
-
-void writeBrushState(std::ostringstream &output,
-                     const std::string &prefix,
-                     const BrushState &brush)
-{
-    writeRasterizer(output, prefix + ".rasterizer", brush.rasterizer);
-    writeBrushDynamics(output, prefix + ".dynamics", brush.dynamics);
-    writeStrokeResampler(output, prefix + ".resampler", brush.resampler);
-    writeBrushMaterial(output, prefix + ".material", brush.material);
-    writeLine(output, prefix + ".randomSeed", numberText(brush.randomSeed));
-}
-
-BrushState readBrushState(const std::map<std::string, std::string> &values,
-                          const std::string &prefix)
-{
-    BrushState brush;
-    brush.rasterizer = readRasterizer(values, prefix + ".rasterizer");
-    brush.dynamics = readBrushDynamics(values, prefix + ".dynamics");
-    brush.resampler = readStrokeResampler(values, prefix + ".resampler");
-    brush.material = readBrushMaterial(values, prefix + ".material");
-    brush.randomSeed = readNumber<std::uint32_t>(values, prefix + ".randomSeed");
-    return brush;
-}
-
-void writeBrushDab(std::ostringstream &output,
-                   const std::string &prefix,
-                   const BrushDab &dab)
-{
-    writeLine(output, prefix + ".position", pointText(dab.position));
-    writeLine(output, prefix + ".scale", numberText(dab.scale));
-    writeLine(output, prefix + ".rotationRadians", numberText(dab.rotationRadians));
-    writeLine(output, prefix + ".alpha", numberText(dab.alpha));
-    writeLine(output, prefix + ".opacityCapScale", numberText(dab.opacityCapScale));
-    writeLine(output, prefix + ".hardnessScale", numberText(dab.hardnessScale));
-    writeLine(output, prefix + ".ellipseScaleX", numberText(dab.ellipseScaleX));
-    writeLine(output, prefix + ".ellipseScaleY", numberText(dab.ellipseScaleY));
-    writeLine(output, prefix + ".textureDirectionRadians", numberText(dab.textureDirectionRadians));
-    writeLine(output, prefix + ".grain", numberText(dab.grain));
-    writeLine(output, prefix + ".textureAlpha", numberText(dab.textureAlpha));
-    writeLine(output, prefix + ".textureDepthScale", numberText(dab.textureDepthScale));
-    writeLine(output, prefix + ".textureScale", numberText(dab.textureScale));
-    writeLine(output, prefix + ".textureRotationRadians", numberText(dab.textureRotationRadians));
-    writeLine(output, prefix + ".wetnessScale", numberText(dab.wetnessScale));
-    writeLine(output, prefix + ".dryOutScale", numberText(dab.dryOutScale));
-    writeLine(output, prefix + ".bristleSpreadScale", numberText(dab.bristleSpreadScale));
-    writeLine(output, prefix + ".scatterScale", numberText(dab.scatterScale));
-    writeLine(output, prefix + ".dualBrushScale", numberText(dab.dualBrushScale));
-    writeLine(output, prefix + ".dualBrushRotationRadians", numberText(dab.dualBrushRotationRadians));
-    writeLine(output, prefix + ".strokeDistance", numberText(dab.strokeDistance));
-    writeLine(output, prefix + ".dualBrush", boolText(dab.dualBrush));
-    writeLine(output, prefix + ".colorArgb", numberText(dab.colorArgb));
-    writeLine(output, prefix + ".blendMode", numberText(static_cast<int>(dab.blendMode)));
-    writeLine(output, prefix + ".sequenceIndex", numberText(dab.sequenceIndex));
-}
-
-BrushDab readBrushDab(const std::map<std::string, std::string> &values,
-                      const std::string &prefix)
-{
-    BrushDab dab;
-    dab.position = readPoint<DocumentPoint>(values, prefix + ".position");
-    dab.scale = readNumber<Types::Scalar>(values, prefix + ".scale", 1.0);
-    dab.rotationRadians = readNumber<Types::Scalar>(values, prefix + ".rotationRadians");
-    dab.alpha = readNumber<Types::Scalar>(values, prefix + ".alpha", 1.0);
-    dab.opacityCapScale = readNumber<Types::Scalar>(values, prefix + ".opacityCapScale", 1.0);
-    dab.hardnessScale = readNumber<Types::Scalar>(values, prefix + ".hardnessScale", 1.0);
-    dab.ellipseScaleX = readNumber<Types::Scalar>(values, prefix + ".ellipseScaleX", 1.0);
-    dab.ellipseScaleY = readNumber<Types::Scalar>(values, prefix + ".ellipseScaleY", 1.0);
-    dab.textureDirectionRadians = readNumber<Types::Scalar>(values, prefix + ".textureDirectionRadians");
-    dab.grain = readNumber<Types::Scalar>(values, prefix + ".grain");
-    dab.textureAlpha = readNumber<Types::Scalar>(values, prefix + ".textureAlpha", 1.0);
-    dab.textureDepthScale = readNumber<Types::Scalar>(values, prefix + ".textureDepthScale", 1.0);
-    dab.textureScale = readNumber<Types::Scalar>(values, prefix + ".textureScale", 1.0);
-    dab.textureRotationRadians = readNumber<Types::Scalar>(values, prefix + ".textureRotationRadians");
-    dab.wetnessScale = readNumber<Types::Scalar>(values, prefix + ".wetnessScale", 1.0);
-    dab.dryOutScale = readNumber<Types::Scalar>(values, prefix + ".dryOutScale", 1.0);
-    dab.bristleSpreadScale = readNumber<Types::Scalar>(values, prefix + ".bristleSpreadScale", 1.0);
-    dab.scatterScale = readNumber<Types::Scalar>(values, prefix + ".scatterScale", 1.0);
-    dab.dualBrushScale = readNumber<Types::Scalar>(values, prefix + ".dualBrushScale", 1.0);
-    dab.dualBrushRotationRadians = readNumber<Types::Scalar>(values, prefix + ".dualBrushRotationRadians");
-    dab.strokeDistance = readNumber<Types::Scalar>(values, prefix + ".strokeDistance");
-    dab.dualBrush = readBool(values, prefix + ".dualBrush");
-    dab.colorArgb = readNumber<std::uint32_t>(values, prefix + ".colorArgb", 0xFF000000U);
-    dab.blendMode = static_cast<RasterBlendMode>(readNumber<int>(values, prefix + ".blendMode"));
-    dab.sequenceIndex = readNumber<std::uint32_t>(values, prefix + ".sequenceIndex");
-    return dab;
-}
-
-void writeStrokeCommand(std::ostringstream &output,
-                        const std::string &prefix,
-                        const StrokeCommand &command)
-{
-    writeStrokeInput(output, prefix + ".path.rawInput", command.path.rawInput);
-    writeStrokeInput(output, prefix + ".path.renderedInput", command.path.renderedInput);
-    writeStrokeCurve(output, prefix + ".path.renderedCurve", command.path.renderedCurve);
-    writeBrushState(output, prefix + ".brush", command.brush);
-    writeLine(output, prefix + ".dabs.count", numberText(command.dabs.size()));
-    for (std::size_t index = 0; index < command.dabs.size(); ++index) {
-        writeBrushDab(output, prefix + ".dabs." + numberText(index), command.dabs[index]);
-    }
-    writeLine(output, prefix + ".dabDirtyBounds.count", numberText(command.dabDirtyBounds.size()));
-    for (std::size_t index = 0; index < command.dabDirtyBounds.size(); ++index) {
-        writeLine(output,
-                  prefix + ".dabDirtyBounds." + numberText(index),
-                  rectText(command.dabDirtyBounds[index]));
-    }
-    writeLine(output, prefix + ".dirtyBounds", rectText(command.dirtyBounds));
-}
-
-StrokeCommand readStrokeCommand(const std::map<std::string, std::string> &values,
-                                const std::string &prefix)
-{
-    StrokeCommand command;
-    command.path.rawInput = readStrokeInput(values, prefix + ".path.rawInput");
-    command.path.renderedInput = readStrokeInput(values, prefix + ".path.renderedInput");
-    command.path.renderedCurve = readStrokeCurve(values, prefix + ".path.renderedCurve");
-    command.brush = readBrushState(values, prefix + ".brush");
-
-    const std::size_t dabCount = readNumber<std::size_t>(values, prefix + ".dabs.count");
-    command.dabs.reserve(dabCount);
-    for (std::size_t index = 0; index < dabCount; ++index) {
-        command.dabs.push_back(readBrushDab(values, prefix + ".dabs." + numberText(index)));
-    }
-
-    const std::size_t boundsCount = readNumber<std::size_t>(values, prefix + ".dabDirtyBounds.count");
-    command.dabDirtyBounds.reserve(boundsCount);
-    for (std::size_t index = 0; index < boundsCount; ++index) {
-        command.dabDirtyBounds.push_back(readRect<DocumentRect>(values,
-                                                               prefix + ".dabDirtyBounds." + numberText(index)));
-    }
-    command.dirtyBounds = readRect<DocumentRect>(values, prefix + ".dirtyBounds");
-    return command;
 }
 
 void writeBrushSnapshot(std::ostringstream &output,
@@ -1284,32 +1004,22 @@ DocumentArchive makeDocumentArchive(const PaintDocument &document)
 
 std::string serializeDocumentArchive(const DocumentArchive &archive)
 {
+    if (!archive.compatible) {
+        return {};
+    }
     std::ostringstream output;
     writeLine(output, "formatMagic", stringText(archive.formatMagic));
-    writeLine(output, "formatVersion", numberText(archive.formatVersion));
+    writeLine(output, "formatVersion", numberText(documentArchiveFormatVersion));
     writeDocumentMetadata(output, "document.metadata", archive.document.metadata);
 
-    writeLine(output, "document.canvases.count", numberText(archive.document.canvases.size()));
-    for (std::size_t canvasIndex = 0; canvasIndex < archive.document.canvases.size(); ++canvasIndex) {
-        const std::string canvasPrefix = "document.canvases." + numberText(canvasIndex);
-        const Canvas &canvas = archive.document.canvases[canvasIndex];
-        writeSurface(output, canvasPrefix + ".surface", canvas.surface);
-        writeCanvasMetadata(output, canvasPrefix + ".metadata", canvas.metadata);
-
-        writeLine(output, canvasPrefix + ".layers.count", numberText(canvas.layers.layers.size()));
-        for (std::size_t layerIndex = 0; layerIndex < canvas.layers.layers.size(); ++layerIndex) {
-            const std::string layerPrefix = canvasPrefix + ".layers." + numberText(layerIndex);
-            writeLayer(output, layerPrefix, canvas.layers.layers[layerIndex]);
-        }
-        writeLine(output, canvasPrefix + ".layers.activeLayerIndex", numberText(canvas.layers.activeLayerIndex));
-
-        writeLine(output, canvasPrefix + ".strokes.count", numberText(canvas.strokes.strokes.size()));
-        for (std::size_t strokeIndex = 0; strokeIndex < canvas.strokes.strokes.size(); ++strokeIndex) {
-            writeStrokeCommand(output,
-                               canvasPrefix + ".strokes." + numberText(strokeIndex),
-                               canvas.strokes.strokes[strokeIndex]);
-        }
+    writeSurface(output, "document.surface", archive.document.surface);
+    writeLine(output, "document.layers.count", numberText(archive.document.layers.layers.size()));
+    for (std::size_t layerIndex = 0; layerIndex < archive.document.layers.layers.size(); ++layerIndex) {
+        writeLayer(output,
+                   "document.layers." + numberText(layerIndex),
+                   archive.document.layers.layers[layerIndex]);
     }
+    writeLine(output, "document.layers.activeLayerIndex", numberText(archive.document.layers.activeLayerIndex));
 
     writeLine(output, "brushSources.count", numberText(archive.brushSources.size()));
     for (std::size_t index = 0; index < archive.brushSources.size(); ++index) {
@@ -1336,33 +1046,40 @@ DocumentArchive deserializeDocumentArchive(const std::string &payload)
 
     DocumentArchive archive;
     archive.formatMagic = readString(values, "formatMagic", "iiPaintDocument");
-    archive.formatVersion = readNumber<std::uint32_t>(values, "formatVersion", 1);
+    const std::uint32_t sourceFormatVersion = readNumber<std::uint32_t>(values, "formatVersion", 1);
+    archive.formatVersion = documentArchiveFormatVersion;
+    if (sourceFormatVersion > documentArchiveFormatVersion) {
+        archive.compatible = false;
+        archive.compatibilityError = "The document was created by a newer unsupported format version.";
+        return archive;
+    }
     archive.document.metadata = readDocumentMetadata(values, "document.metadata");
 
-    const std::size_t canvasCount = readNumber<std::size_t>(values, "document.canvases.count");
-    archive.document.canvases.reserve(canvasCount);
-    for (std::size_t canvasIndex = 0; canvasIndex < canvasCount; ++canvasIndex) {
-        const std::string canvasPrefix = "document.canvases." + numberText(canvasIndex);
-        Canvas canvas;
-        canvas.surface = readSurface(values, canvasPrefix + ".surface");
-        canvas.metadata = readCanvasMetadata(values, canvasPrefix + ".metadata");
-
-        const std::size_t layerCount = readNumber<std::size_t>(values, canvasPrefix + ".layers.count");
-        canvas.layers.layers.reserve(layerCount);
-        for (std::size_t layerIndex = 0; layerIndex < layerCount; ++layerIndex) {
-            const std::string layerPrefix = canvasPrefix + ".layers." + numberText(layerIndex);
-            canvas.layers.layers.push_back(readLayer(values, layerPrefix));
+    std::string surfacePrefix = "document.surface";
+    std::string layersPrefix = "document.layers";
+    if (sourceFormatVersion < documentArchiveFormatVersion) {
+        const std::size_t legacyCanvasCount = readNumber<std::size_t>(values, "document.canvases.count");
+        if (legacyCanvasCount != 1) {
+            archive.compatible = false;
+            archive.compatibilityError = "Only single-canvas legacy bitmap documents can be migrated without data loss.";
+            return archive;
         }
-        canvas.layers.activeLayerIndex = readNumber<std::size_t>(values, canvasPrefix + ".layers.activeLayerIndex");
-
-        const std::size_t strokeCount = readNumber<std::size_t>(values, canvasPrefix + ".strokes.count");
-        canvas.strokes.strokes.reserve(strokeCount);
-        for (std::size_t strokeIndex = 0; strokeIndex < strokeCount; ++strokeIndex) {
-            canvas.strokes.strokes.push_back(readStrokeCommand(values,
-                                                               canvasPrefix + ".strokes." + numberText(strokeIndex)));
-        }
-        archive.document.canvases.push_back(canvas);
+        const std::string legacyPrefix = "document.canvases.0";
+        surfacePrefix = legacyPrefix + ".surface";
+        layersPrefix = legacyPrefix + ".layers";
+        readLegacyCanvasMetadata(values, legacyPrefix + ".metadata", archive.document.metadata);
     }
+
+    archive.document.surface = readSurface(values, surfacePrefix);
+    const std::size_t layerCount = readNumber<std::size_t>(values, layersPrefix + ".count");
+    archive.document.layers.layers.reserve(layerCount);
+    for (std::size_t layerIndex = 0; layerIndex < layerCount; ++layerIndex) {
+        archive.document.layers.layers.push_back(
+                readLayer(values, layersPrefix + "." + numberText(layerIndex)));
+    }
+    archive.document.layers.activeLayerIndex = readNumber<std::size_t>(
+            values,
+            layersPrefix + ".activeLayerIndex");
 
     const std::size_t brushCount = readNumber<std::size_t>(values, "brushSources.count");
     archive.brushSources.reserve(brushCount);

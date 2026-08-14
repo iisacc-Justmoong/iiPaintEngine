@@ -88,26 +88,6 @@ void trimBrushStampAtlas(BrushStampAtlas &atlas)
     }
 }
 
-void trimStrokeReplayCache(StrokeReplayCache &cache)
-{
-    if (cache.capacity == 0) {
-        cache.entries.clear();
-        return;
-    }
-
-    while (cache.entries.size() > cache.capacity) {
-        const auto oldest = std::min_element(cache.entries.begin(),
-                                             cache.entries.end(),
-                                             [](const StrokeReplayCacheEntry &lhs, const StrokeReplayCacheEntry &rhs) {
-                                                 return lhs.lastUsedFrame < rhs.lastUsedFrame;
-                                             });
-        if (oldest == cache.entries.end()) {
-            return;
-        }
-        cache.entries.erase(oldest);
-    }
-}
-
 bool brushStampKeysEqual(const BrushStampAtlasKey &lhs, const BrushStampAtlasKey &rhs)
 {
     return uuidEquals(lhs.brushId, rhs.brushId)
@@ -117,30 +97,20 @@ bool brushStampKeysEqual(const BrushStampAtlasKey &lhs, const BrushStampAtlasKey
             && lhs.bufferFormat == rhs.bufferFormat;
 }
 
-bool strokeReplayKeysEqual(const StrokeReplayCacheKey &lhs, const StrokeReplayCacheKey &rhs)
-{
-    return uuidEquals(lhs.strokeId, rhs.strokeId)
-            && lhs.brushRevision == rhs.brushRevision
-            && lhs.strokeRevision == rhs.strokeRevision
-            && lhs.bufferFormat == rhs.bufferFormat
-            && lhs.tileX == rhs.tileX
-            && lhs.tileY == rhs.tileY;
-}
-
 } // namespace
 
-std::vector<DevicePixelRect> tileRectsForDirtyRegion(DevicePixelRect canvasBounds,
+std::vector<DevicePixelRect> tileRectsForDirtyRegion(DevicePixelRect documentBounds,
                                                      const DirtyRegion &dirtyRegion,
                                                      Types::Pixel tileSize)
 {
     std::vector<DevicePixelRect> tiles;
     const Types::Pixel size = normalizedTileSize(tileSize);
-    if (isEmpty(canvasBounds)) {
+    if (isEmpty(documentBounds)) {
         return tiles;
     }
 
     for (const DevicePixelRect dirtyRect : dirtyRegion.rects) {
-        const DevicePixelRect clippedDirty = intersectDevicePixelRects(canvasBounds, dirtyRect);
+        const DevicePixelRect clippedDirty = intersectDevicePixelRects(documentBounds, dirtyRect);
         if (isEmpty(clippedDirty)) {
             continue;
         }
@@ -151,7 +121,8 @@ std::vector<DevicePixelRect> tileRectsForDirtyRegion(DevicePixelRect canvasBound
         const Types::Pixel endY = floorToTile(clippedDirty.origin.y + clippedDirty.height - 1, size);
         for (Types::Pixel y = startY; y <= endY; y += size) {
             for (Types::Pixel x = startX; x <= endX; x += size) {
-                const DevicePixelRect tile = intersectDevicePixelRects(canvasBounds, DevicePixelRect{{x, y}, size, size});
+                const DevicePixelRect tile = intersectDevicePixelRects(documentBounds,
+                                                                        DevicePixelRect{{x, y}, size, size});
                 if (isEmpty(tile)) {
                     continue;
                 }
@@ -276,65 +247,6 @@ const BrushStampAtlasEntry *findBrushStamp(const BrushStampAtlas &atlas,
     return nullptr;
 }
 
-void storeStrokeReplay(StrokeReplayCache &cache,
-                       const StrokeReplayCacheKey &key,
-                       const std::vector<RasterSample> &samples,
-                       DevicePixelRect dirtyBounds,
-                       std::uint64_t frameIndex)
-{
-    if (!cache.enabled) {
-        return;
-    }
-
-    StrokeReplayCacheEntry entry;
-    entry.key = key;
-    entry.samples = samples;
-    entry.dirtyBounds = dirtyBounds;
-    entry.valid = true;
-    entry.lastUsedFrame = frameIndex;
-
-    for (StrokeReplayCacheEntry &existing : cache.entries) {
-        if (strokeReplayKeysEqual(existing.key, key)) {
-            existing = entry;
-            trimStrokeReplayCache(cache);
-            return;
-        }
-    }
-
-    cache.entries.push_back(entry);
-    trimStrokeReplayCache(cache);
-}
-
-const StrokeReplayCacheEntry *findStrokeReplay(const StrokeReplayCache &cache,
-                                               const StrokeReplayCacheKey &key)
-{
-    if (!cache.enabled) {
-        return nullptr;
-    }
-
-    for (const StrokeReplayCacheEntry &entry : cache.entries) {
-        if (entry.valid && strokeReplayKeysEqual(entry.key, key)) {
-            return &entry;
-        }
-    }
-    return nullptr;
-}
-
-void invalidateStrokeReplayTiles(StrokeReplayCache &cache, const DirtyRegion &dirtyRegion)
-{
-    for (StrokeReplayCacheEntry &entry : cache.entries) {
-        if (!entry.valid) {
-            continue;
-        }
-        for (const DevicePixelRect dirtyRect : dirtyRegion.rects) {
-            if (intersects(entry.dirtyBounds, dirtyRect)) {
-                entry.valid = false;
-                break;
-            }
-        }
-    }
-}
-
 RenderExecutionPlan resolveRenderExecutionPlan(const RenderContext &context,
                                                const CpuRenderer &cpu,
                                                const GpuRenderer &gpu)
@@ -343,7 +255,6 @@ RenderExecutionPlan resolveRenderExecutionPlan(const RenderContext &context,
     plan.backend = context.preferredBackend;
     plan.bufferFormat = renderBufferFormatForColorSpace(context.targetColorSpace);
     plan.usesTileCache = context.tileCacheEnabled;
-    plan.usesStrokeReplayCache = context.strokeReplayCacheEnabled;
     plan.linearCompositing = context.linearCompositingEnabled
             && renderColorSpaceRequiresLinearCompositing(context.targetColorSpace);
     plan.wideGamut = colorSpaceSupportsWideGamut(context.targetColorSpace);

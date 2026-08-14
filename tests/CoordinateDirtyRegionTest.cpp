@@ -1,10 +1,10 @@
 #include <cmath>
 #include <vector>
 
-#include "Canvas/CanvasViewport.h"
 #include "Input/InputStrokeBuilder.h"
 #include "Render/DirtyRegion.h"
-#include "Stroke/StrokeCommand.h"
+#include "Stroke/Rasterizer.h"
+#include "Transform/ViewportTransform.h"
 
 namespace {
 
@@ -42,7 +42,7 @@ PointerEvent mouseEvent(PointerEventPhase phase,
 
 int main()
 {
-    CanvasViewport viewport{};
+    RasterViewport viewport{};
     viewport.documentRect = {{100.0, 50.0}, 200.0, 100.0};
     viewport.viewRect = {{0.0, 0.0}, 400.0, 200.0};
     viewport.devicePixelRect = {{0, 0}, 400, 200};
@@ -64,20 +64,24 @@ int main()
     }
 
     InputStrokeBuilder builder{};
-    appendPointerEvent(builder, mouseEvent(PointerEventPhase::Press,
-                                           documentPoint,
-                                           0.0,
-                                           PointerButton::Primary,
-                                           true));
+    const InputStrokeBuildResult press = appendPointerEvent(
+            builder,
+            mouseEvent(PointerEventPhase::Press,
+                       documentPoint,
+                       0.0,
+                       PointerButton::Primary,
+                       true));
     const InputStrokeBuildResult result = appendPointerEvent(builder,
                                                              mouseEvent(PointerEventPhase::Release,
                                                                         {112.0, 55.0},
                                                                         1.0,
                                                                         PointerButton::Primary,
                                                                         false));
-    if (!result.strokeCompleted
-            || !nearlyEqual(result.stroke.points.front().position.x, 110.0)
-            || !nearlyEqual(result.stroke.points.back().position.x, 112.0)) {
+    if (!press.pointAvailable
+            || !result.pointAvailable
+            || !result.strokeCompleted
+            || !nearlyEqual(press.point.position.x, 110.0)
+            || !nearlyEqual(result.point.position.x, 112.0)) {
         return 1;
     }
 
@@ -93,11 +97,14 @@ int main()
     brush.rasterizer.flow = 1.0;
     brush.rasterizer.opacity = 1.0;
 
-    const StrokeCommand command = makeStrokeCommand(result.stroke, brush, Stabilizer{0.0});
-    if (command.dabs.empty()
-            || command.dabDirtyBounds.size() != command.dabs.size()
-            || command.dirtyBounds.width <= 0.0
-            || command.dirtyBounds.origin.x < 100.0) {
+    RasterDabStream stream{};
+    std::vector<BrushDab> dabs = appendRasterDabs(stream, press.point, brush);
+    std::vector<BrushDab> releaseDabs = appendRasterDabs(stream, result.point, brush, true);
+    dabs.insert(dabs.end(), releaseDabs.begin(), releaseDabs.end());
+    const DocumentRect dirtyBounds = documentBoundsForBrushDabs(dabs, brush.rasterizer);
+    if (dabs.empty()
+            || dirtyBounds.width <= 0.0
+            || dirtyBounds.origin.x < 100.0) {
         return 1;
     }
 
@@ -106,8 +113,8 @@ int main()
             viewport.devicePixelRect.origin,
             viewport.zoom * viewport.devicePixelRatio,
     };
-    const std::vector<RasterSample> samples = projectBrushDabs(command.dabs,
-                                                               command.brush.rasterizer,
+    const std::vector<RasterSample> samples = projectBrushDabs(dabs,
+                                                               brush.rasterizer,
                                                                projection);
     bool foundProjectedSample = false;
     for (const RasterSample &sample : samples) {
@@ -119,18 +126,18 @@ int main()
         return 1;
     }
 
-    const std::vector<DevicePixelRect> dabBounds = deviceBoundsForBrushDabs(command.dabs,
-                                                                            command.brush.rasterizer,
+    const std::vector<DevicePixelRect> dabBounds = deviceBoundsForBrushDabs(dabs,
+                                                                            brush.rasterizer,
                                                                             projection);
     const DirtyRegion dirtyRegion = makeDirtyRegion(dabBounds);
-    if (dirtyRegion.rects.size() != command.dabs.size()
+    if (dirtyRegion.rects.size() != dabs.size()
             || dirtyRegion.bounds.width >= viewport.devicePixelRect.width
             || !contains(dirtyRegion.bounds, {20, 10})) {
         return 1;
     }
 
-    const DevicePixelRect directBounds = deviceBoundsForBrushDabsUnion(command.dabs,
-                                                                       command.brush.rasterizer,
+    const DevicePixelRect directBounds = deviceBoundsForBrushDabsUnion(dabs,
+                                                                       brush.rasterizer,
                                                                        projection);
     if (directBounds.origin.x != dirtyRegion.bounds.origin.x
             || directBounds.origin.y != dirtyRegion.bounds.origin.y

@@ -4,7 +4,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "Stroke/StrokeCommand.h"
+#include "tests/RasterDabTestUtils.h"
 
 namespace {
 
@@ -62,21 +62,13 @@ std::uint8_t opacityCapAt(const std::vector<RasterSample> &samples, DevicePixelP
     return 0;
 }
 
-StrokeInput expressiveInput()
+std::vector<BrushDab> expressiveDabs(const BrushState &brush, bool neutralPressure = false)
 {
-    StrokeInput input;
-    input.points.push_back(StrokePoint{{0.0, 0.0}, 0.2, 0.0, 0.0, 0.0, 1.0, 1});
-    input.points.push_back(StrokePoint{{16.0, 0.0}, 0.8, 0.2, 0.0, 0.0, 1.0, 1});
-    return input;
-}
-
-StrokeInput neutralPressureInput()
-{
-    StrokeInput input = expressiveInput();
-    for (StrokePoint &point : input.points) {
-        point.pressure = 1.0;
-    }
-    return input;
+    const Types::Scalar firstPressure = neutralPressure ? 1.0 : 0.2;
+    const Types::Scalar lastPressure = neutralPressure ? 1.0 : 0.8;
+    return streamTestDabs(brush,
+                          StrokePoint{{0.0, 0.0}, firstPressure, 0.0, 0.0, 0.0, 1.0, 1},
+                          StrokePoint{{16.0, 0.0}, lastPressure, 0.2, 0.0, 0.0, 1.0, 1});
 }
 
 BrushState sensitiveBrush()
@@ -108,50 +100,50 @@ int main()
 {
     BrushState pressureDisabled = sensitiveBrush();
     pressureDisabled.dynamics.pressureInputEnabled = false;
-    const StrokeCommand withoutPressure = makeStrokeCommand(expressiveInput(), pressureDisabled, Stabilizer{0.0});
-    const StrokeCommand neutralPressure = makeStrokeCommand(neutralPressureInput(), pressureDisabled, Stabilizer{0.0});
-    if (withoutPressure.dabs.empty()
-            || neutralPressure.dabs.empty()
-            || !nearlyEqual(withoutPressure.dabs.front().scale, neutralPressure.dabs.front().scale)
-            || !nearlyEqual(withoutPressure.dabs.back().alpha, neutralPressure.dabs.back().alpha)
-            || !nearlyEqual(withoutPressure.dabs.back().opacityCapScale, neutralPressure.dabs.back().opacityCapScale)
-            || !nearlyEqual(withoutPressure.dabs.back().hardnessScale, neutralPressure.dabs.back().hardnessScale)) {
+    const std::vector<BrushDab> withoutPressure = expressiveDabs(pressureDisabled);
+    const std::vector<BrushDab> neutralPressure = expressiveDabs(pressureDisabled, true);
+    if (withoutPressure.empty()
+            || neutralPressure.empty()
+            || !nearlyEqual(withoutPressure.front().scale, neutralPressure.front().scale)
+            || !nearlyEqual(withoutPressure.back().alpha, neutralPressure.back().alpha)
+            || !nearlyEqual(withoutPressure.back().opacityCapScale, neutralPressure.back().opacityCapScale)
+            || !nearlyEqual(withoutPressure.back().hardnessScale, neutralPressure.back().hardnessScale)) {
         return 1;
     }
 
     BrushState velocityEnabled = sensitiveBrush();
     BrushState velocityDisabled = velocityEnabled;
     velocityDisabled.dynamics.velocityInputEnabled = false;
-    const StrokeCommand fastVelocity = makeStrokeCommand(expressiveInput(), velocityEnabled, Stabilizer{0.0});
-    const StrokeCommand ignoredVelocity = makeStrokeCommand(expressiveInput(), velocityDisabled, Stabilizer{0.0});
-    if (fastVelocity.dabs.empty()
-            || ignoredVelocity.dabs.empty()
-            || ignoredVelocity.dabs.size() <= fastVelocity.dabs.size()
-            || !(ignoredVelocity.dabs.back().alpha > fastVelocity.dabs.back().alpha)) {
+    const std::vector<BrushDab> fastVelocity = expressiveDabs(velocityEnabled);
+    const std::vector<BrushDab> ignoredVelocity = expressiveDabs(velocityDisabled);
+    if (fastVelocity.empty()
+            || ignoredVelocity.empty()
+            || ignoredVelocity.size() <= fastVelocity.size()
+            || !(ignoredVelocity.back().alpha > fastVelocity.back().alpha)) {
         return 1;
     }
 
     BrushState tiltDisabled = sensitiveBrush();
     tiltDisabled.dynamics.tiltInputEnabled = false;
     tiltDisabled.dynamics.randomInputEnabled = false;
-    const StrokeCommand withoutTilt = makeStrokeCommand(expressiveInput(), tiltDisabled, Stabilizer{0.0});
-    if (withoutTilt.dabs.empty()
-            || !nearlyEqual(withoutTilt.dabs.back().rotationRadians, 0.0)
-            || !nearlyEqual(withoutTilt.dabs.back().ellipseScaleX, 1.0)
-            || !nearlyEqual(withoutTilt.dabs.back().ellipseScaleY, 1.0)
-            || !nearlyEqual(withoutTilt.dabs.back().textureDirectionRadians, 0.0)) {
+    const std::vector<BrushDab> withoutTilt = expressiveDabs(tiltDisabled);
+    if (withoutTilt.empty()
+            || !nearlyEqual(withoutTilt.back().rotationRadians, 0.0)
+            || !nearlyEqual(withoutTilt.back().ellipseScaleX, 1.0)
+            || !nearlyEqual(withoutTilt.back().ellipseScaleY, 1.0)
+            || !nearlyEqual(withoutTilt.back().textureDirectionRadians, 0.0)) {
         return 1;
     }
 
     BrushState randomDisabled = sensitiveBrush();
     randomDisabled.dynamics.randomInputEnabled = false;
-    const StrokeCommand firstSeed = makeStrokeCommand(expressiveInput(), randomDisabled, Stabilizer{0.0});
+    const std::vector<BrushDab> firstSeed = expressiveDabs(randomDisabled);
     randomDisabled.randomSeed += 1;
-    const StrokeCommand secondSeed = makeStrokeCommand(expressiveInput(), randomDisabled, Stabilizer{0.0});
-    if (firstSeed.dabs.size() < 2
-            || secondSeed.dabs.size() < 2
-            || !nearlyEqual(firstSeed.dabs[1].rotationRadians, secondSeed.dabs[1].rotationRadians)
-            || !nearlyEqual(firstSeed.dabs[1].grain, secondSeed.dabs[1].grain)) {
+    const std::vector<BrushDab> secondSeed = expressiveDabs(randomDisabled);
+    if (firstSeed.size() < 2
+            || secondSeed.size() < 2
+            || !nearlyEqual(firstSeed[1].rotationRadians, secondSeed[1].rotationRadians)
+            || !nearlyEqual(firstSeed[1].grain, secondSeed[1].grain)) {
         return 1;
     }
 
@@ -162,19 +154,19 @@ int main()
     perMappingDisabled.dynamics.tiltToEllipseEnabled = false;
     perMappingDisabled.dynamics.rotationJitterEnabled = false;
     perMappingDisabled.dynamics.grainJitterEnabled = false;
-    const StrokeCommand mappingEnabled = makeStrokeCommand(expressiveInput(), perMappingEnabled, Stabilizer{0.0});
-    const StrokeCommand partlyDisabled = makeStrokeCommand(expressiveInput(), perMappingDisabled, Stabilizer{0.0});
+    const std::vector<BrushDab> mappingEnabled = expressiveDabs(perMappingEnabled);
+    const std::vector<BrushDab> partlyDisabled = expressiveDabs(perMappingDisabled);
     const Types::Scalar expectedDirectPressureScale = 1.0
-            + (expressiveInput().points.back().pressure - 1.0) * perMappingDisabled.rasterizer.pressureScale;
-    if (partlyDisabled.dabs.size() < 2
-            || mappingEnabled.dabs.size() < 2
-            || !nearlyEqual(partlyDisabled.dabs.back().scale, expectedDirectPressureScale)
-            || !(partlyDisabled.dabs.back().scale > mappingEnabled.dabs.back().scale)
-            || !(partlyDisabled.dabs.back().alpha > mappingEnabled.dabs.back().alpha)
-            || !nearlyEqual(partlyDisabled.dabs.back().hardnessScale, 1.0)
-            || !nearlyEqual(mappingEnabled.dabs.back().hardnessScale, 1.0)
-            || !nearlyEqual(partlyDisabled.dabs.back().ellipseScaleX, 1.0)
-            || !nearlyEqual(partlyDisabled.dabs[1].grain, 0.0)) {
+            + (0.8 - 1.0) * perMappingDisabled.rasterizer.pressureScale;
+    if (partlyDisabled.size() < 2
+            || mappingEnabled.size() < 2
+            || !nearlyEqual(partlyDisabled.back().scale, expectedDirectPressureScale)
+            || !(partlyDisabled.back().scale > mappingEnabled.back().scale)
+            || !(partlyDisabled.back().alpha > mappingEnabled.back().alpha)
+            || !nearlyEqual(partlyDisabled.back().hardnessScale, 1.0)
+            || !nearlyEqual(mappingEnabled.back().hardnessScale, 1.0)
+            || !nearlyEqual(partlyDisabled.back().ellipseScaleX, 1.0)
+            || !nearlyEqual(partlyDisabled[1].grain, 0.0)) {
         return 1;
     }
 
@@ -183,14 +175,14 @@ int main()
     opacityMappingEnabled.dynamics.velocityToOpacityEnabled = false;
     BrushState opacityMappingDisabled = opacityMappingEnabled;
     opacityMappingDisabled.dynamics.pressureToOpacityEnabled = false;
-    const StrokeCommand pressureOpacityEnabled = makeStrokeCommand(expressiveInput(), opacityMappingEnabled, Stabilizer{0.0});
-    const StrokeCommand pressureOpacityDisabled = makeStrokeCommand(expressiveInput(), opacityMappingDisabled, Stabilizer{0.0});
-    if (pressureOpacityEnabled.dabs.size() < 2
-            || pressureOpacityDisabled.dabs.size() < 2
-            || !(pressureOpacityDisabled.dabs.front().opacityCapScale > pressureOpacityEnabled.dabs.front().opacityCapScale)
-            || !nearlyEqual(pressureOpacityDisabled.dabs.front().opacityCapScale, 1.0)
-            || !nearlyEqual(pressureOpacityDisabled.dabs.back().opacityCapScale, 1.0)
-            || !nearlyEqual(pressureOpacityDisabled.dabs.front().alpha, pressureOpacityEnabled.dabs.front().alpha)) {
+    const std::vector<BrushDab> pressureOpacityEnabled = expressiveDabs(opacityMappingEnabled);
+    const std::vector<BrushDab> pressureOpacityDisabled = expressiveDabs(opacityMappingDisabled);
+    if (pressureOpacityEnabled.size() < 2
+            || pressureOpacityDisabled.size() < 2
+            || !(pressureOpacityDisabled.front().opacityCapScale > pressureOpacityEnabled.front().opacityCapScale)
+            || !nearlyEqual(pressureOpacityDisabled.front().opacityCapScale, 1.0)
+            || !nearlyEqual(pressureOpacityDisabled.back().opacityCapScale, 1.0)
+            || !nearlyEqual(pressureOpacityDisabled.front().alpha, pressureOpacityEnabled.front().alpha)) {
         return 1;
     }
 
@@ -198,24 +190,24 @@ int main()
     rasterizerEnabled.rasterizer.brushSize = 10.0;
     rasterizerEnabled.rasterizer.spacingRatio = 0.25;
     rasterizerEnabled.rasterizer.flow = 0.25;
-    const StrokeCommand flowEnabled = makeStrokeCommand(expressiveInput(), rasterizerEnabled, Stabilizer{0.0});
+    const std::vector<BrushDab> flowEnabled = expressiveDabs(rasterizerEnabled);
     BrushState flowDisabledBrush = rasterizerEnabled;
     flowDisabledBrush.rasterizer.flowEnabled = false;
-    const StrokeCommand flowDisabled = makeStrokeCommand(expressiveInput(), flowDisabledBrush, Stabilizer{0.0});
-    if (flowEnabled.dabs.empty()
-            || flowDisabled.dabs.empty()
-            || !(flowDisabled.dabs.front().alpha > flowEnabled.dabs.front().alpha)
-            || !nearlyEqual(flowDisabled.dabs.front().alpha, 1.0)) {
+    const std::vector<BrushDab> flowDisabled = expressiveDabs(flowDisabledBrush);
+    if (flowEnabled.empty()
+            || flowDisabled.empty()
+            || !(flowDisabled.front().alpha > flowEnabled.front().alpha)
+            || !nearlyEqual(flowDisabled.front().alpha, 1.0)) {
         return 1;
     }
 
     BrushState spacingDisabledBrush = rasterizerEnabled;
     spacingDisabledBrush.rasterizer.spacingEnabled = false;
-    const StrokeCommand denseSpacing = makeStrokeCommand(expressiveInput(), rasterizerEnabled, Stabilizer{0.0});
-    const StrokeCommand defaultSpacing = makeStrokeCommand(expressiveInput(), spacingDisabledBrush, Stabilizer{0.0});
-    if (denseSpacing.dabs.empty()
-            || defaultSpacing.dabs.empty()
-            || !(defaultSpacing.dabs.size() > denseSpacing.dabs.size())) {
+    const std::vector<BrushDab> denseSpacing = expressiveDabs(rasterizerEnabled);
+    const std::vector<BrushDab> defaultSpacing = expressiveDabs(spacingDisabledBrush);
+    if (denseSpacing.empty()
+            || defaultSpacing.empty()
+            || !(defaultSpacing.size() > denseSpacing.size())) {
         return 1;
     }
 

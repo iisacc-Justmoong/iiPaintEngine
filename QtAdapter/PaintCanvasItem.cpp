@@ -5,26 +5,21 @@
 #include "PaintCanvasItem.h"
 
 #include <QImage>
-#include <QMetaObject>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPointingDevice>
-#include <QPointer>
 #include <QRect>
 #include <QTabletEvent>
-#include <QTimerEvent>
 
 #include <algorithm>
 #include <cstddef>
 #include <cmath>
-#include <memory>
 #include <utility>
 #include <vector>
 
 #include "Layer/RasterLayer.h"
 #include "Input/PressureInput.h"
 #include "Render/DirtyRegion.h"
-#include "Stroke/LiveStroke.h"
 #include "Stroke/Rasterizer.h"
 
 namespace {
@@ -94,78 +89,24 @@ void clearRasterLayerRect(RasterLayer &layer, DevicePixelRect dirtyBounds)
     }
 }
 
-RasterLayer copyRasterLayerRect(const RasterLayer &layer, DevicePixelRect bounds)
+std::uint32_t sampleRasterLayerArgb(const void *context, DevicePixelPoint position)
 {
-    const DevicePixelRect layerRect{{0, 0}, layer.width, layer.height};
-    const DevicePixelRect clipped = intersectDevicePixelRects(layerRect, bounds);
-    RasterLayer copy = makeRasterLayer(clipped.width, clipped.height);
-    if (isEmpty(clipped)) {
-        return copy;
+    const auto *layer = static_cast<const RasterLayer *>(context);
+    if (layer == nullptr) {
+        return 0x00000000U;
     }
 
-    for (Types::Pixel y = 0; y < clipped.height; ++y) {
-        const std::size_t sourceRow = static_cast<std::size_t>(clipped.origin.y + y)
-                * static_cast<std::size_t>(layer.width);
-        const std::size_t targetRow = static_cast<std::size_t>(y)
-                * static_cast<std::size_t>(copy.width);
-        for (Types::Pixel x = 0; x < clipped.width; ++x) {
-            copy.pixels[targetRow + static_cast<std::size_t>(x)] =
-                    layer.pixels[sourceRow + static_cast<std::size_t>(clipped.origin.x + x)];
-        }
-    }
-    return copy;
+    return rasterLayerPixelAt(*layer, position);
 }
 
-DevicePixelRect sourceLayerBoundsForStrokeInput(const StrokeInput &input,
-                                                const Rasterizer &rasterizer,
-                                                const RasterProjection &projection,
-                                                DevicePixelRect layerBounds)
+RasterSourceSampler sourceSamplerForLayer(const RasterLayer &layer)
 {
-    if (input.points.empty()) {
-        return {};
-    }
-
-    const Types::Scalar scale = std::max<Types::Scalar>(0.01, projection.scale);
-    Types::Scalar left = 0.0;
-    Types::Scalar top = 0.0;
-    Types::Scalar right = 0.0;
-    Types::Scalar bottom = 0.0;
-    bool hasPoint = false;
-    for (const StrokePoint &point : input.points) {
-        const Types::Scalar x = static_cast<Types::Scalar>(projection.deviceOrigin.x)
-                + (point.position.x - projection.documentOrigin.x) * scale;
-        const Types::Scalar y = static_cast<Types::Scalar>(projection.deviceOrigin.y)
-                + (point.position.y - projection.documentOrigin.y) * scale;
-        if (!hasPoint) {
-            left = right = x;
-            top = bottom = y;
-            hasPoint = true;
-        } else {
-            left = std::min(left, x);
-            top = std::min(top, y);
-            right = std::max(right, x);
-            bottom = std::max(bottom, y);
-        }
-    }
-
-    Types::Scalar brushDiameter = std::max<Types::Scalar>(
-            rasterizer.brushSize,
-            static_cast<Types::Scalar>(std::max<Types::Pixel>(1, rasterizer.radius * 2)));
-    brushDiameter = std::max<Types::Scalar>(brushDiameter,
-                                            static_cast<Types::Scalar>(rasterizer.brushWidth));
-    brushDiameter = std::max<Types::Scalar>(brushDiameter,
-                                            static_cast<Types::Scalar>(rasterizer.brushHeight));
-    const Types::Scalar padding = std::max<Types::Scalar>(8.0, brushDiameter * scale * 3.0);
-    const Types::Pixel cropLeft = static_cast<Types::Pixel>(std::floor(left - padding));
-    const Types::Pixel cropTop = static_cast<Types::Pixel>(std::floor(top - padding));
-    const Types::Pixel cropRight = static_cast<Types::Pixel>(std::ceil(right + padding));
-    const Types::Pixel cropBottom = static_cast<Types::Pixel>(std::ceil(bottom + padding));
-    const DevicePixelRect sourceBounds{
-            {cropLeft, cropTop},
-            std::max<Types::Pixel>(0, cropRight - cropLeft + 1),
-            std::max<Types::Pixel>(0, cropBottom - cropTop + 1),
-    };
-    return intersectDevicePixelRects(layerBounds, sourceBounds);
+    RasterSourceSampler sampler;
+    sampler.context = &layer;
+    sampler.sampleArgb = &sampleRasterLayerArgb;
+    sampler.width = layer.width;
+    sampler.height = layer.height;
+    return sampler;
 }
 
 QImage imageFromRasterLayer(const RasterLayer &layer)
@@ -342,22 +283,12 @@ PaintCanvasItem::PaintCanvasItem(QQuickItem *parent)
     setAcceptedMouseButtons(Qt::LeftButton);
     setAcceptHoverEvents(true);
     setAntialiasing(false);
-    m_liveEventThreadPool.setMaxThreadCount(1);
-    m_liveEventThreadPool.setExpiryTimeout(-1);
-    m_commitEventThreadPool.setMaxThreadCount(1);
-    m_commitEventThreadPool.setExpiryTimeout(-1);
     m_rasterizer.spacing = 0.0;
     m_rasterizer.spacingRatio = 0.0;
     m_rasterizer.flow = 1.0;
 }
 
-PaintCanvasItem::~PaintCanvasItem()
-{
-    cancelLiveStrokePreviewFrame();
-    cancelStrokeCommitFrame();
-    m_liveEventThreadPool.waitForDone();
-    m_commitEventThreadPool.waitForDone();
-}
+PaintCanvasItem::~PaintCanvasItem() = default;
 
 qreal PaintCanvasItem::documentX() const
 {
@@ -370,10 +301,12 @@ void PaintCanvasItem::setDocumentX(qreal value)
         return;
     }
 
+    const bool wasLiveStrokeActive = liveStrokeActive();
     m_documentOrigin.x = static_cast<Types::Scalar>(value);
-    invalidatePendingCanvasEventWork();
+    cancelActiveRasterStroke();
     updateViewportGeometry();
     emit viewportChanged();
+    emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
     update();
 }
 
@@ -388,10 +321,12 @@ void PaintCanvasItem::setDocumentY(qreal value)
         return;
     }
 
+    const bool wasLiveStrokeActive = liveStrokeActive();
     m_documentOrigin.y = static_cast<Types::Scalar>(value);
-    invalidatePendingCanvasEventWork();
+    cancelActiveRasterStroke();
     updateViewportGeometry();
     emit viewportChanged();
+    emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
     update();
 }
 
@@ -407,10 +342,12 @@ void PaintCanvasItem::setZoom(qreal value)
         return;
     }
 
+    const bool wasLiveStrokeActive = liveStrokeActive();
     m_zoom = nextZoom;
-    invalidatePendingCanvasEventWork();
+    cancelActiveRasterStroke();
     updateViewportGeometry();
     emit viewportChanged();
+    emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
     update();
 }
 
@@ -426,10 +363,12 @@ void PaintCanvasItem::setCanvasDevicePixelRatio(qreal value)
         return;
     }
 
+    const bool wasLiveStrokeActive = liveStrokeActive();
     m_devicePixelRatio = nextRatio;
-    invalidatePendingCanvasEventWork();
+    cancelActiveRasterStroke();
     updateViewportGeometry();
     emit viewportChanged();
+    emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
     update();
 }
 
@@ -705,26 +644,6 @@ void PaintCanvasItem::setPressureToOpacityEnabled(bool enabled)
     emit brushChanged();
 }
 
-qreal PaintCanvasItem::stabilizerStrength() const
-{
-    return m_stabilizer.smoothing;
-}
-
-void PaintCanvasItem::setStabilizerStrength(qreal value)
-{
-    const Types::Scalar nextStrength = unitSettingOrDefault(static_cast<Types::Scalar>(value), 0.0);
-    if (m_stabilizer.smoothing == nextStrength) {
-        return;
-    }
-
-    m_stabilizer.smoothing = nextStrength;
-    invalidatePendingCanvasEventWork();
-    if (m_strokeBuilder.active && m_livePreviewEnabled) {
-        requestLiveStrokePreviewFrame();
-    }
-    emit strokeSettingsChanged();
-}
-
 bool PaintCanvasItem::livePreviewEnabled() const
 {
     return m_livePreviewEnabled;
@@ -736,62 +655,14 @@ void PaintCanvasItem::setLivePreviewEnabled(bool enabled)
         return;
     }
 
-    const bool wasLiveStrokeActive = liveStrokeActive();
     m_livePreviewEnabled = enabled;
-    if (!m_livePreviewEnabled) {
-        clearLiveStrokePreview();
-    } else if (m_strokeBuilder.active) {
-        requestLiveStrokePreviewFrame();
-    }
-    emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
+    update();
     emit livePreviewEnabledChanged();
-}
-
-int PaintCanvasItem::livePreviewFrameIntervalMs() const
-{
-    return m_livePreviewFrameIntervalMs;
-}
-
-void PaintCanvasItem::setLivePreviewFrameIntervalMs(int value)
-{
-    const int nextInterval = std::clamp(value, 0, 1000);
-    if (m_livePreviewFrameIntervalMs == nextInterval) {
-        return;
-    }
-
-    m_livePreviewFrameIntervalMs = nextInterval;
-    if (m_livePreviewFrameTimer.isActive()) {
-        m_livePreviewFrameTimer.start(m_livePreviewFrameIntervalMs, Qt::PreciseTimer, this);
-    }
-    emit livePreviewFrameIntervalMsChanged();
-}
-
-bool PaintCanvasItem::multithreadedEventsEnabled() const
-{
-    return m_multithreadedEventsEnabled;
-}
-
-void PaintCanvasItem::setMultithreadedEventsEnabled(bool enabled)
-{
-    if (m_multithreadedEventsEnabled == enabled) {
-        return;
-    }
-
-    m_multithreadedEventsEnabled = enabled;
-    if (!m_multithreadedEventsEnabled) {
-        cancelLiveStrokePreviewFrame();
-        ++m_livePreviewGeneration;
-        ++m_livePreviewRevision;
-        m_livePreviewWorkPending = false;
-        m_liveEventThreadPool.waitForDone();
-        m_commitEventThreadPool.waitForDone();
-    }
-    emit multithreadedEventsEnabledChanged();
 }
 
 bool PaintCanvasItem::liveStrokeActive() const
 {
-    return m_liveStrokeBuffer.active;
+    return m_strokeBuilder.active;
 }
 
 int PaintCanvasItem::strokeCount() const
@@ -822,7 +693,7 @@ void PaintCanvasItem::paint(QPainter *painter)
 {
     ensureRasterLayerSize();
     drawRasterLayer(painter, m_rasterLayer, m_devicePixelRatio);
-    if (m_liveStrokeBuffer.active) {
+    if (m_livePreviewEnabled && liveStrokeActive()) {
         drawLiveRasterLayer(painter, m_liveRasterLayer, m_devicePixelRatio, m_liveStrokePreviewDestinationOut);
     }
 }
@@ -832,11 +703,9 @@ void PaintCanvasItem::clear()
     const bool wasLiveStrokeActive = liveStrokeActive();
     ensureRasterLayerSize();
     recordRasterChange();
-    invalidatePendingCanvasEventWork();
+    cancelActiveRasterStroke();
     clearRasterLayer(m_rasterLayer);
-    clearLiveStrokePreview();
-    resetInputStrokeBuilder(m_strokeBuilder);
-    m_pendingCommitStrokeWorkRequests.clear();
+    clearPendingRasterStroke();
     m_nextStrokeSeed = 1;
     m_committedStrokeCount = 0;
     emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
@@ -847,10 +716,9 @@ void PaintCanvasItem::clear()
 void PaintCanvasItem::setDocumentViewport(qreal documentX, qreal documentY, qreal zoom)
 {
     const bool wasLiveStrokeActive = liveStrokeActive();
-    invalidatePendingCanvasEventWork();
+    cancelActiveRasterStroke();
     ensureRasterLayerSize();
-    clearLiveStrokePreview();
-    resetInputStrokeBuilder(m_strokeBuilder);
+    clearPendingRasterStroke();
     m_documentOrigin = {static_cast<Types::Scalar>(documentX), static_cast<Types::Scalar>(documentY)};
     m_zoom = std::max<Types::Scalar>(0.01, static_cast<Types::Scalar>(zoom));
     updateViewportGeometry();
@@ -873,6 +741,7 @@ void PaintCanvasItem::panBy(qreal documentDx, qreal documentDy)
 
 void PaintCanvasItem::zoomAt(qreal viewX, qreal viewY, qreal factor)
 {
+    const bool wasLiveStrokeActive = liveStrokeActive();
     const Types::Scalar nextZoom = std::max<Types::Scalar>(0.01, m_zoom * static_cast<Types::Scalar>(factor));
     const DocumentPoint anchorBefore = documentPointFromViewPoint(m_viewport, ViewPoint{viewX, viewY});
     const Types::Scalar scale = std::max<Types::Scalar>(0.01, nextZoom);
@@ -881,8 +750,9 @@ void PaintCanvasItem::zoomAt(qreal viewX, qreal viewY, qreal factor)
             anchorBefore.y - static_cast<Types::Scalar>(viewY) / scale,
     };
     m_zoom = nextZoom;
-    invalidatePendingCanvasEventWork();
+    cancelActiveRasterStroke();
     updateViewportGeometry();
+    emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
     emit viewportChanged();
     update();
 }
@@ -942,18 +812,10 @@ bool PaintCanvasItem::replaceRasterCanvas(const QImage &image)
     return true;
 }
 
-bool PaintCanvasItem::saveRasterCanvasToFile(const QString &filePath)
+QImage PaintCanvasItem::rasterCanvasImage()
 {
-    if (filePath.isEmpty()) {
-        return false;
-    }
-
     ensureRasterLayerSize();
-    const QImage image = imageFromRasterLayer(m_rasterLayer);
-    if (image.isNull()) {
-        return false;
-    }
-    return image.save(filePath);
+    return imageFromRasterLayer(m_rasterLayer);
 }
 
 bool PaintCanvasItem::undoRasterChange()
@@ -1018,27 +880,6 @@ bool PaintCanvasItem::event(QEvent *event)
     return QQuickPaintedItem::event(event);
 }
 
-void PaintCanvasItem::timerEvent(QTimerEvent *event)
-{
-    if (m_livePreviewFrameTimer.isActive()
-            && event->timerId() == m_livePreviewFrameTimer.timerId()) {
-        m_livePreviewFrameTimer.stop();
-        processLiveStrokePreviewFrame();
-        event->accept();
-        return;
-    }
-
-    if (m_commitStrokeFrameTimer.isActive()
-            && event->timerId() == m_commitStrokeFrameTimer.timerId()) {
-        m_commitStrokeFrameTimer.stop();
-        processStrokeCommitFrame();
-        event->accept();
-        return;
-    }
-
-    QQuickPaintedItem::timerEvent(event);
-}
-
 void PaintCanvasItem::mousePressEvent(QMouseEvent *event)
 {
     if (shouldIgnoreMousePointerEvent(event)) {
@@ -1094,11 +935,12 @@ void PaintCanvasItem::ensureRasterLayerSize()
 
     if (m_liveRasterLayer.width != nextWidth || m_liveRasterLayer.height != nextHeight) {
         m_liveRasterLayer = makeRasterLayer(nextWidth, nextHeight);
+        m_pendingRasterBuffer = makeStrokeCompositeBuffer(nextWidth, nextHeight);
         resized = true;
     }
 
     if (resized) {
-        invalidatePendingCanvasEventWork();
+        cancelActiveRasterStroke();
     }
     updateViewportGeometry();
 }
@@ -1138,12 +980,7 @@ void PaintCanvasItem::handleMousePointerEvent(QMouseEvent *event, PointerEventPh
     const PointerEvent pointerEvent = makeDocumentPointerEvent(event, phase);
     noteInputState(pointerEvent);
     const InputStrokeBuildResult result = appendPointerEvent(m_strokeBuilder, pointerEvent);
-    if (result.strokeCompleted) {
-        preserveLiveStrokePreviewForCommit();
-        enqueueStrokeCommit(result.stroke);
-    } else if (m_strokeBuilder.active && m_livePreviewEnabled) {
-        requestLiveStrokePreviewFrame();
-    }
+    applyPointerBuildResult(result);
     emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
 }
 
@@ -1155,12 +992,7 @@ void PaintCanvasItem::handleTabletPointerEvent(QTabletEvent *event, PointerEvent
     noteTabletPointerEvent(pointerEvent);
     noteInputState(pointerEvent);
     const InputStrokeBuildResult result = appendPointerEvent(m_strokeBuilder, pointerEvent);
-    if (result.strokeCompleted) {
-        preserveLiveStrokePreviewForCommit();
-        enqueueStrokeCommit(result.stroke);
-    } else if (m_strokeBuilder.active && m_livePreviewEnabled) {
-        requestLiveStrokePreviewFrame();
-    }
+    applyPointerBuildResult(result);
     emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
 }
 
@@ -1293,288 +1125,127 @@ void PaintCanvasItem::requestTextureUpdate(DevicePixelRect dirtyBounds)
     update(qRectFromDeviceRect(clipped, m_devicePixelRatio));
 }
 
-void PaintCanvasItem::requestLiveStrokePreviewFrame()
+void PaintCanvasItem::applyPointerBuildResult(const InputStrokeBuildResult &result)
 {
-    if (!m_livePreviewEnabled || !m_strokeBuilder.active || m_livePreviewFrameTimer.isActive()) {
+    if (result.strokeCancelled) {
+        cancelActiveRasterStroke();
         return;
     }
 
-    m_livePreviewFrameTimer.start(m_livePreviewFrameIntervalMs, Qt::PreciseTimer, this);
+    if (result.strokeStarted) {
+        clearPendingRasterStroke();
+        resetRasterDabStream(m_rasterDabStream);
+        m_activeBrush = currentBrushState();
+        m_liveStrokePreviewDestinationOut =
+                m_activeBrush.rasterizer.blendMode == RasterBlendMode::DestinationOut;
+    }
+
+    if (result.pointAvailable) {
+        appendPointerPointToRaster(result.point, result.strokeCompleted);
+    }
+
+    if (result.strokeCompleted) {
+        commitPendingRasterStroke();
+    }
 }
 
-void PaintCanvasItem::processLiveStrokePreviewFrame()
+void PaintCanvasItem::appendPointerPointToRaster(const StrokePoint &point, bool finishStroke)
 {
-    if (!m_livePreviewEnabled || !m_strokeBuilder.active) {
+    const std::vector<BrushDab> dabs = appendRasterDabs(m_rasterDabStream,
+                                                        point,
+                                                        m_activeBrush,
+                                                        finishStroke);
+    if (dabs.empty()) {
         return;
     }
 
-    updateLiveStrokePreview();
-}
-
-void PaintCanvasItem::cancelLiveStrokePreviewFrame()
-{
-    if (m_livePreviewFrameTimer.isActive()) {
-        m_livePreviewFrameTimer.stop();
-    }
-}
-
-void PaintCanvasItem::enqueueStrokeCommit(const StrokeInput &stroke)
-{
-    m_pendingCommitStrokeWorkRequests.push_back(currentCommitStrokeWorkRequest(stroke));
-    ++m_nextStrokeSeed;
-    requestStrokeCommitFrame();
-}
-
-void PaintCanvasItem::requestStrokeCommitFrame()
-{
-    if (m_pendingCommitStrokeWorkRequests.empty() || m_commitStrokeFrameTimer.isActive()) {
-        return;
-    }
-
-    m_commitStrokeFrameTimer.start(0, Qt::PreciseTimer, this);
-}
-
-void PaintCanvasItem::processStrokeCommitFrame()
-{
-    if (m_pendingCommitStrokeWorkRequests.empty()) {
-        return;
-    }
-
-    const CanvasCommitStrokeWorkRequest request = m_pendingCommitStrokeWorkRequests.front();
-    m_pendingCommitStrokeWorkRequests.pop_front();
-    startCommitStrokeWork(request);
-    requestStrokeCommitFrame();
-}
-
-void PaintCanvasItem::cancelStrokeCommitFrame()
-{
-    if (m_commitStrokeFrameTimer.isActive()) {
-        m_commitStrokeFrameTimer.stop();
-    }
-}
-
-void PaintCanvasItem::updateLiveStrokePreview()
-{
-    const CanvasLiveStrokeWorkRequest request = currentLiveStrokeWorkRequest();
-    const std::uint64_t generation = ++m_livePreviewGeneration;
-    const std::uint64_t revision = m_livePreviewRevision;
-    if (!m_multithreadedEventsEnabled) {
-        applyLiveStrokeWorkResult(generation, revision, runCanvasLiveStrokeWork(request));
-        return;
-    }
-
-    if (m_livePreviewWorkActive) {
-        m_pendingLiveStrokeWorkRequest = request;
-        m_pendingLivePreviewGeneration = generation;
-        m_pendingLivePreviewRevision = revision;
-        m_livePreviewWorkPending = true;
-        return;
-    }
-
-    startLiveStrokePreviewWork(request, generation, revision);
-}
-
-void PaintCanvasItem::startLiveStrokePreviewWork(const CanvasLiveStrokeWorkRequest &request,
-                                                 std::uint64_t generation,
-                                                 std::uint64_t revision)
-{
-    m_livePreviewWorkActive = true;
-    const QPointer<PaintCanvasItem> self(this);
-    m_liveEventThreadPool.start([self, request, generation, revision]() {
-        const auto result = std::make_shared<CanvasLiveStrokeWorkResult>(runCanvasLiveStrokeWork(request));
-        if (!self) {
-            return;
-        }
-
-        QMetaObject::invokeMethod(self.data(),
-                                  [self, generation, revision, result]() {
-                                      if (!self) {
-                                          return;
-                                      }
-                                      self->applyLiveStrokeWorkResult(generation, revision, *result);
-                                  },
-                                  Qt::QueuedConnection);
-    });
-}
-
-void PaintCanvasItem::startPendingLiveStrokePreviewWork()
-{
-    if (m_livePreviewWorkActive || !m_livePreviewWorkPending) {
-        return;
-    }
-
-    if (!m_multithreadedEventsEnabled) {
-        m_livePreviewWorkPending = false;
-        return;
-    }
-
-    const CanvasLiveStrokeWorkRequest request = m_pendingLiveStrokeWorkRequest;
-    const std::uint64_t generation = m_pendingLivePreviewGeneration;
-    const std::uint64_t revision = m_pendingLivePreviewRevision;
-    m_livePreviewWorkPending = false;
-
-    if (revision != m_livePreviewRevision || !m_livePreviewEnabled || !m_strokeBuilder.active) {
-        return;
-    }
-
-    startLiveStrokePreviewWork(request, generation, revision);
-}
-
-void PaintCanvasItem::applyLiveStrokeWorkResult(std::uint64_t generation,
-                                                std::uint64_t revision,
-                                                const CanvasLiveStrokeWorkResult &result)
-{
-    m_livePreviewWorkActive = false;
-    if (revision != m_livePreviewRevision
-            || generation > m_livePreviewGeneration
-            || !m_livePreviewEnabled
-            || !m_strokeBuilder.active) {
-        startPendingLiveStrokePreviewWork();
-        return;
-    }
-
-    const bool wasLiveStrokeActive = liveStrokeActive();
-    const DevicePixelRect previousDirtyBounds = m_liveStrokeDeviceDirtyBounds;
-    const DevicePixelRect replacedDirtyBounds = result.incrementalPreview
-            ? liveStrokeTailDeviceDirtyBounds(result.incrementalPreviewStartDistance)
-            : previousDirtyBounds;
-    clearRasterLayerRect(m_liveRasterLayer, replacedDirtyBounds);
-
-    m_liveStrokeBuffer.frame = result.frame;
-    m_liveStrokeBuffer.active = result.frame.active;
-    m_liveStrokeDeviceDirtyBounds = result.frame.active ? result.fullDirtyBounds : DevicePixelRect{};
-    m_liveStrokeRenderedDistance = result.frame.active ? result.renderedStrokeDistance : 0.0;
-    m_liveStrokePreviewDestinationOut = samplesContainDestinationOut(result.samples);
-    if (m_liveStrokeBuffer.active) {
-        if (m_liveStrokePreviewDestinationOut) {
-            paintRasterSamples(m_liveRasterLayer, destinationOutSamplesAsSourceMask(result.samples));
-        } else {
-            paintRasterSamples(m_liveRasterLayer, result.samples);
-        }
-    }
-
-    requestTextureUpdate(uniteDevicePixelRects(replacedDirtyBounds, result.dirtyBounds));
-    emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
-    startPendingLiveStrokePreviewWork();
-}
-
-void PaintCanvasItem::preserveLiveStrokePreviewForCommit()
-{
-    cancelLiveStrokePreviewFrame();
-    ++m_livePreviewGeneration;
-    ++m_livePreviewRevision;
-    m_livePreviewWorkPending = false;
-}
-
-void PaintCanvasItem::clearLiveStrokePreview()
-{
-    cancelLiveStrokePreviewFrame();
-    ++m_livePreviewGeneration;
-    ++m_livePreviewRevision;
-    m_livePreviewWorkPending = false;
-    clearLiveStrokePreviewPixels();
-}
-
-void PaintCanvasItem::clearLiveStrokePreviewPixels()
-{
-    const DevicePixelRect previousDirtyBounds = m_liveStrokeDeviceDirtyBounds;
-    clearLiveStrokeBuffer(m_liveStrokeBuffer);
-    clearRasterLayerRect(m_liveRasterLayer, previousDirtyBounds);
-    m_liveStrokeDeviceDirtyBounds = {};
-    m_liveStrokeRenderedDistance = 0.0;
-    m_liveStrokePreviewDestinationOut = false;
-    requestTextureUpdate(previousDirtyBounds);
-}
-
-Types::Scalar PaintCanvasItem::liveStrokeIncrementalStartDistance(const BrushState &brush) const
-{
-    if (!m_liveStrokeBuffer.active
-            || m_liveStrokeBuffer.frame.dabs.empty()
-            || m_liveStrokeRenderedDistance <= 0.0) {
-        return 0.0;
-    }
-
-    const Types::Scalar brushDiameter = brush.rasterizer.brushSize > 0.0
-            ? brush.rasterizer.brushSize
-            : std::max<Types::Scalar>(1.0, static_cast<Types::Scalar>(brush.rasterizer.radius) * 2.0);
-    const Types::Scalar overlapDistance = std::max<Types::Scalar>(4.0, brushDiameter * 2.0);
-    return std::max<Types::Scalar>(0.0, m_liveStrokeRenderedDistance - overlapDistance);
-}
-
-DevicePixelRect PaintCanvasItem::liveStrokeTailDeviceDirtyBounds(Types::Scalar startDistance) const
-{
-    if (!m_liveStrokeBuffer.active || m_liveStrokeBuffer.frame.dabs.empty()) {
-        return {};
-    }
-
-    const auto &dabs = m_liveStrokeBuffer.frame.dabs;
-    const auto &dabDirtyBounds = m_liveStrokeBuffer.frame.dabDirtyBounds;
-    if (dabDirtyBounds.size() != dabs.size()) {
-        return m_liveStrokeDeviceDirtyBounds;
-    }
-
-    const auto firstDab = std::lower_bound(dabs.begin(),
-                                           dabs.end(),
-                                           startDistance,
-                                           [](const BrushDab &dab, Types::Scalar distance) {
-                                               return dab.strokeDistance + 0.000001 < distance;
-                                           });
-    if (firstDab == dabs.end()) {
-        return {};
-    }
-
-    DevicePixelRect tailBounds{};
     const RasterProjection projection = currentRasterProjection();
-    const auto firstIndex = static_cast<std::size_t>(firstDab - dabs.begin());
-    for (std::size_t index = firstIndex; index < dabDirtyBounds.size(); ++index) {
-        tailBounds = uniteDevicePixelRects(tailBounds,
-                                           deviceRectFromDocumentRect(dabDirtyBounds[index], projection));
+    std::vector<RasterSample> samples;
+    const bool needsSource = m_activeBrush.material.simulation.enabled
+            && m_activeBrush.material.simulation.model != BrushSimulationModel::Dry;
+    if (needsSource) {
+        const RasterSourceSampler sourceSampler = sourceSamplerForLayer(m_rasterLayer);
+        samples = projectBrushDabs(dabs,
+                                   m_activeBrush.rasterizer,
+                                   projection,
+                                   sourceSampler,
+                                   m_activeBrush.material);
+    } else {
+        samples = projectBrushDabs(dabs,
+                                   m_activeBrush.rasterizer,
+                                   projection,
+                                   m_activeBrush.material);
     }
-    return tailBounds;
-}
 
-void PaintCanvasItem::startCommitStrokeWork(const CanvasCommitStrokeWorkRequest &request)
-{
-    const std::uint64_t revision = m_canvasEventRevision;
-    if (!m_multithreadedEventsEnabled) {
-        applyCommitStrokeWorkResult(revision, runCanvasCommitStrokeWork(request));
+    if (samples.empty()) {
         return;
     }
 
-    const QPointer<PaintCanvasItem> self(this);
-    m_commitEventThreadPool.start([self, request, revision]() {
-        const auto result = std::make_shared<CanvasCommitStrokeWorkResult>(runCanvasCommitStrokeWork(request));
-        if (!self) {
-            return;
-        }
+    const std::vector<RasterSample> accumulatedSamples = m_liveStrokePreviewDestinationOut
+            ? destinationOutSamplesAsSourceMask(samples)
+            : samples;
+    accumulateStrokeSamples(m_pendingRasterBuffer, accumulatedSamples);
 
-        QMetaObject::invokeMethod(self.data(),
-                                  [self, revision, result]() {
-                                      if (!self) {
-                                          return;
-                                      }
-                                      self->applyCommitStrokeWorkResult(revision, *result);
-                                  },
-                                  Qt::QueuedConnection);
-    });
+    const DevicePixelRect dirtyBounds = deviceBoundsForBrushDabsUnion(dabs,
+                                                                      m_activeBrush.rasterizer,
+                                                                      projection);
+    syncPendingRasterLayer(dirtyBounds);
+    m_liveStrokeDeviceDirtyBounds = uniteDevicePixelRects(m_liveStrokeDeviceDirtyBounds, dirtyBounds);
+    if (m_livePreviewEnabled) {
+        requestTextureUpdate(dirtyBounds);
+    }
 }
 
-void PaintCanvasItem::applyCommitStrokeWorkResult(std::uint64_t revision,
-                                                  const CanvasCommitStrokeWorkResult &result)
+void PaintCanvasItem::commitPendingRasterStroke()
 {
-    if (revision != m_canvasEventRevision) {
+    const DevicePixelRect dirtyBounds = m_liveStrokeDeviceDirtyBounds;
+    if (isEmpty(dirtyBounds)) {
+        clearPendingRasterStroke();
         return;
     }
 
-    recordRasterChange(result.dirtyBounds);
-    paintRasterSamples(m_rasterLayer, result.samples);
-    const bool wasLiveStrokeActive = liveStrokeActive();
-    const DevicePixelRect previousLiveDirtyBounds = m_liveStrokeDeviceDirtyBounds;
-    clearLiveStrokePreviewPixels();
-    requestTextureUpdate(uniteDevicePixelRects(result.dirtyBounds, previousLiveDirtyBounds));
+    recordRasterChange(dirtyBounds);
+    if (m_liveStrokePreviewDestinationOut) {
+        eraseStrokeBufferFromLayer(m_rasterLayer, m_pendingRasterBuffer);
+    } else {
+        compositeStrokeBufferOntoLayer(m_rasterLayer, m_pendingRasterBuffer);
+    }
+
+    clearPendingRasterStroke();
+    requestTextureUpdate(dirtyBounds);
+    ++m_nextStrokeSeed;
     ++m_committedStrokeCount;
     emit strokeCountChanged();
-    emitLiveStrokeActiveChangedIfNeeded(wasLiveStrokeActive);
+}
+
+void PaintCanvasItem::clearPendingRasterStroke()
+{
+    const DevicePixelRect previousDirtyBounds = m_liveStrokeDeviceDirtyBounds;
+    clearRasterLayerRect(m_liveRasterLayer, previousDirtyBounds);
+    m_pendingRasterBuffer = makeStrokeCompositeBuffer(m_rasterLayer.width, m_rasterLayer.height);
+    resetRasterDabStream(m_rasterDabStream);
+    m_liveStrokeDeviceDirtyBounds = {};
+    m_liveStrokePreviewDestinationOut = false;
+    if (!isEmpty(previousDirtyBounds)) {
+        requestTextureUpdate(previousDirtyBounds);
+    }
+}
+
+void PaintCanvasItem::syncPendingRasterLayer(DevicePixelRect dirtyBounds)
+{
+    const DevicePixelRect clipped = intersectDevicePixelRects(layerBounds(), dirtyBounds);
+    if (isEmpty(clipped)) {
+        return;
+    }
+
+    for (Types::Pixel y = clipped.origin.y; y < clipped.origin.y + clipped.height; ++y) {
+        const std::size_t rowStart = static_cast<std::size_t>(y)
+                * static_cast<std::size_t>(m_liveRasterLayer.width);
+        for (Types::Pixel x = clipped.origin.x; x < clipped.origin.x + clipped.width; ++x) {
+            m_liveRasterLayer.pixels[rowStart + static_cast<std::size_t>(x)] =
+                    strokeCompositePixelAt(m_pendingRasterBuffer, {x, y});
+        }
+    }
 }
 
 void PaintCanvasItem::emitLiveStrokeActiveChangedIfNeeded(bool previousActive)
@@ -1606,62 +1277,13 @@ BrushState PaintCanvasItem::currentBrushState() const
     }
     BrushDynamics dynamics = pressureSensitiveDynamics();
     dynamics.pressureToOpacityEnabled = m_pressureToOpacityEnabled;
-    return BrushState{rasterizer, dynamics, StrokeResampler{}, BrushMaterial{}, m_nextStrokeSeed};
+    return BrushState{rasterizer, dynamics, BrushMaterial{}, m_nextStrokeSeed};
 }
 
-CanvasLiveStrokeWorkRequest PaintCanvasItem::currentLiveStrokeWorkRequest() const
+void PaintCanvasItem::cancelActiveRasterStroke()
 {
-    CanvasLiveStrokeWorkRequest request;
-    request.rawInput = activeStrokeInput(m_strokeBuilder);
-    request.brush = currentBrushState();
-    request.stabilizer = m_stabilizer;
-    request.projection = currentRasterProjection();
-    request.sourceLayerEnabled = brushNeedsSourceLayer(request.brush);
-    if (request.sourceLayerEnabled) {
-        const DevicePixelRect sourceBounds = sourceLayerBoundsForStrokeInput(request.rawInput,
-                                                                            request.brush.rasterizer,
-                                                                            request.projection,
-                                                                            layerBounds());
-        request.sourceLayerOrigin = sourceBounds.origin;
-        request.sourceLayer = copyRasterLayerRect(m_rasterLayer, sourceBounds);
-    }
-    if (!request.sourceLayerEnabled && request.brush.rasterizer.blendMode == RasterBlendMode::SourceOver) {
-        request.incrementalPreviewStartDistance = liveStrokeIncrementalStartDistance(request.brush);
-        request.incrementalPreviewEnabled = request.incrementalPreviewStartDistance > 0.0;
-    }
-    return request;
-}
-
-CanvasCommitStrokeWorkRequest PaintCanvasItem::currentCommitStrokeWorkRequest(const StrokeInput &stroke) const
-{
-    CanvasCommitStrokeWorkRequest request;
-    request.rawInput = stroke;
-    request.brush = currentBrushState();
-    request.stabilizer = m_stabilizer;
-    request.projection = currentRasterProjection();
-    request.sourceLayerEnabled = brushNeedsSourceLayer(request.brush);
-    if (request.sourceLayerEnabled) {
-        const DevicePixelRect sourceBounds = sourceLayerBoundsForStrokeInput(request.rawInput,
-                                                                            request.brush.rasterizer,
-                                                                            request.projection,
-                                                                            layerBounds());
-        request.sourceLayerOrigin = sourceBounds.origin;
-        request.sourceLayer = copyRasterLayerRect(m_rasterLayer, sourceBounds);
-    }
-    return request;
-}
-
-void PaintCanvasItem::invalidatePendingCanvasEventWork()
-{
-    cancelLiveStrokePreviewFrame();
-    cancelStrokeCommitFrame();
-    m_pendingCommitStrokeWorkRequests.clear();
-    ++m_canvasEventRevision;
-    ++m_livePreviewGeneration;
-    ++m_livePreviewRevision;
-    m_livePreviewWorkPending = false;
-    m_liveStrokeRenderedDistance = 0.0;
-    m_commitEventThreadPool.clear();
+    resetInputStrokeBuilder(m_strokeBuilder);
+    clearPendingRasterStroke();
 }
 
 PaintCanvasItem::RasterSnapshot PaintCanvasItem::captureRasterSnapshot() const
@@ -1741,7 +1363,7 @@ void PaintCanvasItem::restoreRasterSnapshot(const RasterSnapshot &snapshot)
     const bool wasLiveStrokeActive = liveStrokeActive();
     const int previousStrokeCount = m_committedStrokeCount;
 
-    invalidatePendingCanvasEventWork();
+    cancelActiveRasterStroke();
     setWidth(snapshot.width);
     setHeight(snapshot.height);
 
@@ -1752,10 +1374,10 @@ void PaintCanvasItem::restoreRasterSnapshot(const RasterSnapshot &snapshot)
         m_rasterLayer.pixels = snapshot.pixels;
     }
     m_liveRasterLayer = makeRasterLayer(snapshot.width, snapshot.height);
-    clearLiveStrokeBuffer(m_liveStrokeBuffer);
+    m_pendingRasterBuffer = makeStrokeCompositeBuffer(snapshot.width, snapshot.height);
     m_liveStrokeDeviceDirtyBounds = {};
     resetInputStrokeBuilder(m_strokeBuilder);
-    m_pendingCommitStrokeWorkRequests.clear();
+    resetRasterDabStream(m_rasterDabStream);
     m_nextStrokeSeed = snapshot.nextStrokeSeed;
     m_committedStrokeCount = snapshot.committedStrokeCount;
 
@@ -1785,7 +1407,7 @@ void PaintCanvasItem::restoreRasterPatchSnapshot(const RasterPatchSnapshot &snap
     const bool wasLiveStrokeActive = liveStrokeActive();
     const int previousStrokeCount = m_committedStrokeCount;
 
-    invalidatePendingCanvasEventWork();
+    cancelActiveRasterStroke();
     for (Types::Pixel y = 0; y < snapshot.bounds.height; ++y) {
         const std::size_t sourceRowStart = static_cast<std::size_t>(y)
                 * static_cast<std::size_t>(snapshot.bounds.width);
@@ -1798,10 +1420,10 @@ void PaintCanvasItem::restoreRasterPatchSnapshot(const RasterPatchSnapshot &snap
     }
 
     m_liveRasterLayer = makeRasterLayer(snapshot.width, snapshot.height);
-    clearLiveStrokeBuffer(m_liveStrokeBuffer);
+    m_pendingRasterBuffer = makeStrokeCompositeBuffer(snapshot.width, snapshot.height);
     m_liveStrokeDeviceDirtyBounds = {};
     resetInputStrokeBuilder(m_strokeBuilder);
-    m_pendingCommitStrokeWorkRequests.clear();
+    resetRasterDabStream(m_rasterDabStream);
     m_nextStrokeSeed = snapshot.nextStrokeSeed;
     m_committedStrokeCount = snapshot.committedStrokeCount;
     m_liveStrokePreviewDestinationOut = false;

@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "Brush/BrushPresetSerializer.h"
-#include "Stroke/StrokeCommand.h"
+#include "tests/RasterDabTestUtils.h"
 
 namespace {
 
@@ -38,12 +38,11 @@ BrushDab dabAt(Types::Scalar x, Types::Scalar y)
     return dab;
 }
 
-StrokeInput twoPointStroke()
+std::vector<BrushDab> twoPointDabs(const BrushState &brush)
 {
-    StrokeInput input;
-    input.points.push_back(StrokePoint{{0.0, 0.0}, 1.0, 0.0, 0.0, 0.0, 0.0, 1, 0.0});
-    input.points.push_back(StrokePoint{{10.0, 0.0}, 1.0, 1.0, 0.0, 0.0, 0.0, 1, 10.0});
-    return input;
+    return streamTestDabs(brush,
+                          StrokePoint{{0.0, 0.0}, 1.0, 0.0, 0.0, 0.0, 0.0, 1, 0.0},
+                          StrokePoint{{10.0, 0.0}, 1.0, 1.0, 0.0, 0.0, 0.0, 1, 10.0});
 }
 
 } // namespace
@@ -145,17 +144,17 @@ int main()
     jitterBrush.material.texture.enabled = true;
     jitterBrush.material.texture.scaleJitter = 0.25;
     jitterBrush.material.texture.rotationJitter = 0.5;
-    const StrokeCommand firstJitter = makeStrokeCommand(twoPointStroke(), jitterBrush, Stabilizer{0.0});
-    const StrokeCommand sameJitter = makeStrokeCommand(twoPointStroke(), jitterBrush, Stabilizer{0.0});
+    const std::vector<BrushDab> firstJitter = twoPointDabs(jitterBrush);
+    const std::vector<BrushDab> sameJitter = twoPointDabs(jitterBrush);
     jitterBrush.randomSeed += 1;
-    const StrokeCommand differentJitter = makeStrokeCommand(twoPointStroke(), jitterBrush, Stabilizer{0.0});
-    if (firstJitter.dabs.size() < 2
-            || sameJitter.dabs.size() < 2
-            || differentJitter.dabs.size() < 2
-            || !nearlyEqual(firstJitter.dabs[1].textureScale, sameJitter.dabs[1].textureScale)
-            || !nearlyEqual(firstJitter.dabs[1].textureRotationRadians, sameJitter.dabs[1].textureRotationRadians)
-            || nearlyEqual(firstJitter.dabs[1].textureScale, differentJitter.dabs[1].textureScale)
-            || nearlyEqual(firstJitter.dabs[1].textureRotationRadians, differentJitter.dabs[1].textureRotationRadians)) {
+    const std::vector<BrushDab> differentJitter = twoPointDabs(jitterBrush);
+    if (firstJitter.size() < 2
+            || sameJitter.size() < 2
+            || differentJitter.size() < 2
+            || !nearlyEqual(firstJitter[1].textureScale, sameJitter[1].textureScale)
+            || !nearlyEqual(firstJitter[1].textureRotationRadians, sameJitter[1].textureRotationRadians)
+            || nearlyEqual(firstJitter[1].textureScale, differentJitter[1].textureScale)
+            || nearlyEqual(firstJitter[1].textureRotationRadians, differentJitter[1].textureRotationRadians)) {
         return 6;
     }
 

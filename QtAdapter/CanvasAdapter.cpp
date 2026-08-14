@@ -4,11 +4,12 @@
 
 #include "CanvasAdapter.h"
 
-#include <QImage>
 #include <QQuickItem>
 #include <QUrl>
 
 #include <algorithm>
+
+#include "QtAdapter/BitmapFileCodec.h"
 
 namespace {
 
@@ -39,8 +40,6 @@ CanvasAdapter::CanvasAdapter(QQuickItem *parent)
     connect(this, &PaintCanvasItem::strokeSettingsChanged, this, &CanvasAdapter::brushConfigChanged);
     connect(this, &PaintCanvasItem::viewportChanged, this, &CanvasAdapter::viewportConfigChanged);
     connect(this, &PaintCanvasItem::livePreviewEnabledChanged, this, &CanvasAdapter::runtimeConfigChanged);
-    connect(this, &PaintCanvasItem::livePreviewFrameIntervalMsChanged, this, &CanvasAdapter::runtimeConfigChanged);
-    connect(this, &PaintCanvasItem::multithreadedEventsEnabledChanged, this, &CanvasAdapter::runtimeConfigChanged);
     connect(this, &PaintCanvasItem::liveStrokeActiveChanged, this, &CanvasAdapter::stateSnapshotChanged);
     connect(this, &PaintCanvasItem::strokeCountChanged, this, &CanvasAdapter::undoRedoChanged);
     connect(this, &PaintCanvasItem::strokeCountChanged, this, &CanvasAdapter::stateSnapshotChanged);
@@ -89,7 +88,6 @@ CanvasBrushConfig CanvasAdapter::brushConfig() const
     config.pressureCurveCenter = pressureCurveCenter();
     config.pressureCurveMaximum = pressureCurveMaximum();
     config.pressureToOpacityEnabled = pressureToOpacityEnabled();
-    config.stabilizerStrength = stabilizerStrength();
     return config;
 }
 
@@ -110,7 +108,6 @@ void CanvasAdapter::setBrushConfig(const CanvasBrushConfig &config)
     setPressureCurveMaximum(config.pressureCurveMaximum);
     setPressureCurveCenter(config.pressureCurveCenter);
     setPressureToOpacityEnabled(config.pressureToOpacityEnabled);
-    setStabilizerStrength(config.stabilizerStrength);
 }
 
 CanvasViewportConfig CanvasAdapter::viewportConfig() const
@@ -137,16 +134,12 @@ CanvasRuntimeConfig CanvasAdapter::runtimeConfig() const
 {
     CanvasRuntimeConfig config;
     config.livePreviewEnabled = livePreviewEnabled();
-    config.livePreviewFrameIntervalMs = livePreviewFrameIntervalMs();
-    config.multithreadedEventsEnabled = multithreadedEventsEnabled();
     return config;
 }
 
 void CanvasAdapter::setRuntimeConfig(const CanvasRuntimeConfig &config)
 {
     setLivePreviewEnabled(config.livePreviewEnabled);
-    setLivePreviewFrameIntervalMs(config.livePreviewFrameIntervalMs);
-    setMultithreadedEventsEnabled(config.multithreadedEventsEnabled);
 }
 
 CanvasStateSnapshot CanvasAdapter::stateSnapshot() const
@@ -174,6 +167,29 @@ bool CanvasAdapter::canRedo() const
     return canRedoRasterChange();
 }
 
+QStringList CanvasAdapter::supportedOpenFormats() const
+{
+    QStringList formats;
+    for (const QByteArray &format : supportedBitmapReadFormats()) {
+        formats.push_back(QString::fromLatin1(format));
+    }
+    return formats;
+}
+
+QStringList CanvasAdapter::supportedSaveFormats() const
+{
+    QStringList formats;
+    for (const QByteArray &format : supportedBitmapWriteFormats()) {
+        formats.push_back(QString::fromLatin1(format));
+    }
+    return formats;
+}
+
+QString CanvasAdapter::lastFileError() const
+{
+    return m_lastFileError;
+}
+
 bool CanvasAdapter::newCanvas(int width, int height)
 {
     const bool created = resetRasterCanvas(width, height);
@@ -185,17 +201,35 @@ bool CanvasAdapter::newCanvas(int width, int height)
 
 bool CanvasAdapter::openRaster(const QString &filePath)
 {
-    const QImage image(localFilePath(filePath));
-    const bool opened = replaceRasterCanvas(image);
+    const BitmapReadResult result = readBitmapFile(localFilePath(filePath));
+    if (!result) {
+        setLastFileError(result.error);
+        return false;
+    }
+
+    const bool opened = replaceRasterCanvas(result.image);
     if (opened) {
+        setLastFileError({});
         emit undoRedoChanged();
+    } else {
+        setLastFileError(QStringLiteral("The decoded bitmap could not replace the current pixels."));
     }
     return opened;
 }
 
 bool CanvasAdapter::saveToFile(const QString &filePath)
 {
-    return saveRasterCanvasToFile(localFilePath(filePath));
+    return saveToFileAs(filePath, {}, -1);
+}
+
+bool CanvasAdapter::saveToFileAs(const QString &filePath, const QString &format, int quality)
+{
+    BitmapWriteOptions options;
+    options.format = format.toLatin1();
+    options.quality = quality;
+    const BitmapWriteResult result = writeBitmapFile(localFilePath(filePath), rasterCanvasImage(), options);
+    setLastFileError(result.error);
+    return static_cast<bool>(result);
 }
 
 bool CanvasAdapter::undo()
@@ -214,4 +248,13 @@ bool CanvasAdapter::redo()
         emit undoRedoChanged();
     }
     return applied;
+}
+
+void CanvasAdapter::setLastFileError(const QString &error)
+{
+    if (m_lastFileError == error) {
+        return;
+    }
+    m_lastFileError = error;
+    emit lastFileErrorChanged();
 }

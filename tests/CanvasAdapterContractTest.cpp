@@ -122,6 +122,7 @@ Iipe.CanvasAdapter {
     if (!hasMethod(metaObject, "newCanvas(int,int)")
             || !hasMethod(metaObject, "openRaster(QString)")
             || !hasMethod(metaObject, "saveToFile(QString)")
+            || !hasMethod(metaObject, "saveToFileAs(QString,QString,int)")
             || !hasMethod(metaObject, "undo()")
             || !hasMethod(metaObject, "redo()")
             || !hasMethod(metaObject, "setBrushConfig(CanvasBrushConfig)")
@@ -131,7 +132,14 @@ Iipe.CanvasAdapter {
             || metaObject->indexOfProperty("viewportConfig") < 0
             || metaObject->indexOfProperty("runtimeConfig") < 0
             || metaObject->indexOfProperty("stateSnapshot") < 0
-            || metaObject->indexOfProperty("toolMode") < 0) {
+            || metaObject->indexOfProperty("toolMode") < 0
+            || metaObject->indexOfProperty("supportedOpenFormats") < 0
+            || metaObject->indexOfProperty("supportedSaveFormats") < 0
+            || metaObject->indexOfProperty("lastFileError") < 0
+            || !canvas->supportedOpenFormats().contains(QStringLiteral("png"))
+            || !canvas->supportedSaveFormats().contains(QStringLiteral("png"))
+            || canvas->supportedOpenFormats().contains(QStringLiteral("svg"))
+            || canvas->supportedOpenFormats().contains(QStringLiteral("pdf"))) {
         delete object;
         return 3;
     }
@@ -163,7 +171,6 @@ Iipe.CanvasAdapter {
     brush.pressureCurveCenter = 0.6;
     brush.pressureCurveMaximum = 0.8;
     brush.pressureToOpacityEnabled = false;
-    brush.stabilizerStrength = 0.44;
     canvas->setBrushConfig(brush);
 
     const CanvasBrushConfig appliedBrush = canvas->brushConfig();
@@ -182,7 +189,6 @@ Iipe.CanvasAdapter {
             || appliedBrush.pressureCurveCenter != 0.6
             || appliedBrush.pressureCurveMaximum != 0.8
             || appliedBrush.pressureToOpacityEnabled
-            || appliedBrush.stabilizerStrength != 0.44
             || canvas->brushSize() != 23.0
             || canvas->brushColor() != QColor{"#557799"}
             || canvas->brushSpacing() != 7.5
@@ -223,17 +229,11 @@ Iipe.CanvasAdapter {
 
     CanvasRuntimeConfig runtime;
     runtime.livePreviewEnabled = false;
-    runtime.livePreviewFrameIntervalMs = 17;
-    runtime.multithreadedEventsEnabled = false;
     canvas->setRuntimeConfig(runtime);
 
     const CanvasRuntimeConfig appliedRuntime = canvas->runtimeConfig();
     if (appliedRuntime.livePreviewEnabled
-            || appliedRuntime.livePreviewFrameIntervalMs != 17
-            || appliedRuntime.multithreadedEventsEnabled
-            || canvas->livePreviewEnabled()
-            || canvas->livePreviewFrameIntervalMs() != 17
-            || canvas->multithreadedEventsEnabled()) {
+            || canvas->livePreviewEnabled()) {
         delete object;
         return 17;
     }
@@ -334,6 +334,14 @@ Iipe.CanvasAdapter {
     if (invokeBool(canvas, "redo")) {
         delete object;
         return 14;
+    }
+
+    if (canvas->saveToFileAs(directory.filePath(QStringLiteral("forbidden.svg")),
+                             QStringLiteral("svg"),
+                             -1)
+            || canvas->lastFileError().isEmpty()) {
+        delete object;
+        return 21;
     }
 
     delete object;

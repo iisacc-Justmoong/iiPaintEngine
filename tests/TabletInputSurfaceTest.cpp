@@ -55,7 +55,7 @@ int main()
 
     InputStrokeBuilder builder;
     const InputStrokeBuildResult ignoredHover = appendPointerEvent(builder, hoverEvent);
-    if (ignoredHover.strokeCompleted || builder.active || !builder.points.empty()) {
+    if (ignoredHover.pointAvailable || ignoredHover.strokeCompleted || builder.active) {
         return 1;
     }
 
@@ -82,12 +82,12 @@ int main()
         return 1;
     }
 
-    appendPointerEvent(builder, penPress);
-    if (!builder.active || builder.points.size() != 1) {
+    const InputStrokeBuildResult penPressResult = appendPointerEvent(builder, penPress);
+    if (!builder.active || !penPressResult.pointAvailable || !penPressResult.strokeStarted) {
         return 1;
     }
 
-    const StrokePoint &firstPoint = builder.points.front();
+    const StrokePoint &firstPoint = penPressResult.point;
     if (!nearlyEqual(firstPoint.pressure, 0.5)
             || !nearlyEqual(firstPoint.tiltX, 0.4)
             || !nearlyEqual(firstPoint.tiltY, 0.3)
@@ -127,8 +127,9 @@ int main()
                                                                            lateContactMoveEvent);
     if (lateContactMoveResult.strokeCompleted
             || !lateContactBuilder.active
-            || lateContactBuilder.points.size() != 1
-            || !nearlyEqual(lateContactBuilder.points.front().pressure, 0.375)) {
+            || !lateContactMoveResult.pointAvailable
+            || !lateContactMoveResult.strokeStarted
+            || !nearlyEqual(lateContactMoveResult.point.pressure, 0.375)) {
         return 1;
     }
 
@@ -159,7 +160,7 @@ int main()
                                                                           lateContactReleaseEvent);
     if (!lateContactCompleted.strokeCompleted
             || lateContactBuilder.active
-            || lateContactCompleted.stroke.points.size() != 2) {
+            || !lateContactCompleted.pointAvailable) {
         return 1;
     }
 

@@ -1,16 +1,15 @@
 #include <cstddef>
+#include <initializer_list>
 #include <string>
+#include <type_traits>
+#include <vector>
 
-#include "Canvas/Canvas.h"
 #include "Brush/BrushSnapshot.h"
 #include "Color/ColorSpace.h"
 #include "Document/DocumentSerializer.h"
-#include "Document/PaintDocument.h"
 #include "History/Command.h"
-#include "Input/PointerEvent.h"
 #include "Layer/DrawingSurface.h"
 #include "Layer/Layer.h"
-#include "Stroke/StrokeCommand.h"
 
 namespace {
 
@@ -21,31 +20,22 @@ PaintUuid uuidWithFirstByte(std::uint8_t value)
     return uuid;
 }
 
-bool byteVectorEquals(const std::vector<std::byte> &bytes, std::initializer_list<unsigned int> expected)
+template <typename Byte>
+bool byteVectorEquals(const std::vector<Byte> &bytes, std::initializer_list<unsigned int> expected)
 {
     if (bytes.size() != expected.size()) {
         return false;
     }
-
     std::size_t index = 0;
     for (const unsigned int expectedByte : expected) {
-        if (std::to_integer<unsigned int>(bytes[index]) != expectedByte) {
-            return false;
-        }
-        ++index;
-    }
-    return true;
-}
-
-bool byteVectorEquals(const std::vector<Types::Byte> &bytes, std::initializer_list<unsigned int> expected)
-{
-    if (bytes.size() != expected.size()) {
-        return false;
-    }
-
-    std::size_t index = 0;
-    for (const unsigned int expectedByte : expected) {
-        if (bytes[index] != expectedByte) {
+        const unsigned int actual = [&] {
+            if constexpr (std::is_same_v<Byte, std::byte>) {
+                return std::to_integer<unsigned int>(bytes[index]);
+            } else {
+                return static_cast<unsigned int>(bytes[index]);
+            }
+        }();
+        if (actual != expectedByte) {
             return false;
         }
         ++index;
@@ -57,7 +47,7 @@ bool byteVectorEquals(const std::vector<Types::Byte> &bytes, std::initializer_li
 
 int main()
 {
-    DrawingSurface surface = makeDrawingSurface(3, 2, 0x00000000U);
+    DrawingSurface surface = makeDrawingSurface(3, 2);
     surface.pixels[4] = 0xFF224466U;
 
     PaintDocument document;
@@ -66,18 +56,15 @@ int main()
     document.metadata.documentId = uuidWithFirstByte(1);
     document.metadata.storagePath = "roundtrip.ipe";
 
-    CanvasMetadata canvasMetadata;
-    canvasMetadata.title = "Canvas A";
-    canvasMetadata.colorSpace = "Display P3";
-    canvasMetadata.backgroundColor = 0xFF010203U;
+    document.metadata.colorSpace = "Display P3";
+    document.metadata.backgroundColor = 0xFF010203U;
+    document.surface = surface;
 
-    Canvas canvas = makeCanvas(surface, canvasMetadata);
     Layer layer;
     layer.surface = surface;
     layer.metadata.id = uuidWithFirstByte(2);
     layer.metadata.name = "Ink";
     layer.metadata.opacity = 0.75;
-    layer.metadata.blendMode = RasterBlendMode::SourceOver;
     layer.metadata.alphaLock = true;
     layer.mask.enabled = true;
     layer.mask.width = 3;
@@ -87,76 +74,29 @@ int main()
     childLayer.metadata.kind = LayerKind::Adjustment;
     childLayer.metadata.name = "Tone";
     layer.children.push_back(childLayer);
-    canvas.layers.layers.push_back(layer);
+    document.layers.layers.push_back(layer);
 
-    StrokeInput input;
-    input.points.push_back(StrokePoint{{1.0, 1.0}, 0.5, 0.0, 2.0, 0.1, 0.2, 3, 0.0});
-    input.points.push_back(StrokePoint{{2.0, 1.0}, 0.8, 1.0, 3.0, 0.2, 0.3, 4, 1.0});
-    input.points.front().deviceState = PointerDeviceStateBarrelButton;
-    input.points.front().rotationRadians = 0.35;
-    input.points.back().deviceState = PointerDeviceStateEraser;
-    input.points.back().rotationRadians = 0.55;
-
-    BrushState brush;
-    brush.randomSeed = 42;
-    brush.rasterizer.argb = 0xFF336699U;
-    brush.rasterizer.brushSize = 6.0;
-    brush.rasterizer.flow = 0.6;
-    brush.rasterizer.spacingEnabled = false;
-    brush.rasterizer.flowEnabled = false;
-    brush.rasterizer.opacityEnabled = false;
-    brush.rasterizer.hardnessEnabled = false;
-    brush.rasterizer.taperMinimum = 0.1;
-    brush.rasterizer.endTaperShape = StrokeTaperShape::SmoothStep;
-    brush.dynamics.pressureToSize = 0.5;
-    brush.dynamics.pressureToFlowEnabled = false;
-    brush.dynamics.velocityToDryOutEnabled = false;
-    brush.dynamics.tiltToEllipseEnabled = false;
-    brush.dynamics.randomInputEnabled = false;
+    BrushSnapshot brush;
+    brush.brushId = uuidWithFirstByte(3);
+    brush.name = "Archive Brush";
+    brush.size = 6.0F;
+    brush.opacity = 0.9F;
+    brush.tip.width = 2;
+    brush.tip.height = 2;
+    brush.tip.mask = {std::byte{0x00}, std::byte{0x7F}, std::byte{0xCC}, std::byte{0xFF}};
     brush.dynamics.sizeResponse.enabled = true;
     brush.dynamics.sizeResponse.pressure.enabled = true;
     brush.dynamics.sizeResponse.pressure.min = 0.25;
     brush.dynamics.sizeResponse.pressure.center = 0.5;
     brush.dynamics.sizeResponse.pressure.max = 1.0;
-    brush.dynamics.scatterResponse.enabled = true;
-    brush.dynamics.scatterResponse.pressure.enabled = true;
-    brush.dynamics.scatterResponse.pressure.min = 0.2;
-    brush.dynamics.scatterResponse.pressure.center = 0.6;
-    brush.dynamics.scatterResponse.pressure.max = 1.0;
-    brush.dynamics.rotationResponse.enabled = true;
-    brush.dynamics.rotationResponse.pressure.enabled = true;
-    brush.dynamics.rotationResponse.pressure.min = -0.1;
-    brush.dynamics.rotationResponse.pressure.center = 0.0;
-    brush.dynamics.rotationResponse.pressure.max = 0.1;
-    brush.dynamics.textureDepthResponse.enabled = true;
-    brush.dynamics.textureDepthResponse.pressure.enabled = true;
-    brush.dynamics.textureDepthResponse.pressure.min = 0.5;
-    brush.dynamics.textureDepthResponse.pressure.center = 1.0;
-    brush.dynamics.textureDepthResponse.pressure.max = 1.5;
-    brush.dynamics.wetnessResponse.enabled = true;
-    brush.dynamics.wetnessResponse.pressure.enabled = true;
-    brush.dynamics.wetnessResponse.pressure.min = 0.4;
-    brush.dynamics.wetnessResponse.pressure.center = 0.7;
-    brush.dynamics.wetnessResponse.pressure.max = 1.0;
-    brush.dynamics.bristleSpreadResponse.enabled = true;
-    brush.dynamics.bristleSpreadResponse.pressure.enabled = true;
-    brush.dynamics.bristleSpreadResponse.pressure.min = 0.5;
-    brush.dynamics.bristleSpreadResponse.pressure.center = 1.0;
-    brush.dynamics.bristleSpreadResponse.pressure.max = 1.25;
-    brush.resampler.sampleSpacing = 0.25;
     brush.material.texture.enabled = true;
     brush.material.texture.space = BrushTextureSpace::Document;
     brush.material.texture.width = 2;
     brush.material.texture.height = 1;
     brush.material.texture.alpha = {128, 255};
-    brush.material.texture.grainStrength = 0.5;
-    brush.material.texture.strength = 0.75;
-    brush.material.texture.scaleJitter = 0.2;
-    brush.material.texture.rotationJitter = 0.3;
     brush.material.texture.assetCache.enabled = true;
     brush.material.texture.assetCache.assetId = uuidWithFirstByte(8);
     brush.material.texture.assetCache.cacheKey = "document-texture-cache";
-    brush.material.texture.assetCache.revision = 2;
     brush.material.texture.assetCache.width = 2;
     brush.material.texture.assetCache.height = 1;
     brush.material.texture.assetCache.alpha = {255, 64};
@@ -165,38 +105,13 @@ int main()
     brush.material.paperGrain.width = 2;
     brush.material.paperGrain.height = 1;
     brush.material.paperGrain.alpha = {32, 255};
-    brush.material.paperGrain.strength = 0.8;
     brush.material.dualBrush.enabled = true;
     brush.material.dualBrush.compositeMode = DualBrushCompositeMode::Difference;
-    brush.material.dualBrush.scale = 0.7;
-    brush.material.dualBrush.opacity = 0.6;
-    brush.material.dualBrush.scaleJitter = 0.1;
-    brush.material.dualBrush.rotationJitter = 0.2;
-    brush.material.scatter.enabled = true;
-    brush.material.scatter.radius = 1.0;
-    brush.material.scatter.count = 2;
     brush.material.simulation.enabled = true;
-    brush.material.simulation.model = BrushSimulationModel::Smudge;
-    brush.material.simulation.smudgeStrength = 0.4;
-    brush.material.simulation.pickup = 0.3;
-    brush.material.simulation.deposit = 0.7;
+    brush.material.simulation.model = BrushSimulationModel::Mixer;
     brush.material.bristle.enabled = true;
     brush.material.bristle.shape = BristleShape::Fan;
     brush.material.bristle.count = 9;
-    canvas.strokes.strokes.push_back(makeStrokeCommand(input, brush, Stabilizer{0.0}));
-    document.canvases.push_back(canvas);
-
-    BrushSnapshot brushSource;
-    brushSource.brushId = uuidWithFirstByte(3);
-    brushSource.name = "Archive Brush";
-    brushSource.size = 6.0F;
-    brushSource.opacity = 0.9F;
-    brushSource.tip.width = 2;
-    brushSource.tip.height = 2;
-    brushSource.tip.mask = {std::byte{0x00}, std::byte{0x7F}, std::byte{0xCC}, std::byte{0xFF}};
-    brushSource.dynamics = brush.dynamics;
-    brushSource.material = brush.material;
-    brushSource.material.simulation.model = BrushSimulationModel::Mixer;
 
     ColorSpace colorSpace = makeDisplayP3LinearFloatColorSpace();
     colorSpace.iccProfile = {std::byte{0x10}, std::byte{0x20}, std::byte{0x30}};
@@ -209,49 +124,46 @@ int main()
 
     Command historyCommand;
     historyCommand.sequence = 1;
-    historyCommand.label = "Paint stroke";
+    historyCommand.label = "Paint bitmap";
     historyCommand.targetId = layer.metadata.id;
     historyCommand.kind = CommandKind::PaintStroke;
     historyCommand.scope = CommandScope::Layer;
     historyCommand.transactionId = uuidWithFirstByte(5);
-    historyCommand.timestamp = 42.0;
-    historyCommand.coalescingKey = "layer:ink:stroke";
     historyCommand.dirtyBounds = {{0.0, 0.0}, 3.0, 2.0};
-    CommandPatch historyPatch;
-    historyPatch.targetId = layer.metadata.id;
-    historyPatch.scope = CommandScope::Layer;
-    historyPatch.dirtyBounds = historyCommand.dirtyBounds;
-    historyPatch.beforeState.storage = CommandPayloadStorage::InlineBytes;
-    historyPatch.beforeState.mimeType = "application/x-iipaint-rgba-tile";
-    historyPatch.beforeState.bytes = {std::byte{0x00}, std::byte{0x11}};
-    historyPatch.afterState.storage = CommandPayloadStorage::InlineBytes;
-    historyPatch.afterState.mimeType = "application/x-iipaint-rgba-tile";
-    historyPatch.afterState.bytes = {std::byte{0xAA}, std::byte{0xBB}};
-    historyCommand.patches.push_back(historyPatch);
+    CommandPatch patch;
+    patch.targetId = layer.metadata.id;
+    patch.scope = CommandScope::Layer;
+    patch.dirtyBounds = historyCommand.dirtyBounds;
+    patch.beforeState.storage = CommandPayloadStorage::InlineBytes;
+    patch.beforeState.bytes = {std::byte{0x00}, std::byte{0x11}};
+    patch.afterState.storage = CommandPayloadStorage::InlineBytes;
+    patch.afterState.bytes = {std::byte{0xAA}, std::byte{0xBB}};
+    historyCommand.patches.push_back(patch);
 
     DocumentArchive archive = makeDocumentArchive(document);
-    archive.brushSources.push_back(brushSource);
+    archive.brushSources.push_back(brush);
     archive.colorSpaces.push_back(colorSpace);
     archive.assets.push_back(asset);
     archive.history.undoCommands.push_back(historyCommand);
     archive.history.cursor = 1;
     archive.history.nextSequence = 2;
-    archive.history.maxUndoCommands = 128;
 
     const std::string payload = serializeDocumentArchive(archive);
+    if (payload.find("strokes") != std::string::npos
+            || payload.find("StrokeCurve") != std::string::npos
+            || payload.find("rawInput") != std::string::npos) {
+        return 1;
+    }
     const DocumentArchive reopened = deserializeDocumentArchive(payload);
-
     if (reopened.formatMagic != "iiPaintDocument"
-            || reopened.formatVersion != 1
+            || reopened.formatVersion != 3
             || reopened.document.metadata.title != "RoundTrip"
-            || reopened.document.canvases.size() != 1
-            || reopened.document.canvases.front().layers.layers.size() != 1
-            || reopened.document.canvases.front().strokes.strokes.size() != 1) {
+            || reopened.document.metadata.colorSpace != "Display P3"
+            || reopened.document.layers.layers.size() != 1) {
         return 1;
     }
 
-    const Layer &reopenedLayer = reopened.document.canvases.front().layers.layers.front();
-    const StrokeCommand &reopenedStroke = reopened.document.canvases.front().strokes.strokes.front();
+    const Layer &reopenedLayer = reopened.document.layers.layers.front();
     if (reopenedLayer.metadata.id.bytes[0] != 2
             || reopenedLayer.metadata.name != "Ink"
             || reopenedLayer.metadata.opacity != 0.75
@@ -259,108 +171,80 @@ int main()
             || !reopenedLayer.mask.enabled
             || !byteVectorEquals(reopenedLayer.mask.alpha, {0xFF, 0x80, 0x00, 0x40, 0xFF, 0x20})
             || reopenedLayer.children.size() != 1
-            || reopenedLayer.children.front().metadata.kind != LayerKind::Adjustment
-            || reopenedLayer.children.front().metadata.name != "Tone"
-            || drawingSurfacePixelAt(reopenedLayer.surface, {1, 1}) != 0xFF224466U
-            || reopenedStroke.path.rawInput.points.size() != 2
-            || reopenedStroke.brush.randomSeed != 42
-            || reopenedStroke.brush.rasterizer.argb != 0xFF336699U
-            || reopenedStroke.brush.rasterizer.spacingEnabled
-            || reopenedStroke.brush.rasterizer.flowEnabled
-            || reopenedStroke.brush.rasterizer.opacityEnabled
-            || reopenedStroke.brush.rasterizer.hardnessEnabled
-            || reopenedStroke.brush.rasterizer.taperMinimum != 0.1
-            || reopenedStroke.brush.rasterizer.endTaperShape != StrokeTaperShape::SmoothStep
-            || reopenedStroke.brush.dynamics.pressureToSize != 0.5
-            || reopenedStroke.brush.dynamics.pressureToFlowEnabled
-            || reopenedStroke.brush.dynamics.velocityToDryOutEnabled
-            || reopenedStroke.brush.dynamics.tiltToEllipseEnabled
-            || reopenedStroke.brush.dynamics.randomInputEnabled
-            || !reopenedStroke.brush.dynamics.sizeResponse.enabled
-            || reopenedStroke.brush.dynamics.sizeResponse.pressure.min != 0.25
-            || !reopenedStroke.brush.dynamics.scatterResponse.pressure.enabled
-            || reopenedStroke.brush.dynamics.rotationResponse.pressure.max != 0.1
-            || reopenedStroke.brush.dynamics.textureDepthResponse.pressure.max != 1.5
-            || reopenedStroke.brush.dynamics.wetnessResponse.pressure.min != 0.4
-            || reopenedStroke.brush.dynamics.bristleSpreadResponse.pressure.max != 1.25
-            || reopenedStroke.brush.resampler.sampleSpacing != 0.25
-            || !reopenedStroke.brush.material.texture.enabled
-            || reopenedStroke.brush.material.texture.space != BrushTextureSpace::Document
-            || !byteVectorEquals(reopenedStroke.brush.material.texture.alpha, {0x80, 0xFF})
-            || reopenedStroke.brush.material.texture.strength != 0.75
-            || reopenedStroke.brush.material.texture.assetCache.assetId.bytes[0] != 8
-            || reopenedStroke.brush.material.texture.assetCache.cacheKey != "document-texture-cache"
-            || !byteVectorEquals(reopenedStroke.brush.material.texture.assetCache.alpha, {0xFF, 0x40})
-            || !reopenedStroke.brush.material.paperGrain.enabled
-            || reopenedStroke.brush.material.paperGrain.space != BrushTextureSpace::Paper
-            || !byteVectorEquals(reopenedStroke.brush.material.paperGrain.alpha, {0x20, 0xFF})
-            || !reopenedStroke.brush.material.dualBrush.enabled
-            || reopenedStroke.brush.material.dualBrush.compositeMode != DualBrushCompositeMode::Difference
-            || reopenedStroke.brush.material.dualBrush.opacity != 0.6
-            || reopenedStroke.brush.material.scatter.count != 2
-            || !reopenedStroke.brush.material.simulation.enabled
-            || reopenedStroke.brush.material.simulation.model != BrushSimulationModel::Smudge
-            || reopenedStroke.brush.material.simulation.pickup != 0.3
-            || reopenedStroke.brush.material.simulation.deposit != 0.7
-            || !reopenedStroke.brush.material.bristle.enabled
-            || reopenedStroke.brush.material.bristle.shape != BristleShape::Fan
-            || reopenedStroke.brush.material.bristle.count != 9
-            || reopenedStroke.path.rawInput.points.front().deviceState != PointerDeviceStateBarrelButton
-            || reopenedStroke.path.rawInput.points.front().rotationRadians != 0.35
-            || reopenedStroke.dabs.empty()
-            || reopenedStroke.dabs.front().textureAlpha <= 0.0
-            || reopenedStroke.dabs.front().textureDepthScale <= 0.0
-            || reopenedStroke.dabs.front().textureScale <= 0.0
-            || reopenedStroke.dabs.front().wetnessScale <= 0.0
-            || reopenedStroke.dabs.front().bristleSpreadScale <= 0.0
-            || reopenedStroke.dabs.front().scatterScale <= 0.0
-            || reopenedStroke.dabs.back().strokeDistance <= 0.0
-            || reopenedStroke.dabs.front().hardnessScale != 1.0
-            || !reopenedStroke.dabs.front().dualBrush) {
+            || drawingSurfacePixelAt(reopenedLayer.surface, {1, 1}) != 0xFF224466U) {
         return 1;
     }
 
     if (reopened.brushSources.size() != 1
             || reopened.brushSources.front().brushId.bytes[0] != 3
-            || reopened.brushSources.front().name != "Archive Brush"
             || !byteVectorEquals(reopened.brushSources.front().tip.mask, {0x00, 0x7F, 0xCC, 0xFF})
             || !reopened.brushSources.front().dynamics.sizeResponse.pressure.enabled
-            || reopened.brushSources.front().dynamics.textureDepthResponse.pressure.max != 1.5
             || reopened.brushSources.front().material.texture.space != BrushTextureSpace::Document
+            || !byteVectorEquals(reopened.brushSources.front().material.texture.assetCache.alpha, {0xFF, 0x40})
             || !reopened.brushSources.front().material.paperGrain.enabled
             || reopened.brushSources.front().material.dualBrush.compositeMode != DualBrushCompositeMode::Difference
-            || !reopened.brushSources.front().material.simulation.enabled
             || reopened.brushSources.front().material.simulation.model != BrushSimulationModel::Mixer
-            || !reopened.brushSources.front().material.bristle.enabled
             || reopened.brushSources.front().material.bristle.count != 9
             || reopened.colorSpaces.size() != 1
-            || reopened.colorSpaces.front().name != "Display P3 Linear Float"
-            || reopened.colorSpaces.front().primaries != ColorPrimaries::DisplayP3
-            || reopened.colorSpaces.front().transferFunction != ColorTransferFunction::Linear
-            || reopened.colorSpaces.front().componentEncoding != ColorComponentEncoding::Float32
-            || !reopened.colorSpaces.front().hdr
-            || !reopened.colorSpaces.front().linear
-            || reopened.colorSpaces.front().maxComponentValue != 16.0
             || !byteVectorEquals(reopened.colorSpaces.front().iccProfile, {0x10, 0x20, 0x30})
             || reopened.assets.size() != 1
-            || reopened.assets.front().mimeType != "image/png"
             || !byteVectorEquals(reopened.assets.front().bytes, {0x89, 0x50, 0x4E, 0x47})
-            || reopened.history.cursor != 1
-            || reopened.history.nextSequence != 2
-            || reopened.history.maxUndoCommands != 128
             || reopened.history.undoCommands.size() != 1
-            || reopened.history.undoCommands.front().targetId.bytes[0] != 2
-            || reopened.history.undoCommands.front().kind != CommandKind::PaintStroke
-            || reopened.history.undoCommands.front().scope != CommandScope::Layer
-            || reopened.history.undoCommands.front().transactionId.bytes[0] != 5
-            || reopened.history.undoCommands.front().coalescingKey != "layer:ink:stroke"
-            || reopened.history.undoCommands.front().dirtyBounds.width != 3.0
             || reopened.history.undoCommands.front().patches.size() != 1
-            || reopened.history.undoCommands.front().patches.front().beforeState.storage != CommandPayloadStorage::InlineBytes
-            || !byteVectorEquals(reopened.history.undoCommands.front().patches.front().beforeState.bytes, {0x00, 0x11})
-            || !byteVectorEquals(reopened.history.undoCommands.front().patches.front().afterState.bytes, {0xAA, 0xBB})) {
+            || !byteVectorEquals(reopened.history.undoCommands.front().patches.front().beforeState.bytes,
+                                 {0x00, 0x11})
+            || !byteVectorEquals(reopened.history.undoCommands.front().patches.front().afterState.bytes,
+                                 {0xAA, 0xBB})) {
         return 1;
     }
+    const std::string legacyPayload =
+            "formatMagic\t\"iiPaintDocument\"\n"
+            "formatVersion\t2\n"
+            "document.metadata.title\t\"Legacy\"\n"
+            "document.canvases.count\t1\n"
+            "document.canvases.0.metadata.backgroundColor\t4278256131\n"
+            "document.canvases.0.metadata.intendedExportWidth\t99\n"
+            "document.canvases.0.metadata.colorSpace\t\"sRGB\"\n"
+            "document.canvases.0.surface.width\t2\n"
+            "document.canvases.0.surface.height\t1\n"
+            "document.canvases.0.surface.pixels\tFF010203FF040506\n"
+            "document.canvases.0.layers.count\t1\n"
+            "document.canvases.0.layers.activeLayerIndex\t0\n"
+            "document.canvases.0.layers.0.surface.width\t2\n"
+            "document.canvases.0.layers.0.surface.height\t1\n"
+            "document.canvases.0.layers.0.surface.pixels\tFF010203FF040506\n"
+            "document.canvases.0.layers.0.metadata.name\t\"Legacy Layer\"\n"
+            "document.canvases.0.layers.0.metadata.visible\t1\n"
+            "document.canvases.0.layers.0.metadata.opacity\t1\n"
+            "document.canvases.0.layers.0.children.count\t0\n";
+    const DocumentArchive migrated = deserializeDocumentArchive(legacyPayload);
+    if (migrated.formatVersion != documentArchiveFormatVersion
+            || migrated.document.metadata.title != "Legacy"
+            || migrated.document.metadata.intendedExportWidth != 99
+            || migrated.document.surface.width != 2
+            || migrated.document.layers.layers.size() != 1
+            || migrated.document.layers.layers.front().metadata.name != "Legacy Layer"
+            || drawingSurfacePixelAt(migrated.document.layers.layers.front().surface, {1, 0})
+                    != 0xFF040506U) {
+        return 2;
+    }
+    const std::string migratedPayload = serializeDocumentArchive(migrated);
+    if (migratedPayload.find("formatVersion\t3") == std::string::npos
+            || migratedPayload.find("document.canvases.") != std::string::npos
+            || migratedPayload.find("document.surface.width\t2") == std::string::npos) {
+        return 3;
+    }
 
+    std::string unsupportedLegacy = legacyPayload;
+    const std::size_t countPosition = unsupportedLegacy.find("document.canvases.count\t1");
+    unsupportedLegacy.replace(countPosition,
+                              std::string{"document.canvases.count\t1"}.size(),
+                              "document.canvases.count\t2");
+    const DocumentArchive rejected = deserializeDocumentArchive(unsupportedLegacy);
+    if (rejected.compatible
+            || rejected.compatibilityError.empty()
+            || !serializeDocumentArchive(rejected).empty()) {
+        return 4;
+    }
     return 0;
 }

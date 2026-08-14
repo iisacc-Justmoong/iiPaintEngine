@@ -112,7 +112,6 @@ QImage renderSinglePressureDab(QGuiApplication &app, qreal pressure)
     TabletTestCanvas canvas;
     canvas.setWidth(100);
     canvas.setHeight(64);
-    canvas.setMultithreadedEventsEnabled(false);
     canvas.setBrush(20.0, QColor{"#101318"}, 1.0, 1.0);
     canvas.setBrushHardness(1.0);
     canvas.setBrushSpacingRatio(1.0);
@@ -143,7 +142,6 @@ QImage renderSinglePressureDabWithSynthesizedMouse(QGuiApplication &app, qreal p
     TabletTestCanvas canvas;
     canvas.setWidth(100);
     canvas.setHeight(64);
-    canvas.setMultithreadedEventsEnabled(false);
     canvas.setBrush(20.0, QColor{"#101318"}, 1.0, 1.0);
     canvas.setBrushHardness(1.0);
     canvas.setBrushSpacingRatio(1.0);
@@ -186,7 +184,6 @@ QImage renderTabletStrokeStartedByPressureMove(QGuiApplication &app)
     TabletTestCanvas canvas;
     canvas.setWidth(100);
     canvas.setHeight(64);
-    canvas.setMultithreadedEventsEnabled(false);
     canvas.setBrush(20.0, QColor{"#101318"}, 1.0, 1.0);
     canvas.setBrushHardness(1.0);
     canvas.setBrushSpacingRatio(0.25);
@@ -224,7 +221,6 @@ QImage renderSynthesizedMouseFallback(QGuiApplication &app)
     TabletTestCanvas canvas;
     canvas.setWidth(100);
     canvas.setHeight(64);
-    canvas.setMultithreadedEventsEnabled(false);
     canvas.setBrush(16.0, QColor{"#101318"}, 1.0, 1.0);
     canvas.setBrushHardness(1.0);
     canvas.setBrushSpacingRatio(0.25);
@@ -253,7 +249,6 @@ QImage renderSynthesizedMousePressureDab(QGuiApplication &app, qreal pressure)
     TabletTestCanvas canvas;
     canvas.setWidth(100);
     canvas.setHeight(64);
-    canvas.setMultithreadedEventsEnabled(false);
     canvas.setBrush(20.0, QColor{"#101318"}, 1.0, 1.0);
     canvas.setBrushHardness(1.0);
     canvas.setBrushSpacingRatio(1.0);
@@ -290,7 +285,6 @@ int main(int argc, char **argv)
     TabletTestCanvas canvas;
     canvas.setWidth(100);
     canvas.setHeight(64);
-    canvas.setMultithreadedEventsEnabled(false);
     canvas.setBrush(12.0, QColor{"#101318"}, 1.0, 1.0);
     canvas.setBrushHardness(1.0);
     canvas.setBrushSpacingRatio(0.25);

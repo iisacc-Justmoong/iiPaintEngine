@@ -31,7 +31,6 @@ enum class CommandKind {
 
 enum class CommandScope {
     Document,
-    Canvas,
     Layer,
     Mask,
     Stroke,

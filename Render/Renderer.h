@@ -16,7 +16,6 @@ struct Renderer {
     GpuRenderer gpu;
     RenderTileCache tileCache;
     BrushStampAtlas brushStampAtlas;
-    StrokeReplayCache strokeReplayCache;
 };
 
 RenderResult renderLayerStack(const Renderer &renderer,

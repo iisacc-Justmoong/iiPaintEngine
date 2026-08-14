@@ -2,16 +2,15 @@
 #include <string>
 
 #include "Brush/BrushPresetSerializer.h"
-#include "Stroke/StrokeCommand.h"
+#include "tests/RasterDabTestUtils.h"
 
 namespace {
 
-StrokeInput makeLineInput()
+std::vector<BrushDab> lineDabs(const BrushState &brush)
 {
-    StrokeInput input;
-    input.points.push_back(StrokePoint{{0.0, 0.0}, 1.0, 0.0, 0.0, 0.0, 0.0, 0, 0.0});
-    input.points.push_back(StrokePoint{{12.0, 0.0}, 1.0, 1.0, 1.0, 0.0, 0.0, 0, 12.0});
-    return input;
+    return streamTestDabs(brush,
+                          StrokePoint{{0.0, 0.0}, 1.0, 0.0, 0.0, 0.0, 0.0, 0, 0.0},
+                          StrokePoint{{12.0, 0.0}, 1.0, 1.0, 1.0, 0.0, 0.0, 0, 12.0});
 }
 
 bool samePosition(DocumentPoint lhs, DocumentPoint rhs)
@@ -71,31 +70,31 @@ int main()
     brush.material.bristle.length = 6.0;
     brush.material.bristle.stiffness = 0.8;
 
-    const StrokeCommand command = makeStrokeCommand(makeLineInput(), brush, Stabilizer{0.0});
-    if (command.dabs.size() < 4) {
+    const std::vector<BrushDab> command = lineDabs(brush);
+    if (command.size() < 4) {
         return 1;
     }
 
     BrushState unscatteredBrush = brush;
     unscatteredBrush.material.scatter.enabled = false;
-    const StrokeCommand unscattered = makeStrokeCommand(makeLineInput(), unscatteredBrush, Stabilizer{0.0});
-    if (command.dabs.size() != unscattered.dabs.size()) {
+    const std::vector<BrushDab> unscattered = lineDabs(unscatteredBrush);
+    if (command.size() != unscattered.size()) {
         return 1;
     }
 
-    const StrokeCommand sameSeed = makeStrokeCommand(makeLineInput(), brush, Stabilizer{0.0});
+    const std::vector<BrushDab> sameSeed = lineDabs(brush);
     brush.randomSeed += 1;
-    const StrokeCommand differentSeed = makeStrokeCommand(makeLineInput(), brush, Stabilizer{0.0});
-    if (!samePosition(command.dabs[1].position, sameSeed.dabs[1].position)
-            || samePosition(command.dabs[1].position, differentSeed.dabs[1].position)) {
+    const std::vector<BrushDab> differentSeed = lineDabs(brush);
+    if (!samePosition(command[1].position, sameSeed[1].position)
+            || samePosition(command[1].position, differentSeed[1].position)) {
         return 1;
     }
 
-    if (command.dabs[0].textureAlpha <= 0.0
-            || command.dabs[0].textureAlpha > 1.0
-            || command.dabs[1].grain <= 0.0
-            || !command.dabs[0].dualBrush
-            || command.dabs[0].alpha >= brush.rasterizer.flow) {
+    if (command[0].textureAlpha <= 0.0
+            || command[0].textureAlpha > 1.0
+            || command[1].grain <= 0.0
+            || !command[0].dualBrush
+            || command[0].alpha >= brush.rasterizer.flow) {
         return 1;
     }
 
@@ -107,13 +106,13 @@ int main()
     simulationOnly.material.simulation.wetness = 0.8;
     simulationOnly.material.simulation.smudgeStrength = 0.4;
     simulationOnly.material.simulation.mixStrength = 0.2;
-    const StrokeCommand simulationEnabled = makeStrokeCommand(makeLineInput(), simulationOnly, Stabilizer{0.0});
+    const std::vector<BrushDab> simulationEnabled = lineDabs(simulationOnly);
     simulationOnly.material.simulation.enabled = false;
-    const StrokeCommand simulationDisabled = makeStrokeCommand(makeLineInput(), simulationOnly, Stabilizer{0.0});
-    if (simulationEnabled.dabs.empty()
-            || simulationDisabled.dabs.empty()
-            || !(simulationEnabled.dabs.front().alpha < simulationDisabled.dabs.front().alpha)
-            || !nearlyEqual(simulationDisabled.dabs.front().alpha, simulationOnly.rasterizer.flow)) {
+    const std::vector<BrushDab> simulationDisabled = lineDabs(simulationOnly);
+    if (simulationEnabled.empty()
+            || simulationDisabled.empty()
+            || !(simulationEnabled.front().alpha < simulationDisabled.front().alpha)
+            || !nearlyEqual(simulationDisabled.front().alpha, simulationOnly.rasterizer.flow)) {
         return 1;
     }
 

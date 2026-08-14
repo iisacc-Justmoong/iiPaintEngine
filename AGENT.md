@@ -1,281 +1,113 @@
-iiPaintEngine Development Contract
+# iiPaintEngine 개발 계약
 
-1. 목적
+## 1. 제품 정의
 
-iiPaintEngine은 단순 Vincent 전용 렌더링 모듈이 아니라, 장기적으로 Vincent Pro를 포함한 고급 그래픽 애플리케이션을 구축하기 위한 독립 드로잉 엔진 라이브러리이다.
+iiPaintEngine은 C++/Qt/QML 애플리케이션에 포함하는 순수 비트맵 페인팅 엔진이다. 캔버스, 레이어, 저장 형식, 실행 중 미리보기, undo/redo의 기준 데이터는 모두 픽셀이다.
 
-본 엔진은 다음 목표를 가진다.
+이 계약에서 비트맵 전용이라는 표현은 다음을 뜻한다.
 
-* 고품질 드로잉 경험
-* 낮은 입력 지연
-* 확장 가능한 문서 구조
-* GPU 친화적 렌더링 구조
-* 비파괴 편집 가능성
-* 장기 유지보수성
-* Qt/QML 애플리케이션 통합
-* 플랫폼 독립적 코어 설계
+- 캔버스에 들어오는 모든 결과는 `RasterLayer` 또는 `DrawingSurface`의 픽셀이다.
+- 입력 궤적은 다시 편집하거나 재생할 수 있는 경로 객체로 저장하지 않는다.
+- 그리기 도중에도 전체 좌표열, 곡선, 경로, 명령형 스트로크 모델을 만들지 않는다.
+- 텍스트, SVG, 도형 같은 외부 콘텐츠는 iiPaintEngine 경계에 들어오기 전에 비트맵으로 래스터화한다.
+- 벡터·텍스트·스트로크 전용 레이어를 추가하지 않는다.
 
-iiPaintEngine의 구조는 “작은 앱을 빠르게 만드는 구조”가 아니라 “오랫동안 확장 가능한 구조”를 우선한다.
+호환성, 미리보기, undo, 직렬화, 향후 확장을 이유로 이 규칙을 우회해서는 안 된다.
 
-2. 핵심 설계 원칙
+## 2. 유일한 그리기 파이프라인
 
-2.1 엔진은 Vincent Basic이 아니라 Vincent Pro를 기준으로 설계한다
+입력은 다음 순서로 즉시 픽셀화한다.
 
-기본판의 단순함 때문에 엔진 구조를 축소하지 않는다.
+```text
+PointerEvent
+→ InputStrokeBuilder가 현재 StrokePoint 하나를 방출
+→ RasterDabStream이 직전 점과 현재 점 사이의 간격만 계산
+→ BrushDab 비트맵 스탬프
+→ RasterSample 픽셀
+→ StrokeCompositeBuffer 픽셀 누적
+→ RasterLayer / DrawingSurface
+```
 
-기본판은 엔진 기능의 일부만 사용하는 제품이며, 엔진 자체는 장기적으로 다음 기능을 수용 가능해야 한다.
+`InputStrokeBuilder`는 활성 여부만 가진다. `RasterDabStream`은 직전 점 하나, 이동 거리, 다음 dab 거리, 난수 시퀀스만 가진다. 두 타입 모두 점 목록을 소유해서는 안 된다.
 
-* 라이브 스트로크
-* 비파괴 레이어
-* GPU 렌더링
-* 고급 브러시 다이내믹스
-* 벡터 레이어
-* 텍스트 레이어
-* 애니메이션
-* 리플레이
-* 협업
-* 타임라인
-* 문서 스냅샷
+`BrushDab`은 벡터 도형이 아니라 한 번 투영하고 폐기하는 비트맵 브러시 스탬프이다. `PaintCanvasItem`은 이벤트마다 생성된 dab을 즉시 `RasterSample`로 투영하고 픽셀 버퍼에
+누적한다. release 전까지 유지할 수 있는 그림 데이터는 픽셀 버퍼뿐이다.
 
-3. 계층 구조 계약
+미래 좌표나 전체 길이가 필요한 후처리는 허용하지 않는다. 따라서 종료점 기준 taper, 전체 궤적 smoothing, 곡선 보간, 원본 입력 replay를 구현하지 않는다. 시작점부터 누적 거리만으로 계산 가능한
+warm-up 효과는 허용한다.
 
-3.1 의존 방향
+## 3. 문서와 레이어
 
-다음 의존 방향을 절대 위반하지 않는다.
+소유 구조는 다음과 같다.
 
+```text
+PaintDocument
+→ LayerStack
+→ Layer
+→ DrawingSurface
+→ ARGB 픽셀
+```
+
+`PaintDocument::surface`는 최종 합성 표면이며 `Layer::surface`는 각 페인트 레이어의 픽셀 표면이다. 문서는 이 둘을 직접 소유하며 별도 `Canvas` 도메인 타입이나
+`Canvas/` 모듈을 두지 않는다. `Layer`의 children, mask, opacity, blend mode는 비트맵 합성 속성이다. 레이어 메타데이터가 콘텐츠 종류를 설명하더라도 실제 콘텐츠는 항상
+픽셀이어야 한다.
+
+문서 직렬화 형식은 레이어 픽셀, 레이어 메타데이터, 마스크, 브러시 preset, 색공간, asset, raster history만 저장한다. 포인터 좌표, 곡선, dab 열, 재생 가능한 그리기 명령은 저장하지
+않는다.
+
+undo/redo는 전체 캔버스 스냅샷 또는 dirty rect 픽셀 patch로 구현한다. 그리기를 다시 실행해 이전 상태를 복원하지 않는다.
+
+## 4. 미리보기와 입력 처리
+
+live preview도 별도 표현이 아니라 pending 픽셀 버퍼를 화면에 합성한 결과이다. release 시 같은 픽셀 버퍼를 committed raster layer로 합성한다. 지우개는 pending
+alpha mask를 destination-out 방식으로 적용한다.
+
+전체 입력을 worker queue에 복사하거나 frame tick까지 모으지 않는다. 각 press/move/release 이벤트는 동기적으로 현재 점을 픽셀화한다. 무거운 계산을 분리해야 할 때도 좌표열을 넘기지
+말고 이미 생성된 비트맵 tile 또는 pixel patch만 넘긴다.
+
+viewport 변경, canvas resize, clear, undo/redo 중 활성 입력이 있으면 pending 픽셀을 폐기하고 최소 상태를 초기화한다.
+
+## 5. 계층과 의존성
+
+의존 방향은 다음을 지킨다.
+
+```text
 QtAdapter
-→ Canvas/Input
-→ Document
-→ Layer/Stroke/Brush/Render/History
+→ Input / Document / Transform
+→ Layer / Brush / Render / History
 → Core
-
-하위 계층은 상위 계층을 알 수 없다.
-
-예시:
-
-* Stroke는 QML을 몰라야 한다
-* Brush는 Document를 몰라야 한다
-* Rasterizer는 UI를 몰라야 한다
-* Core는 Qt Quick를 몰라야 한다
-
-4. QObject 사용 규칙
-
-4.1 QObject는 UI 경계에서만 사용한다
-
-QObject는 다음 경우에만 사용한다.
-
-* QML 노출
-* signal/slot
-* property binding
-* Qt object tree
-* UI 이벤트 전달
-
-4.2 엔진 코어는 순수 C++ 타입을 사용한다
-
-다음 객체들은 QObject를 상속하지 않는다.
-
-* StrokePoint
-* Stroke
-* BrushSnapshot
-* PaintPoint
-* PaintRect
-* LayerData
-* Raster data
-* Geometry types
-
-이들은 가능한 POD-like 구조를 유지한다.
-
-5. 브러시 시스템 계약
-
-5.1 브러시는 “도형”이 아니라 “동적 시스템”이다
-
-브러시는 다음 요소를 가진다.
-
-* shape
-* dynamics
-* spacing
-* opacity
-* flow
-* hardness
-* pressure mapping
-* velocity mapping
-* tilt mapping
-
-5.2 손맛은 Basic과 Pro 사이에서 동일해야 한다
-
-다음 파이프라인은 Basic과 Pro가 공유한다.
-
-StrokeInput
-→ Stabilizer
-→ StrokeCurve
-→ Rasterizer
-
-손맛은 제품 등급에 따라 차별화하지 않는다.
-
-6. 입력 처리 계약
-
-6.1 입력 원본은 보존한다
-
-원본 입력 데이터는 가능한 손실 없이 저장한다.
-
-struct StrokePoint {
-float x;
-float y;
-float pressure;
-float tiltX;
-float tiltY;
-double time;
-};
-
-속도, 곡률 등의 값은 파생값으로 계산한다.
-
-6.2 입력 보정은 비파괴적으로 수행한다
-
-Stabilizer는 원본 입력을 제거하지 않는다.
-
-원본 스트로크 재생 가능성을 유지한다.
-
-7. 좌표계 계약
-
-모든 좌표는 명확한 공간을 가져야 한다.
-
-View Space
-Canvas Space
-Document Space
-Device Pixel Space
-
-좌표계를 암묵적으로 변환하지 않는다.
-
-8. 렌더링 계약
-
-8.1 엔진은 렌더러 구현과 분리된다
-
-엔진은 다음 렌더러를 교체 가능해야 한다.
-
-* CPU Raster
-* OpenGL
-* Vulkan
-* Metal
-
-8.2 Dirty Region 기반 갱신을 우선한다
-
-전체 캔버스 재렌더링을 기본 동작으로 삼지 않는다.
-
-9. 레이어 시스템 계약
-
-레이어는 공통 메타데이터를 가진다.
-
-Layer
-├── id
-├── name
-├── visible
-├── opacity
-└── blendMode
-
-실제 데이터는 파생 레이어가 보유한다.
-
-RasterLayer
-StrokeLayer
-VectorLayer
-TextLayer
-
-10. History 시스템 계약
-
-Undo/Redo는 엔진 레벨 기능이다.
-
-앱 레벨에서 직접 구현하지 않는다.
-
-History는 다음을 지원 가능해야 한다.
-
-* command-based undo
-* snapshot-based undo
-* hybrid undo
-
-11. 문서 시스템 계약
-
-PaintDocument는 단순 bitmap 컨테이너가 아니다.
-
-문서는 다음을 포함한다.
-
-LayerStack
-HistoryStack
-Metadata
-CanvasInfo
-ColorProfile
-Assets
-
-12. 성능 계약
-
-12.1 입력 지연 최소화
-
-입력 경로에서:
-
-* 동적 할당 최소화
-* 불필요한 복사 금지
-* QObject 사용 최소화
-
-12.2 구조적 성능 우선
-
-미세 최적화보다 구조적 병목 제거를 우선한다.
-
-13. 파일 구조 계약
-
-새 객체는 반드시 명확한 책임 영역에 배치한다.
-
-예시:
-
-* Brush 관련 → Brush/
-* Stroke 처리 → Stroke/
-* 문서 저장 → Document/
-* 렌더링 → Render/
-
-“기타 유틸리티” 폴더를 만들지 않는다.
-
-14. API 설계 계약
-
-14.1 공개 API는 안정성을 우선한다
-
-내부 구현보다 API 변경 비용을 더 중요하게 고려한다.
-
-14.2 엔진은 앱 정책을 알지 않는다
-
-엔진은:
-
-* 무료판 제한
-* 라이선스 정책
-* UI 제한
-
-등을 알지 않는다.
-
-이는 Vincent 애플리케이션 계층에서 처리한다.
-
-15. 구현 우선순위
-
-초기 구현 우선순위는 다음과 같다.
-
-Core
-→ Stroke pipeline
-→ RasterLayer
-→ PaintDocument
-→ Render
-→ History
-→ QtAdapter
-→ Advanced systems
-
-고급 기능보다 “한 획이 자연스럽게 그려지는 경험”을 우선한다.
-
-16. 최종 원칙
-
-iiPaintEngine은 단순 그래픽 라이브러리가 아니다.
-
-이 엔진의 목적은 사용자의 입력 흐름을 가능한 낮은 마찰로 시각적 사고로 변환하는 것이다.
-
-따라서 가장 중요한 것은 기능 수가 아니라:
-
-* 입력 품질
-* 반응성
-* 상태 일관성
-* 장기 확장성
-* 구조적 안정성
-
-이다.
+```
+
+- Core는 Qt와 상위 모듈을 알지 않는다.
+- Brush와 Render는 Document나 QML을 알지 않는다.
+- Input은 pointer event를 현재 `StrokePoint` 하나로 바꾸는 일만 한다.
+- Qt의 QObject와 QQuickItem은 QtAdapter 경계에서만 사용한다.
+- 하위 모듈이 상위 모듈을 참조하거나 순환 의존성을 만들지 않는다.
+
+## 6. 변경 규칙
+
+- 기능 변경은 테스트와 문서를 함께 갱신한다.
+- 빌드 디렉터리는 항상 `build/`를 사용한다.
+- 소스 변경 뒤 전체 빌드와 `ctest --test-dir build --output-on-failure`를 실행한다.
+- 구조 변경 전후에 금지 타입·파일 이름을 정적 검색한다.
+- 외부 라이브러리는 유지보수 상태, 라이선스, 의존성 규모를 평가한 뒤 도입한다.
+- 미래 기능을 예상한 경로 추상화나 재생 모델을 추가하지 않는다.
+- 레이어와 저장 형식의 기본값은 언제나 bitmap-only이다.
+
+## 7. 필수 계약 테스트
+
+`iiPaintEngineBitmapOnlyArchitectureContract`는 다음을 영구히 고정한다.
+
+- `PaintDocument`에 retained stroke 저장소가 없다.
+- `InputStrokeBuilder`와 결과 타입에 좌표 collection이 없다.
+- 벡터·경로·원본 stroke 모델의 소스 파일이 존재하지 않는다.
+- press/move/release가 각 이벤트에서 즉시 raster pixel buffer로 누적된다.
+
+`iiPaintEngineCanvasModuleRemovalContract`는 `Canvas/`가 없고 문서가 비트맵 표면과 레이어를 직접 소유하는지 검사한다.
+`iiPaintEngineBitmapFileCompatibilityContract`는 설치된 래스터 코덱만 노출하고 SVG·PDF를 디코더에 전달하지 않으며 content sniffing과 주요 비트맵 형식 왕복을
+검사한다.
+
+`iiPaintEngineDocumentSerializerContract`는 저장 payload에 raw input이나 vector curve가 없고 format version 3이 픽셀 문서를 왕복하며
+version 2 단일 캔버스 문서를 안전하게 이관하는지 검사한다. 손실 없이 이관할 수 없는 레거시 다중 캔버스와 미래 버전은 fail-closed한다. `iiPaintEnginePipelineHeartbeat`,
+`iiPaintEnginePointerStrokeFlow`, `iiPaintEngineCanvasLivePreviewRealtimeContract`는 각각 core, input, QML bitmap surface
+경로가 같은 비트맵 파이프라인을 사용하는지 검사한다.

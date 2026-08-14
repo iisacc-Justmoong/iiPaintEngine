@@ -60,30 +60,7 @@ struct BrushStampAtlas {
     std::vector<BrushStampAtlasEntry> entries;
 };
 
-struct StrokeReplayCacheKey {
-    PaintUuid strokeId;
-    std::uint64_t brushRevision = 0;
-    std::uint64_t strokeRevision = 0;
-    RenderBufferFormat bufferFormat = RenderBufferFormat::UInt8;
-    Types::Pixel tileX = 0;
-    Types::Pixel tileY = 0;
-};
-
-struct StrokeReplayCacheEntry {
-    StrokeReplayCacheKey key;
-    std::vector<RasterSample> samples;
-    DevicePixelRect dirtyBounds{};
-    bool valid = false;
-    std::uint64_t lastUsedFrame = 0;
-};
-
-struct StrokeReplayCache {
-    bool enabled = false;
-    std::size_t capacity = 1024;
-    std::vector<StrokeReplayCacheEntry> entries;
-};
-
-std::vector<DevicePixelRect> tileRectsForDirtyRegion(DevicePixelRect canvasBounds,
+std::vector<DevicePixelRect> tileRectsForDirtyRegion(DevicePixelRect documentBounds,
                                                      const DirtyRegion &dirtyRegion,
                                                      Types::Pixel tileSize);
 
@@ -105,17 +82,6 @@ void storeBrushStamp(BrushStampAtlas &atlas,
 
 const BrushStampAtlasEntry *findBrushStamp(const BrushStampAtlas &atlas,
                                            const BrushStampAtlasKey &key);
-
-void storeStrokeReplay(StrokeReplayCache &cache,
-                       const StrokeReplayCacheKey &key,
-                       const std::vector<RasterSample> &samples,
-                       DevicePixelRect dirtyBounds,
-                       std::uint64_t frameIndex = 0);
-
-const StrokeReplayCacheEntry *findStrokeReplay(const StrokeReplayCache &cache,
-                                               const StrokeReplayCacheKey &key);
-
-void invalidateStrokeReplayTiles(StrokeReplayCache &cache, const DirtyRegion &dirtyRegion);
 
 RenderExecutionPlan resolveRenderExecutionPlan(const RenderContext &context,
                                                const CpuRenderer &cpu,

@@ -87,28 +87,6 @@ int main()
         return 5;
     }
 
-    StrokeReplayCache replayCache;
-    replayCache.enabled = true;
-    replayCache.capacity = 2;
-    StrokeReplayCacheKey replayKey{uuidWithFirstByte(8), 2, 5, RenderBufferFormat::Float32, 0, 0};
-    storeStrokeReplay(replayCache,
-                      replayKey,
-                      {RasterSample{{1, 1}, 0x80FFFFFFU}},
-                      DevicePixelRect{{0, 0}, 128, 128},
-                      7);
-    if (findStrokeReplay(replayCache, replayKey) == nullptr) {
-        return 6;
-    }
-    StrokeReplayCacheKey staleReplay = replayKey;
-    staleReplay.strokeRevision = 6;
-    if (findStrokeReplay(replayCache, staleReplay) != nullptr) {
-        return 7;
-    }
-    invalidateStrokeReplayTiles(replayCache, makeDirtyRegion({DevicePixelRect{{0, 0}, 1, 1}}));
-    if (findStrokeReplay(replayCache, replayKey) != nullptr) {
-        return 8;
-    }
-
     ColorSpace p3Float = makeDisplayP3LinearFloatColorSpace();
     p3Float.iccProfile = {std::byte{0x01}, std::byte{0x02}};
 
@@ -119,7 +97,6 @@ int main()
     renderer.context.allowCpuFallback = true;
     renderer.context.tileCacheEnabled = true;
     renderer.context.brushStampAtlasEnabled = true;
-    renderer.context.strokeReplayCacheEnabled = true;
     renderer.cpu.simdAvailable = true;
     renderer.gpu.available = false;
 
@@ -130,7 +107,6 @@ int main()
             || cpuFallbackPlan.bufferFormat != RenderBufferFormat::Float32
             || !cpuFallbackPlan.usesTileCache
             || !cpuFallbackPlan.usesBrushStampAtlas
-            || !cpuFallbackPlan.usesStrokeReplayCache
             || !cpuFallbackPlan.linearCompositing
             || !cpuFallbackPlan.wideGamut
             || !cpuFallbackPlan.hdr

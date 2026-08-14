@@ -18,15 +18,13 @@ int main()
     static_assert(isCompleteType<EngineConfig>());
     static_assert(isCompleteType<PaintDocument>());
     static_assert(isCompleteType<DocumentSnapshot>());
-    static_assert(isCompleteType<Canvas>());
-    static_assert(isCompleteType<CanvasSession>());
+    static_assert(isCompleteType<RasterViewport>());
     static_assert(isCompleteType<Layer>());
     static_assert(isCompleteType<RasterLayer>());
     static_assert(isCompleteType<BrushPreset>());
     static_assert(isCompleteType<BrushDynamics>());
-    static_assert(isCompleteType<StrokeInput>());
-    static_assert(isCompleteType<Stroke>());
-    static_assert(isCompleteType<StrokeGeometryReport>());
+    static_assert(isCompleteType<StrokePoint>());
+    static_assert(isCompleteType<RasterDabStream>());
     static_assert(isCompleteType<Renderer>());
     static_assert(isCompleteType<DirtyRegion>());
     static_assert(isCompleteType<HistoryStack>());
@@ -41,10 +39,8 @@ int main()
     static_assert(isCompleteType<CanvasViewportConfig>());
     static_assert(isCompleteType<CanvasRuntimeConfig>());
     static_assert(isCompleteType<CanvasStateSnapshot>());
-
-    static_assert(std::is_same_v<
-            decltype(describeStrokeGeometry(std::declval<const StrokeInput &>())),
-            StrokeGeometryReport>);
+    static_assert(isCompleteType<BitmapReadResult>());
+    static_assert(isCompleteType<BitmapWriteOptions>());
 
     CanvasBrushConfig brush;
     CanvasViewportConfig viewport;
@@ -54,7 +50,7 @@ int main()
     return brush.size > 0.0
             && brush.pressureToOpacityEnabled
             && viewport.zoom > 0.0
-            && runtime.livePreviewFrameIntervalMs >= 0
+            && runtime.livePreviewEnabled
             && state.inputPressure >= 0.0
             ? 0
             : 1;
