@@ -192,7 +192,13 @@ resolve_wasm_qt_prefix() {
 detect_android_sdk_root() {
     local candidate
 
-    for candidate in "${ANDROID_SDK_ROOT:-}" "${ANDROID_HOME:-}" "${HOME}/Library/Android/sdk" "/opt/android/sdk"; do
+    for candidate in \
+        "${ANDROID_SDK_ROOT:-}" \
+        "${ANDROID_HOME:-}" \
+        "${HOME}/Library/Android/sdk" \
+        "/opt/homebrew/share/android-commandlinetools" \
+        "/usr/local/share/android-commandlinetools" \
+        "/opt/android/sdk"; do
         if [[ -n "${candidate}" && -d "${candidate}" ]]; then
             echo "${candidate}"
             return
@@ -206,7 +212,14 @@ detect_android_ndk_root() {
     local sdk_ndk
 
     sdk_ndk="$(latest_child_dir "${sdk_root}/ndk")"
-    for candidate in "${ANDROID_NDK_ROOT:-}" "${ANDROID_NDK_HOME:-}" "${CMAKE_ANDROID_NDK:-}" "${sdk_ndk}" "/opt/android/android-ndk-r26b"; do
+    for candidate in \
+        "${ANDROID_NDK_ROOT:-}" \
+        "${ANDROID_NDK_HOME:-}" \
+        "${CMAKE_ANDROID_NDK:-}" \
+        "${sdk_ndk}" \
+        "/opt/homebrew/share/android-ndk" \
+        "/usr/local/share/android-ndk" \
+        "/opt/android/android-ndk-r26b"; do
         if [[ -n "${candidate}" && -d "${candidate}" ]]; then
             echo "${candidate}"
             return
@@ -253,16 +266,16 @@ verify_dynamic_library() {
             expected="$(find "${prefix}/bin" -maxdepth 1 -type f \( -name "iiPaintEngine.dll" -o -name "libiiPaintEngine.dll" \) 2>/dev/null | head -n 1)"
             ;;
         wasm)
-            expected="$(find "${prefix}" -type f \( -name "libiiPaintEngine.*" -o -name "iiPaintEngine.wasm" \) 2>/dev/null | head -n 1)"
+            expected="${prefix}/lib/libiiPaintEngine.a"
             ;;
     esac
 
     if [[ -n "${expected}" && -f "${expected}" ]]; then
-        echo "Verified iiPaintEngine ${platform} dynamic library: ${expected}"
+        echo "Verified iiPaintEngine ${platform} library: ${expected}"
         return
     fi
 
-    echo "iiPaintEngine ${platform} dynamic library was not found under ${prefix}" >&2
+    echo "iiPaintEngine ${platform} library was not found under ${prefix}" >&2
     exit 1
 }
 
@@ -351,6 +364,7 @@ configure_build_install() {
     cmake_args=(
         -S "${ROOT_DIR}" \
         -B "${build_dir}" \
+        -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX="${install_prefix}" \
         -DCMAKE_PREFIX_PATH="${cmake_prefix_path}" \
         -DLVRS_DIR="${lvrs_config_dir}" \
@@ -363,10 +377,13 @@ configure_build_install() {
 
     cmake --fresh "${cmake_args[@]}"
 
-    echo "Building iiPaintEngine ${platform} dynamic library in ${build_dir}"
+    echo "Building iiPaintEngine ${platform} library in ${build_dir}"
     cmake --build "${build_dir}" --config Release --target iiPaintEngine
 
     echo "Installing iiPaintEngine ${platform} package into ${install_prefix}"
+    if [[ "${platform}" == "wasm" ]]; then
+        rm -f "${install_prefix}/lib/libiiPaintEngine.so"
+    fi
     cmake --install "${build_dir}" --prefix "${install_prefix}" --config Release
     verify_dynamic_library "${platform}" "${install_prefix}"
 }
@@ -391,6 +408,10 @@ install_host_platform() {
         cmake --install "${build_dir}" --prefix "${platform_prefix}" --config Release
         verify_dynamic_library "${platform}" "${platform_prefix}"
     fi
+
+    cmake -E copy_if_different \
+        "${build_dir}/iiPaintEngineConfigVersionRoot.cmake" \
+        "${install_prefix}/lib/cmake/iiPaintEngine/iiPaintEngineConfigVersion.cmake"
 
     echo "Building iiPaintEngine ${platform} tests in ${build_dir}"
     build_host_tests "${build_dir}"
@@ -420,6 +441,9 @@ install_windows() {
     configure_build_install "windows" "${WINDOWS_BUILD_DIR}" "${WINDOWS_PREFIX}" "${WINDOWS_QT_PREFIX}" "${LVRS_PREFIX}/platforms/windows"
     cmake --install "${WINDOWS_BUILD_DIR}" --prefix "${WINDOWS_PLATFORM_PREFIX}" --config Release
     verify_dynamic_library "windows" "${WINDOWS_PLATFORM_PREFIX}"
+    cmake -E copy_if_different \
+        "${WINDOWS_BUILD_DIR}/iiPaintEngineConfigVersionRoot.cmake" \
+        "${WINDOWS_PREFIX}/lib/cmake/iiPaintEngine/iiPaintEngineConfigVersion.cmake"
     build_host_tests "${WINDOWS_BUILD_DIR}"
     run_host_tests "${WINDOWS_BUILD_DIR}"
 }
@@ -446,6 +470,7 @@ install_ios() {
 install_android() {
     local android_sdk_root
     local android_ndk_root
+    local android_ndk_toolchain
     local android_toolchain_file="${ANDROID_QT_PREFIX}/lib/cmake/Qt6/qt.toolchain.cmake"
     local lvrs_android_prefix="${LVRS_PREFIX}/platforms/android"
 
@@ -462,14 +487,18 @@ install_android() {
     if [[ -z "${android_ndk_root}" ]]; then
         skip_or_fail "android" "Android NDK root was not found under ${android_sdk_root}" || return 0
     fi
+    android_ndk_toolchain="${android_ndk_root}/build/cmake/android.toolchain.cmake"
+    require_file_or_skip "android" "${android_ndk_toolchain}" "Android NDK CMake toolchain file is required" || return 0
 
     configure_build_install "android" "${ANDROID_BUILD_DIR}" "${ANDROID_PREFIX}" "${ANDROID_QT_PREFIX}" "${lvrs_android_prefix}" \
         -DCMAKE_TOOLCHAIN_FILE="${android_toolchain_file}" \
+        -DQT_CHAINLOAD_TOOLCHAIN_FILE="${android_ndk_root}/build/cmake/android.toolchain.cmake" \
         -DCMAKE_SYSTEM_NAME=Android \
         -DANDROID_ABI=arm64-v8a \
         -DANDROID_PLATFORM=android-23 \
         -DANDROID_SDK_ROOT="${android_sdk_root}" \
         -DANDROID_NDK="${android_ndk_root}" \
+        -DANDROID_NDK_ROOT="${android_ndk_root}" \
         -DCMAKE_ANDROID_NDK="${android_ndk_root}"
 }
 

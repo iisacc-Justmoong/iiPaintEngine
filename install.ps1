@@ -351,21 +351,16 @@ function Verify-DynamicLibrary {
         }
         "android" { $expected = Join-Path $InstallPrefix "lib/libiiPaintEngine.so" }
         "wasm" {
-            $found = Get-ChildItem -LiteralPath $InstallPrefix -Recurse -File -ErrorAction SilentlyContinue |
-                Where-Object { $_.Name -like "libiiPaintEngine.*" -or $_.Name -eq "iiPaintEngine.wasm" } |
-                Select-Object -First 1
-            if ($found) {
-                $expected = $found.FullName
-            }
+            $expected = Join-Path $InstallPrefix "lib/libiiPaintEngine.a"
         }
     }
 
     if ($expected -and (Test-Path -LiteralPath $expected -PathType Leaf)) {
-        Write-Host "Verified iiPaintEngine $Platform dynamic library: $expected"
+        Write-Host "Verified iiPaintEngine $Platform library: $expected"
         return
     }
 
-    throw "iiPaintEngine $Platform dynamic library was not found under $InstallPrefix"
+    throw "iiPaintEngine $Platform library was not found under $InstallPrefix"
 }
 
 $IiPaintEngineHostTestTargets = @(
@@ -534,10 +529,13 @@ function Configure-BuildInstall {
 
     Invoke-NativeCommand -FilePath $CMakeExecutable -Arguments (@("--fresh") + $cmakeArgs)
 
-    Write-Host "Building iiPaintEngine $Platform dynamic library in $PlatformBuildDir"
+    Write-Host "Building iiPaintEngine $Platform library in $PlatformBuildDir"
     Invoke-NativeCommand -FilePath $CMakeExecutable -Arguments @("--build", $PlatformBuildDir, "--config", "Release", "--target", "iiPaintEngine")
 
     Write-Host "Installing iiPaintEngine $Platform package into $InstallPrefix"
+    if ($Platform -eq "wasm") {
+        Remove-Item -LiteralPath (Join-Path $InstallPrefix "lib/libiiPaintEngine.so") -Force -ErrorAction SilentlyContinue
+    }
     Invoke-NativeCommand -FilePath $CMakeExecutable -Arguments @("--install", $PlatformBuildDir, "--prefix", $InstallPrefix, "--config", "Release")
     Verify-DynamicLibrary -Platform $Platform -InstallPrefix $InstallPrefix
 }
@@ -570,6 +568,7 @@ function Install-WindowsPackage {
     Write-Host "Installing iiPaintEngine windows platform mirror into $WindowsPlatformPrefix"
     Invoke-NativeCommand -FilePath $CMakeExecutable -Arguments @("--install", $WindowsBuildDir, "--prefix", $WindowsPlatformPrefix, "--config", "Release")
     Verify-DynamicLibrary -Platform "windows" -InstallPrefix $WindowsPlatformPrefix
+    Copy-Item -Force (Join-Path $WindowsBuildDir "iiPaintEngineConfigVersionRoot.cmake") (Join-Path $WindowsPrefix "lib/cmake/iiPaintEngine/iiPaintEngineConfigVersion.cmake")
 
     Write-Host "Building iiPaintEngine windows tests in $WindowsBuildDir"
     Build-HostTests -PlatformBuildDir $WindowsBuildDir

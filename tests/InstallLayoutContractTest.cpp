@@ -78,6 +78,14 @@ int main()
                    "install.sh must allow installation completion when a local test executable is locked.");
     expectContains(installScript, "skip_or_fail \"android\" \"Android SDK root was not found\" || return 0",
                    "install.sh must continue default all-platform installs when an optional cross SDK is absent.");
+    expectContains(installScript, "/opt/homebrew/share/android-commandlinetools",
+                   "install.sh must detect Homebrew's Android SDK package.");
+    expectContains(installScript, "/opt/homebrew/share/android-ndk",
+                   "install.sh must detect Homebrew's Android NDK package.");
+    expectContains(installScript, "-DANDROID_NDK_ROOT=\"${android_ndk_root}\"",
+                   "install.sh must pass the detected NDK root to Qt's Android toolchain.");
+    expectContains(installScript, "-DQT_CHAINLOAD_TOOLCHAIN_FILE=\"${android_ndk_root}/build/cmake/android.toolchain.cmake\"",
+                   "install.sh must override stale Qt Android chainload toolchain paths.");
     expectContains(installScript, "macos,ios,android,wasm",
                    "install.sh must default to all available Darwin platform packages.");
     expectContains(installScript, "linux,android,wasm",
@@ -98,10 +106,14 @@ int main()
                    "install.sh must publish a WASM platform package.");
     expectContains(installScript, "IIPAINTENGINE_BUILD_SHARED=ON",
                    "install.sh must force a shared iiPaintEngine library build.");
+    expectContains(installScript, "libiiPaintEngine.a",
+                   "install.sh must verify the WASM static archive.");
     expectContains(installScript, "-DLVRS_DIR=\"${lvrs_config_dir}\"",
                    "install.sh must pass the exact LVRS platform package config directory.");
     expectContains(installScript, "verify_dynamic_library",
                    "install.sh must verify that a platform dynamic library was installed.");
+    expectContains(installScript, "iiPaintEngineConfigVersionRoot.cmake",
+                   "install.sh must publish the architecture-independent root package version.");
     expectContains(installScript, "libiiPaintEngine.dll",
                    "install.sh must accept MinGW's prefixed Windows DLL name.");
     expectContains(installScript, "IIPAINTENGINE_HOST_TEST_TARGETS",
@@ -114,6 +126,8 @@ int main()
                    "install.sh must inspect stale CMake build directories.");
     expectContains(installScript, "--fresh",
                    "install.sh must configure with a fresh CMake cache.");
+    expectContains(installScript, "-DCMAKE_BUILD_TYPE=Release",
+                   "install.sh must configure single-config generators as Release before exporting targets.");
 
     expectContains(installPowerShell, "Set-StrictMode -Version Latest",
                    "install.ps1 must enable strict PowerShell mode.");
@@ -145,10 +159,14 @@ int main()
                    "install.ps1 must publish a WASM platform package.");
     expectContains(installPowerShell, "-DIIPAINTENGINE_BUILD_SHARED=ON",
                    "install.ps1 must force a shared iiPaintEngine library build.");
+    expectContains(installPowerShell, "libiiPaintEngine.a",
+                   "install.ps1 must verify the WASM static archive.");
     expectContains(installPowerShell, "-DLVRS_DIR=$lvrsConfigDir",
                    "install.ps1 must pass the exact LVRS platform package config directory.");
     expectContains(installPowerShell, "Verify-DynamicLibrary",
                    "install.ps1 must verify that a platform dynamic library was installed.");
+    expectContains(installPowerShell, "iiPaintEngineConfigVersionRoot.cmake",
+                   "install.ps1 must publish the architecture-independent root package version.");
     expectContains(installPowerShell, "libiiPaintEngine.dll",
                    "install.ps1 must accept MinGW's prefixed Windows DLL name.");
     expectContains(installPowerShell, "CMAKE_HOME_DIRECTORY",
@@ -188,12 +206,18 @@ int main()
                    "CMakeLists.txt must generate a CMake package config.");
     expectContains(cmakeLists, "IIPAINTENGINE_BUILD_SHARED",
                    "CMakeLists.txt must expose a shared/static library switch.");
+    expectContains(cmakeLists, "if (EMSCRIPTEN)",
+                   "CMakeLists.txt must specialize the WASM library type.");
+    expectContains(cmakeLists, "set(IIPAINTENGINE_LIBRARY_TYPE STATIC)",
+                   "WASM must use a composable static archive.");
     expectContains(cmakeLists, "add_library(iiPaintEngine ${IIPAINTENGINE_LIBRARY_TYPE}",
                    "CMakeLists.txt must build iiPaintEngine through the selected library type.");
+    expectContains(cmakeLists, "BUILD_WITH_INSTALL_RPATH TRUE",
+                   "Apple shared builds must be directly reinstallable without repeating RPATH removal.");
     expectContains(cmakeLists, "qt_import_plugins(iiPaintEngine NO_DEFAULT)",
                    "CMakeLists.txt must keep app-only Qt platform plugins out of the engine library.");
-    expectContains(cmakeLists, "target_link_options(iiPaintEngine PRIVATE \"--bind\")",
-                   "CMakeLists.txt must link Emscripten embind support for Qt WASM dependencies.");
+    expectContains(cmakeLists, "target_link_options(iiPaintEngine INTERFACE \"--bind\")",
+                   "Static WASM consumers must inherit Emscripten embind support.");
     expectContains(cmakeLists, "install(TARGETS iiPaintEngine",
                    "CMakeLists.txt must install the iiPaintEngine library target.");
     expectContains(cmakeLists, "install(FILES library.h iiPaintEngine",
@@ -204,6 +228,10 @@ int main()
                    "CMakeLists.txt must install the iiPaintEngine:: imported target namespace.");
     expectContains(cmakeLists, "configure_package_config_file",
                    "CMakeLists.txt must generate iiPaintEngineConfig.cmake.");
+    expectContains(cmakeLists, "iiPaintEngineConfigVersionRoot.cmake",
+                   "CMakeLists.txt must generate a separate root package version.");
+    expectContains(cmakeLists, "ARCH_INDEPENDENT",
+                   "The root package version must accept both native and WASM consumers.");
     expectContains(cmakeLists, "DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine",
                    "CMakeLists.txt must install public headers under include/iiPaintEngine.");
     expectContains(cmakeLists, "set(IIPAINTENGINE_LICENSE_SPDX \"AGPL-3.0-only\")",
@@ -235,10 +263,16 @@ int main()
     expectContains(readme, "~/.local/iiPaintEngine", "README.md must document the fixed install prefix.");
     expectContains(readme, "IIPAINTENGINE_INSTALL_PLATFORMS=macos ./install.sh",
                    "README.md must document constrained platform installs.");
+    expectContains(readme, "/opt/homebrew/share/android-commandlinetools",
+                   "README.md must document Homebrew Android SDK discovery.");
     expectContains(readme, "$env:IIPAINTENGINE_INSTALL_PLATFORMS = \"windows\"",
                    "README.md must document constrained Windows platform installs.");
     expectContains(readme, "find_package(iiPaintEngine CONFIG REQUIRED)",
                    "README.md must document CMake package loading.");
+    expectContains(readme, "32-bit WASM",
+                   "README.md must document architecture-independent root dispatch.");
+    expectContains(readme, "static archive",
+                   "README.md must document the WASM static-link contract.");
     expectContains(readme, "iiPaintEngine::iiPaintEngine",
                    "README.md must document the imported target.");
     expectContains(readme, "#include <iiPaintEngine>",

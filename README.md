@@ -186,6 +186,8 @@ build/Example/bin/iiPaintEngineExample
 `Example/Main.qml`은 LVRS control과 `Iipe.BitmapFile`을 사용하며 임시 PNG 파일을 실제 작업 대상으로 생성한 뒤 size, flow, opacity, hardness,
 spacing,
 pressure curve, live preview, clear/reset view를 공개 API로 검증한다.
+예제의 slider 범위는 size 2–72 px, flow/opacity/hardness 0.05–1.0, spacing 0–1.0이며 `iiPaintEngineExampleDemoContract`가 이 QML
+계약을 검증한다.
 
 ## Install
 
@@ -195,6 +197,9 @@ pressure curve, live preview, clear/reset view를 공개 API로 검증한다.
 ./install.sh
 IIPAINTENGINE_INSTALL_PLATFORMS=macos ./install.sh
 ```
+
+macOS의 기본 전체 설치는 Homebrew Android SDK/NDK도 자동 탐지하며, 탐지한 NDK toolchain을 Qt Android 체인로드 경로로 명시해 오래된 Qt cache 경로를 사용하지
+않는다.
 
 Windows PowerShell에서는 다음을 실행한다.
 
@@ -220,8 +225,21 @@ host package와 플랫폼 mirror는 다음에 설치된다.
 ~/.local/iiPaintEngine/platforms/wasm/
 ```
 
-설치 스크립트는 shared library, headers, CMake package config, license를 함께 배치하고 host 테스트를 실행한다. 선택적 cross SDK가 없는 기본
-all-platform 설치는 해당 플랫폼을 건너뛰며, 플랫폼을 명시 요청했는데 toolchain이 없으면 실패한다.
+The root CMake package version is architecture independent so one prefix can
+dispatch both 64-bit native consumers and 32-bit WASM consumers. Each
+platform package keeps its generated binary architecture compatibility check.
+
+설치 스크립트는 shared library, headers, CMake package config, license를 함께 배치하고 host 테스트를 실행한다. 단일 구성 generator도 Release로
+구성하므로 설치된 `iiPaintEngine::iiPaintEngine` target에는 소비자가 링크할 수 있는 `IMPORTED_LOCATION_RELEASE`가 포함된다. 선택적 cross SDK가 없는
+기본 all-platform 설치는 해당 플랫폼을 건너뛰며, 플랫폼을 명시 요청했는데 toolchain이 없으면 실패한다.
+Apple shared library는 처음부터 install RPATH로 빌드하므로 같은 prefix에 반복 설치해도 이미 제거된 build RPATH를 다시 후처리하지 않는다.
+Qt WASM은 정적 Qt SDK를 사용하므로 WASM 패키지는 `libiiPaintEngine.a` static archive로
+설치한다. 네이티브 플랫폼은 shared library를 유지하며, WASM 정적 archive는 다른 설치
+라이브러리와 한 최종 실행 파일에 결합해도 Qt 심볼을 중복 포함하지 않는다. 설치된 CMake
+target은 Qt WASM 플랫폼 플러그인에 필요한 Emscripten embind 링크 옵션도 소비자에게 전파한다.
+macOS에서는 `~/Library/Android/sdk` 외에 Homebrew의
+`/opt/homebrew/share/android-commandlinetools`와 `/opt/homebrew/share/android-ndk`도
+자동으로 탐지한다.
 
 Windows의 layout-contract 테스트 실행 파일은 `iiPaintEngineLayoutContractTests`라는 이름을 쓴다. `Install...`로 시작하는 실행 파일에 적용될 수 있는
 Windows installer detection heuristic 및 elevation 오탐을 피하기 위한 계약이다.

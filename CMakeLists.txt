@@ -69,7 +69,9 @@ set(CMAKE_AUTOMOC ON)
 option(IIPAINTENGINE_BUILD_SHARED "Build iiPaintEngine as a shared library." ON)
 
 set(IIPAINTENGINE_LIBRARY_TYPE STATIC)
-if (IIPAINTENGINE_BUILD_SHARED)
+if (EMSCRIPTEN)
+    set(IIPAINTENGINE_LIBRARY_TYPE STATIC)
+elseif (IIPAINTENGINE_BUILD_SHARED)
     set(IIPAINTENGINE_LIBRARY_TYPE SHARED)
 endif ()
 
@@ -203,6 +205,11 @@ set(IIPAINTENGINE_SOURCES
 add_library(iiPaintEngine ${IIPAINTENGINE_LIBRARY_TYPE}
         ${IIPAINTENGINE_SOURCES})
 
+if (APPLE AND IIPAINTENGINE_LIBRARY_TYPE STREQUAL "SHARED")
+    set_target_properties(iiPaintEngine PROPERTIES
+            BUILD_WITH_INSTALL_RPATH TRUE)
+endif ()
+
 target_include_directories(iiPaintEngine PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine>)
@@ -218,7 +225,7 @@ if (COMMAND qt_import_plugins)
 endif ()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-    target_link_options(iiPaintEngine PRIVATE "--bind")
+    target_link_options(iiPaintEngine INTERFACE "--bind")
 endif ()
 
 install(TARGETS iiPaintEngine
@@ -266,6 +273,12 @@ write_basic_package_version_file(
         ${CMAKE_CURRENT_BINARY_DIR}/iiPaintEngineConfigVersion.cmake
         VERSION ${PROJECT_VERSION}
         COMPATIBILITY SameMajorVersion)
+
+write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/iiPaintEngineConfigVersionRoot.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+        ARCH_INDEPENDENT)
 
 install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/iiPaintEngineConfig.cmake
