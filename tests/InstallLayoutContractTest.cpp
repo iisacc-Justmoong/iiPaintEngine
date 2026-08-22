@@ -222,6 +222,10 @@ int main()
                    "CMakeLists.txt must install the iiPaintEngine library target.");
     expectContains(cmakeLists, "install(FILES library.h iiPaintEngine",
                    "CMakeLists.txt must install the extensionless umbrella header.");
+    expectContains(cmakeLists, "file(REMOVE_RECURSE",
+                   "Upgrade installs must replace the package-owned public header tree.");
+    expectContains(cmakeLists, "\\$ENV{DESTDIR}\\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine",
+                   "Upgrade cleanup must follow DESTDIR and the effective install prefix.");
     expectContains(cmakeLists, "EXPORT iiPaintEngineTargets",
                    "CMakeLists.txt must export iiPaintEngineTargets.");
     expectContains(cmakeLists, "NAMESPACE iiPaintEngine::",
@@ -255,6 +259,12 @@ int main()
                    "iiPaintEngineConfig.cmake.in must support the default Windows Qt installer root.");
     expectContains(configTemplate, "find_dependency(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick)",
                    "iiPaintEngineConfig.cmake.in must declare Qt runtime dependencies.");
+    expectContains(configTemplate, "_iiPaintEngine_config_strip_agl_from_target",
+                   "Installed Apple consumers must remove Qt's unavailable legacy AGL linkage.");
+    expectContains(configTemplate, "WrapOpenGL::WrapOpenGL",
+                   "Installed Apple consumers must normalize the Qt OpenGL wrapper target.");
+    expectContains(configTemplate, "INTERFACE_LINK_OPTIONS \"-Wl,-rpath,${PACKAGE_PREFIX_DIR}/lib\"",
+                   "Installed Apple consumers must retain the iiPaintEngine runtime search path.");
     expectContains(configTemplate, "iiPaintEngineTargets.cmake",
                    "iiPaintEngineConfig.cmake.in must include exported targets.");
 
@@ -279,6 +289,8 @@ int main()
                    "README.md must document the single public umbrella include.");
     expectContains(readme, "iiPaintEnginePublicUmbrellaHeaderContract",
                    "README.md must document the umbrella header contract test.");
+    expectContains(readme, "iiPaintEngineInstallUpgradeContract",
+                   "README.md must document the upgrade-install stale-header contract.");
     expectContains(readme, "SPDX-License-Identifier: AGPL-3.0-only",
                    "README.md must document the approved iiPaintEngine license identifier.");
     expectContains(readme, "Windows installer detection heuristic",

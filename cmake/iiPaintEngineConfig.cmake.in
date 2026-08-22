@@ -95,4 +95,36 @@ unset(_iiPaintEngineTargetPlatform)
 
 find_dependency(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick)
 
+if(APPLE)
+    function(_iiPaintEngine_config_strip_agl_from_target target_name)
+        if(NOT TARGET "${target_name}")
+            return()
+        endif()
+
+        foreach(_iiPaintEngine_property IN ITEMS INTERFACE_LINK_LIBRARIES INTERFACE_LINK_OPTIONS)
+            get_target_property(_iiPaintEngine_values "${target_name}" "${_iiPaintEngine_property}")
+            if(NOT _iiPaintEngine_values)
+                continue()
+            endif()
+
+            set(_iiPaintEngine_original_values "${_iiPaintEngine_values}")
+            list(FILTER _iiPaintEngine_values EXCLUDE REGEX "(^|[ /])AGL($|[ /.])|AGL\\.framework")
+            if(NOT _iiPaintEngine_values STREQUAL _iiPaintEngine_original_values)
+                set_target_properties("${target_name}" PROPERTIES
+                    "${_iiPaintEngine_property}" "${_iiPaintEngine_values}")
+            endif()
+        endforeach()
+    endfunction()
+
+    _iiPaintEngine_config_strip_agl_from_target(WrapOpenGL::WrapOpenGL)
+    _iiPaintEngine_config_strip_agl_from_target(Qt6::Gui)
+    _iiPaintEngine_config_strip_agl_from_target(Qt6::OpenGL)
+    _iiPaintEngine_config_strip_agl_from_target(Qt6::Quick)
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/iiPaintEngineTargets.cmake")
+
+if(APPLE AND TARGET iiPaintEngine::iiPaintEngine)
+    set_property(TARGET iiPaintEngine::iiPaintEngine APPEND PROPERTY
+        INTERFACE_LINK_OPTIONS "-Wl,-rpath,${PACKAGE_PREFIX_DIR}/lib")
+endif()

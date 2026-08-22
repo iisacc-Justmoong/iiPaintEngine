@@ -109,6 +109,8 @@ QtAdapter
 `iiPaintEngineBitmapFileArchitectureContract`는 구형 화면 표면 API가 없고 `BitmapFile`이 경로·형식·픽셀을 직접 소유하는지 검사한다.
 `iiPaintEngineBitmapFileCompatibilityContract`는 설치된 래스터 코덱만 노출하고 SVG·PDF를 디코더에 전달하지 않으며 content sniffing과 주요 비트맵 형식 왕복을
 검사한다.
+`iiPaintEngineInstallUpgradeContract`는 업그레이드 설치가 package 소유 공개 헤더 트리를 교체해 삭제된 API 헤더를 남기지 않는지 검사하고, 별도 CMake
+소비자가 설치 package를 `find_package`해 link·load할 수 있는지 검증한다.
 
 `iiPaintEngineDocumentSerializerContract`는 저장 payload에 raw input이나 vector curve가 없고 format version 3이 픽셀 문서를 왕복하며
 version 2 단일 표면 문서를 안전하게 이관하는지 검사한다. 손실 없이 이관할 수 없는 레거시 다중 표면과 미래 버전은 fail-closed한다. `iiPaintEnginePipelineHeartbeat`,

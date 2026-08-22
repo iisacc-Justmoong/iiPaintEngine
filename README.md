@@ -232,6 +232,11 @@ platform package keeps its generated binary architecture compatibility check.
 설치 스크립트는 shared library, headers, CMake package config, license를 함께 배치하고 host 테스트를 실행한다. 단일 구성 generator도 Release로
 구성하므로 설치된 `iiPaintEngine::iiPaintEngine` target에는 소비자가 링크할 수 있는 `IMPORTED_LOCATION_RELEASE`가 포함된다. 선택적 cross SDK가 없는
 기본 all-platform 설치는 해당 플랫폼을 건너뛰며, 플랫폼을 명시 요청했는데 toolchain이 없으면 실패한다.
+업그레이드 설치는 package가 소유하는 `include/iiPaintEngine` 트리를 현재 공개 헤더로 교체한다. 따라서 삭제된 API 헤더가 prefix에 남아 새 타입과 충돌하지
+않으며, 소비자 전용 헤더는 이 package 소유 디렉터리 밖에 둬야 한다.
+macOS package config는 현재 SDK에 binary가 없는 legacy AGL framework를 Qt link interface에서 제거하므로 설치 target을 링크하는 소비자도 최신 macOS
+SDK에서 빌드할 수 있다. 또한 compiler의 `LIBRARY_PATH`에 설치 경로가 있어 CMake가 이를 implicit link directory로 판단하더라도 package target이
+iiPaintEngine dylib의 runtime search path를 직접 전달한다.
 Apple shared library는 처음부터 install RPATH로 빌드하므로 같은 prefix에 반복 설치해도 이미 제거된 build RPATH를 다시 후처리하지 않는다.
 Qt WASM은 정적 Qt SDK를 사용하므로 WASM 패키지는 `libiiPaintEngine.a` static archive로
 설치한다. 네이티브 플랫폼은 shared library를 유지하며, WASM 정적 archive는 다른 설치
@@ -253,6 +258,8 @@ Windows installer detection heuristic 및 elevation 오탐을 피하기 위한 �
 - `iiPaintEngineBitmapFileCompatibilityContract`: 파일 계층의 path/format/pixel 소유, 직접 pixel mutation, 런타임 bitmap codec 전체 쓰기
   왕복, content sniffing, SVG/PDF 차단
 - `iiPaintEngineBitmapFileArchitectureContract`: 구형 화면 표면 API 부재, `BitmapFile`과 `BitmapFileItem` 공개 계약
+- `iiPaintEngineInstallUpgradeContract`: 재설치 시 삭제된 공개 헤더 제거, 현재 헤더 배치, 설치 package를 사용하는 별도 CMake 소비자의
+  `find_package`·link·load
 - `iiPaintEnginePipelineHeartbeat`: pointer event부터 document raster surface까지 최소 파이프라인
 - `iiPaintEngineDocumentSerializerContract`: format version 3 bitmap archive 왕복, version 2 단일 표면 이관, raw trajectory 부재
 - `iiPaintEngineAppDocumentApiContract`: raster sample commit, layer/history, save/open 왕복

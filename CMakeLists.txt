@@ -237,6 +237,12 @@ install(TARGETS iiPaintEngine
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/licenses/iiPaintEngine")
 
+# CMake's directory installer only overwrites current headers; it does not remove
+# headers deleted by an upgrade. Replace the package-owned public header tree so
+# retired APIs cannot remain visible to consumers.
+install(CODE
+        "file(REMOVE_RECURSE \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine\")")
+
 install(FILES library.h iiPaintEngine
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine)
 
@@ -382,6 +388,18 @@ target_compile_definitions(iiPaintEngineInstallLayoutContractTests PRIVATE
 
 add_test(NAME iiPaintEngineInstallLayoutContract
         COMMAND iiPaintEngineInstallLayoutContractTests)
+
+add_test(NAME iiPaintEngineInstallUpgradeContract
+        COMMAND ${CMAKE_COMMAND}
+        "-DIIPAINTENGINE_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+        "-DIIPAINTENGINE_INSTALL_CONFIG=$<CONFIG>"
+        "-DIIPAINTENGINE_GENERATOR=${CMAKE_GENERATOR}"
+        "-DIIPAINTENGINE_GENERATOR_PLATFORM=${CMAKE_GENERATOR_PLATFORM}"
+        "-DIIPAINTENGINE_GENERATOR_TOOLSET=${CMAKE_GENERATOR_TOOLSET}"
+        "-DIIPAINTENGINE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+        "-DIIPAINTENGINE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}"
+        "-DIIPAINTENGINE_QT6_DIR=${Qt6_DIR}"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/InstallUpgradeContractTest.cmake)
 
 add_executable(iiPaintEnginePublicUmbrellaHeaderContractTests
         tests/PublicUmbrellaHeaderContractTest.cpp)
