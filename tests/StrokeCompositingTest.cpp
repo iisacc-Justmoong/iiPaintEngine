@@ -38,6 +38,24 @@ int main()
         return 1;
     }
 
+    StrokeCompositeBuffer sparseBuffer = makeStrokeCompositeBuffer(8, 8);
+    const std::vector<RasterSample> sparseSamples{
+            RasterSample{{1, 1}, 0xFF112233U, 0xFFU, RasterBlendMode::SourceOver},
+            RasterSample{{6, 6}, 0xFF445566U, 0xFFU, RasterBlendMode::SourceOver},
+    };
+    accumulateStrokeSamples(sparseBuffer, sparseSamples);
+    RasterLayer sparsePreview = makeRasterLayer(8, 8);
+    copyStrokeCompositeSamplePixels(sparsePreview, sparseBuffer, {sparseSamples.front()});
+    if (rasterLayerPixelAt(sparsePreview, {1, 1}) != 0xFF112233U
+            || rasterLayerPixelAt(sparsePreview, {6, 6}) != 0x00000000U
+            || rasterLayerPixelAt(sparsePreview, {3, 3}) != 0x00000000U) {
+        return 1;
+    }
+    copyStrokeCompositeSamplePixels(sparsePreview, sparseBuffer, {sparseSamples.back()});
+    if (rasterLayerPixelAt(sparsePreview, {6, 6}) != 0xFF445566U) {
+        return 1;
+    }
+
     RasterLayer layer = makeRasterLayer(3, 3, 0xFF0000FFU);
     compositeStrokeBufferOntoLayer(layer, buffer);
     const std::uint32_t composited = rasterLayerPixelAt(layer, {1, 1});

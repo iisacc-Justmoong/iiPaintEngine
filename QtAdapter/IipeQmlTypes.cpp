@@ -9,9 +9,12 @@
 #include "QtAdapter/BitmapBrushConfig.h"
 #include "QtAdapter/BitmapFileApiConfig.h"
 #include "QtAdapter/BitmapFileItem.h"
+#include "QtAdapter/HighFidelityPointerInput.h"
 
 void registerIipeQmlTypes()
 {
+    configureHighFidelityPointerInput();
+
     static bool registered = false;
     if (registered) {
         return;

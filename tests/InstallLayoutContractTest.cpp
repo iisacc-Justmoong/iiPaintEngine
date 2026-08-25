@@ -76,6 +76,8 @@ int main()
                    "install.sh must allow constrained platform installs.");
     expectContains(installScript, "IIPAINTENGINE_SKIP_TESTS",
                    "install.sh must allow installation completion when a local test executable is locked.");
+    expectContains(installScript, "iiPaintEngineHighFidelityPointerInputContractTests",
+                   "install.sh must build the high-fidelity pointer input contract before installation completes.");
     expectContains(installScript, "skip_or_fail \"android\" \"Android SDK root was not found\" || return 0",
                    "install.sh must continue default all-platform installs when an optional cross SDK is absent.");
     expectContains(installScript, "/opt/homebrew/share/android-commandlinetools",
@@ -291,6 +293,8 @@ int main()
                    "README.md must document the umbrella header contract test.");
     expectContains(readme, "iiPaintEngineInstallUpgradeContract",
                    "README.md must document the upgrade-install stale-header contract.");
+    expectContains(readme, "iiPaintEngineHighFidelityPointerInputContract",
+                   "README.md must document the high-fidelity pointer input contract.");
     expectContains(readme, "SPDX-License-Identifier: AGPL-3.0-only",
                    "README.md must document the approved iiPaintEngine license identifier.");
     expectContains(readme, "Windows installer detection heuristic",
@@ -301,6 +305,8 @@ int main()
                    "README.md must document the fixed Windows MinGW/Ninja generator contract.");
     expectContains(exampleMain, "QGuiApplication",
                    "The example must use a Qt entrypoint available to installed LVRS consumers.");
+    expectContains(exampleMain, "configureHighFidelityPointerInput();",
+                   "The example must disable pointer event coalescing before starting the Qt event loop.");
     expectContains(exampleMain, "QQmlApplicationEngine",
                    "The example must load its LVRS-backed QML through the public Qt engine.");
     expectContains(exampleMain, "loadFromModule(QStringLiteral(\"IiPaintEngineExample\")",

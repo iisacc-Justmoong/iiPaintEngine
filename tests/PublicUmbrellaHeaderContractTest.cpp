@@ -46,8 +46,12 @@ int main()
     BitmapViewportConfig viewport;
     BitmapRuntimeConfig runtime;
     BitmapFileState state;
+    auto configureInput = &configureHighFidelityPointerInput;
+    auto inputConfigured = &highFidelityPointerInputConfigured;
 
-    return brush.size > 0.0
+    return configureInput != nullptr
+            && inputConfigured != nullptr
+            && brush.size > 0.0
             && brush.pressureToOpacityEnabled
             && viewport.zoom > 0.0
             && runtime.livePreviewEnabled

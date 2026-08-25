@@ -20,6 +20,7 @@
 
 #include "Layer/RasterLayer.h"
 #include "Input/PressureInput.h"
+#include "QtAdapter/HighFidelityPointerInput.h"
 #include "Render/DirtyRegion.h"
 #include "Stroke/Rasterizer.h"
 
@@ -273,6 +274,7 @@ BrushDynamics pressureSensitiveDynamics()
 BitmapFileItem::BitmapFileItem(QQuickItem *parent)
     : QQuickPaintedItem(parent)
 {
+    configureHighFidelityPointerInput();
     setAcceptedMouseButtons(Qt::LeftButton);
     setAcceptHoverEvents(true);
     setAntialiasing(false);
@@ -1454,11 +1456,11 @@ void BitmapFileItem::appendPointerPointToRaster(const StrokePoint &point, bool f
             ? destinationOutSamplesAsSourceMask(samples)
             : samples;
     accumulateStrokeSamples(m_pendingRasterBuffer, accumulatedSamples);
+    syncPendingRasterSamples(accumulatedSamples);
 
     const DevicePixelRect dirtyBounds = deviceBoundsForBrushDabsUnion(dabs,
                                                                       m_activeBrush.rasterizer,
                                                                       projection);
-    syncPendingRasterLayer(dirtyBounds);
     m_liveStrokeDeviceDirtyBounds = uniteDevicePixelRects(m_liveStrokeDeviceDirtyBounds, dirtyBounds);
     if (m_livePreviewEnabled) {
         requestTextureUpdate(dirtyBounds);
@@ -1503,21 +1505,9 @@ void BitmapFileItem::clearPendingRasterStroke()
     }
 }
 
-void BitmapFileItem::syncPendingRasterLayer(DevicePixelRect dirtyBounds)
+void BitmapFileItem::syncPendingRasterSamples(const std::vector<RasterSample> &samples)
 {
-    const DevicePixelRect clipped = intersectDevicePixelRects(bitmapBounds(), dirtyBounds);
-    if (isEmpty(clipped)) {
-        return;
-    }
-
-    for (Types::Pixel y = clipped.origin.y; y < clipped.origin.y + clipped.height; ++y) {
-        const std::size_t rowStart = static_cast<std::size_t>(y)
-                * static_cast<std::size_t>(m_liveRasterLayer.width);
-        for (Types::Pixel x = clipped.origin.x; x < clipped.origin.x + clipped.width; ++x) {
-            m_liveRasterLayer.pixels[rowStart + static_cast<std::size_t>(x)] =
-                    strokeCompositePixelAt(m_pendingRasterBuffer, {x, y});
-        }
-    }
+    copyStrokeCompositeSamplePixels(m_liveRasterLayer, m_pendingRasterBuffer, samples);
 }
 
 void BitmapFileItem::emitLiveStrokeActiveChangedIfNeeded(bool previousActive)

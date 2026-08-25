@@ -66,6 +66,9 @@ alpha mask를 destination-out 방식으로 적용한다.
 전체 입력을 worker queue에 복사하거나 frame tick까지 모으지 않는다. 각 press/move/release 이벤트는 동기적으로 현재 점을 픽셀화한다. 무거운 계산을 분리해야 할 때도 좌표열을 넘기지
 말고 이미 생성된 비트맵 tile 또는 pixel patch만 넘긴다.
 
+Qt와 운영체제의 고빈도 pointer event 병합은 비활성화해 측정된 중간 좌표가 어댑터에 도달하도록 한다. 이는 엔진이 좌표열을 보존하거나 누락 좌표를 추정하는 기능이 아니며, 전달된 각 점은
+즉시 픽셀화한다. live preview 동기화는 새 dab이 건드린 sample pixel만 갱신하고 두 입력점의 합집합 사각형 전체를 순회하지 않는다.
+
 viewport 변경, 파일 교체, clear, undo/redo 중 활성 입력이 있으면 pending 픽셀을 폐기하고 최소 상태를 초기화한다. view item resize는 열린 파일의 픽셀 크기를 바꾸지
 않는다.
 
@@ -116,3 +119,5 @@ QtAdapter
 version 2 단일 표면 문서를 안전하게 이관하는지 검사한다. 손실 없이 이관할 수 없는 레거시 다중 표면과 미래 버전은 fail-closed한다. `iiPaintEnginePipelineHeartbeat`,
 `iiPaintEnginePointerStrokeFlow`, `iiPaintEngineBitmapFileLivePreviewRealtimeContract`는 각각 core, input, QML bitmap file
 경로가 같은 비트맵 파이프라인을 사용하는지 검사한다.
+
+`iiPaintEngineHighFidelityPointerInputContract`는 Qt와 native pointer event 병합이 비활성화되고 `BitmapFileItem` 직접 생성 경로에도 자동 적용되는지 검사한다.

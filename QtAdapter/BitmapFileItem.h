@@ -235,7 +235,7 @@ private:
     void appendPointerPointToRaster(const StrokePoint &point, bool finishStroke);
     void commitPendingRasterStroke();
     void clearPendingRasterStroke();
-    void syncPendingRasterLayer(DevicePixelRect dirtyBounds);
+    void syncPendingRasterSamples(const std::vector<RasterSample> &samples);
     void emitLiveStrokeActiveChangedIfNeeded(bool previousActive);
     void noteInputState(const PointerEvent &event);
     BrushState currentBrushState() const;

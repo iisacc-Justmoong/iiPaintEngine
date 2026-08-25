@@ -20,6 +20,10 @@ PointerEvent
 `InputStrokeBuilder`는 좌표 목록을 보유하지 않고 현재 이벤트의 점 하나만 방출한다. `RasterDabStream`은 직전 점 하나와 spacing/random 누적 상태만 가진다. 전체 궤적,
 curve, 원본 입력, replay command는 임시로도 만들지 않는다. `BrushDab`은 재편집 가능한 도형이 아니라 즉시 픽셀로 투영되는 일회성 비트맵 스탬프이다.
 
+`configureHighFidelityPointerInput()`은 Qt의 고빈도·태블릿 이벤트 병합을 끄고 macOS에서는 AppKit의 mouse/drag/tablet coalescing도 끈다. 가능한 경우
+`QGuiApplication` 생성 전에 호출한다. `registerIipeQmlTypes()`와 `BitmapFileItem`도 이 정책을 자동 적용하므로 지연 중 측정된 중간 좌표를 버리고 두 끝점만 직선으로 잇지 않는다.
+live preview는 새 dab이 실제로 건드린 sample pixel만 복사하며, 멀리 떨어진 두 점을 감싸는 사각형 전체를 매 입력마다 훑지 않는다.
+
 live preview는 pending bitmap buffer를 표시한 결과이다. release 시 그 픽셀 버퍼를 열린 `BitmapFile`의 ARGB 픽셀에 직접 합성한다. undo/redo는 raster
 snapshot
 또는 dirty-rect pixel patch를 사용한다. 저장 파일에는 현재 픽셀만 기록하며 포인터 궤적을 저장하지 않는다.
@@ -69,7 +73,16 @@ Render cache에는 tile cache와 brush stamp atlas만 있다. 입력 경로를 �
 설치된 소비자는 extensionless umbrella header 하나로 공개 API를 사용할 수 있다.
 
 ```cpp
+#include <QGuiApplication>
 #include <iiPaintEngine>
+
+int main(int argc, char **argv)
+{
+    configureHighFidelityPointerInput();
+    QGuiApplication app(argc, argv);
+    // register types and load the application...
+    return app.exec();
+}
 ```
 
 ```cmake
@@ -264,6 +277,7 @@ Windows installer detection heuristic 및 elevation 오탐을 피하기 위한 �
 - `iiPaintEngineDocumentSerializerContract`: format version 3 bitmap archive 왕복, version 2 단일 표면 이관, raw trajectory 부재
 - `iiPaintEngineAppDocumentApiContract`: raster sample commit, layer/history, save/open 왕복
 - `iiPaintEnginePointerStrokeFlow`: mouse event별 bitmap dab spacing/flow
+- `iiPaintEngineHighFidelityPointerInputContract`: Qt·macOS pointer event 병합 비활성화와 `BitmapFileItem` 자동 적용
 - `iiPaintEngineRasterPaintingModel`: velocity, pressure, tilt, spacing, opacity/flow의 bitmap dab 반영
 - `iiPaintEngineBitmapFileLivePreviewRealtimeContract`: 열린 파일의 pending raster preview, direct pixel commit, eraser,
   undo/redo

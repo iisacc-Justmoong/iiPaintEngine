@@ -308,6 +308,7 @@ IIPAINTENGINE_HOST_TEST_TARGETS=(
     iiPaintEngineHistoryUndoRedoContractTests
     iiPaintEngineEditingToolPipelineContractTests
     iiPaintEngineStrokeCompositingTests
+    iiPaintEngineHighFidelityPointerInputContractTests
     iiPaintEngineLayerCompositingContractTests
     iiPaintEngineRendererProjectionContractTests
     iiPaintEngineRenderCacheBackendContractTests

@@ -48,6 +48,7 @@
 #include "QtAdapter/BitmapBrushConfig.h"
 #include "QtAdapter/BitmapFileApiConfig.h"
 #include "QtAdapter/BitmapFileItem.h"
+#include "QtAdapter/HighFidelityPointerInput.h"
 #include "QtAdapter/DocumentAdapter.h"
 #include "QtAdapter/IipeQmlTypes.h"
 #include "QtAdapter/LayerListModel.h"

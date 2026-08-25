@@ -1,4 +1,5 @@
 #include "QtAdapter/IipeQmlTypes.h"
+#include "QtAdapter/HighFidelityPointerInput.h"
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -15,6 +16,7 @@ void qml_register_types_LVRS();
 
 int main(int argc, char *argv[])
 {
+    configureHighFidelityPointerInput();
     QGuiApplication app(argc, argv);
     QGuiApplication::setApplicationName(QStringLiteral("iiPaintEngine Example"));
     QQuickStyle::setStyle(QStringLiteral("Basic"));

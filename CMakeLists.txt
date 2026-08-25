@@ -1,6 +1,17 @@
 cmake_minimum_required(VERSION 3.31)
 project(iiPaintEngine VERSION 0.1.0 LANGUAGES CXX)
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    enable_language(OBJCXX)
+    set(CMAKE_OBJCXX_STANDARD 20)
+    set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
+    set(IIPAINTENGINE_NATIVE_POINTER_INPUT_SOURCE
+            QtAdapter/NativePointerInputPolicy_mac.mm)
+else ()
+    set(IIPAINTENGINE_NATIVE_POINTER_INPUT_SOURCE
+            QtAdapter/NativePointerInputPolicy.cpp)
+endif ()
+
 set(IIPAINTENGINE_LICENSE_SPDX "AGPL-3.0-only")
 
 set(CMAKE_CXX_STANDARD 20)
@@ -189,6 +200,9 @@ set(IIPAINTENGINE_SOURCES
         Tool/ToolStateMachine.h
         QtAdapter/BitmapFileItem.cpp
         QtAdapter/BitmapFileItem.h
+        QtAdapter/HighFidelityPointerInput.cpp
+        QtAdapter/HighFidelityPointerInput.h
+        ${IIPAINTENGINE_NATIVE_POINTER_INPUT_SOURCE}
         QtAdapter/BitmapFileApiConfig.h
         QtAdapter/BitmapBrushConfig.h
         QtAdapter/IipeQmlTypes.cpp
@@ -627,6 +641,15 @@ target_link_libraries(iiPaintEngineStrokeCompositingTests PRIVATE
 
 add_test(NAME iiPaintEngineStrokeCompositing
         COMMAND iiPaintEngineStrokeCompositingTests)
+
+add_executable(iiPaintEngineHighFidelityPointerInputContractTests
+        tests/HighFidelityPointerInputContractTest.cpp)
+
+target_link_libraries(iiPaintEngineHighFidelityPointerInputContractTests PRIVATE
+        iiPaintEngine)
+
+add_test(NAME iiPaintEngineHighFidelityPointerInputContract
+        COMMAND iiPaintEngineHighFidelityPointerInputContractTests)
 
 add_executable(iiPaintEngineLayerCompositingContractTests
         tests/LayerCompositingContractTest.cpp)

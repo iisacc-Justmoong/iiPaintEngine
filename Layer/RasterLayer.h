@@ -39,6 +39,10 @@ void accumulateStrokeSamples(StrokeCompositeBuffer &buffer, const std::vector<Ra
 
 std::uint32_t strokeCompositePixelAt(const StrokeCompositeBuffer &buffer, DevicePixelPoint position);
 
+void copyStrokeCompositeSamplePixels(RasterLayer &layer,
+                                     const StrokeCompositeBuffer &buffer,
+                                     const std::vector<RasterSample> &samples);
+
 void compositeStrokeBufferOntoLayer(RasterLayer &layer, const StrokeCompositeBuffer &buffer);
 
 void eraseStrokeBufferFromLayer(RasterLayer &layer, const StrokeCompositeBuffer &buffer);

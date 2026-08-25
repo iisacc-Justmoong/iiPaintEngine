@@ -177,6 +177,24 @@ std::uint32_t strokeCompositePixelAt(const StrokeCompositeBuffer &buffer, Device
     return unpremultiply(buffer.pixels[index]);
 }
 
+void copyStrokeCompositeSamplePixels(RasterLayer &layer,
+                                     const StrokeCompositeBuffer &buffer,
+                                     const std::vector<RasterSample> &samples)
+{
+    if (layer.width != buffer.width || layer.height != buffer.height) {
+        return;
+    }
+
+    for (const RasterSample &sample : samples) {
+        if (!contains(layer, sample.position)) {
+            continue;
+        }
+
+        layer.pixels[pixelIndex(layer, sample.position)] =
+                strokeCompositePixelAt(buffer, sample.position);
+    }
+}
+
 void compositeStrokeBufferOntoLayer(RasterLayer &layer, const StrokeCompositeBuffer &buffer)
 {
     const Types::Pixel width = std::min(layer.width, buffer.width);
