@@ -1,6 +1,16 @@
 cmake_minimum_required(VERSION 3.31)
 project(iiPaintEngine VERSION 0.1.0 LANGUAGES CXX)
 
+if(PROJECT_IS_TOP_LEVEL AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(_sdk_home "$ENV{HOME}")
+    if(_sdk_home STREQUAL "")
+        set(_sdk_home "$ENV{USERPROFILE}")
+    endif()
+    set(CMAKE_INSTALL_PREFIX "${_sdk_home}/.local/SDK/iiPaintEngine"
+        CACHE PATH "SDK installation prefix" FORCE)
+    unset(_sdk_home)
+endif()
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     enable_language(OBJCXX)
     set(CMAKE_OBJCXX_STANDARD 20)
@@ -30,10 +40,10 @@ if (APPLE AND NOT Qt6_DIR)
 endif ()
 
 if (NOT LVRS_DIR)
-    if (APPLE AND EXISTS "$ENV{HOME}/.local/LVRS/platforms/macos")
-        list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/.local/LVRS/platforms/macos")
-    elseif (EXISTS "$ENV{HOME}/.local/LVRS")
-        list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/.local/LVRS")
+    if (APPLE AND EXISTS "$ENV{HOME}/.local/SDK/LVRS/platforms/macos")
+        list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/.local/SDK/LVRS/platforms/macos")
+    elseif (EXISTS "$ENV{HOME}/.local/SDK/LVRS")
+        list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/.local/SDK/LVRS")
     endif ()
 endif ()
 

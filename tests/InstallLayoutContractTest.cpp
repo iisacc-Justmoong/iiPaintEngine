@@ -70,8 +70,14 @@ int main()
     expectExecutable(installScriptPath, "install.sh must be executable.");
     expectContains(installScript, "BUILD_DIR=\"${ROOT_DIR}/build\"",
                    "install.sh must use build/ as the build directory.");
-    expectContains(installScript, "PREFIX=\"${IIPAINTENGINE_PREFIX:-${HOME}/.local/iiPaintEngine}\"",
-                   "install.sh must default to ~/.local/iiPaintEngine.");
+    expectContains(installScript, "PREFIX=\"${IIPAINTENGINE_PREFIX:-${HOME}/.local/SDK/iiPaintEngine}\"",
+                   "install.sh must default to ~/.local/SDK/iiPaintEngine.");
+    expectContains(installScript, "LVRS_PREFIX=\"${IIPAINTENGINE_LVRS_PREFIX:-${HOME}/.local/SDK/LVRS}\"",
+                   "install.sh must resolve LVRS from the SDK installation directory.");
+    expectContains(cmakeLists, "$ENV{HOME}/.local/SDK/LVRS",
+                   "CMake must resolve LVRS from the SDK installation directory.");
+    expectContains(installPowerShell, "Join-Path $HOME \".local/SDK/LVRS\"",
+                   "install.ps1 must resolve LVRS from the SDK installation directory.");
     expectContains(installScript, "IIPAINTENGINE_INSTALL_PLATFORMS",
                    "install.sh must allow constrained platform installs.");
     expectContains(installScript, "IIPAINTENGINE_SKIP_TESTS",
@@ -137,8 +143,8 @@ int main()
                    "install.ps1 must fail on script errors.");
     expectContains(installPowerShell, "$BuildDir = Join-Path $RootDir \"build\"",
                    "install.ps1 must use build/ as the build directory.");
-    expectContains(installPowerShell, "Join-Path $HOME \".local/iiPaintEngine\"",
-                   "install.ps1 must default to ~/.local/iiPaintEngine.");
+    expectContains(installPowerShell, "Join-Path $HOME \".local/SDK/iiPaintEngine\"",
+                   "install.ps1 must default to ~/.local/SDK/iiPaintEngine.");
     expectContains(installPowerShell, "C:\\Qt\\6.8.3",
                    "install.ps1 must support the default Qt installer root on Windows.");
     expectContains(installPowerShell, "IIPAINTENGINE_INSTALL_PLATFORMS",
@@ -201,6 +207,11 @@ int main()
                    "install.ps1 must pass the matching MinGW C++ compiler explicitly.");
     expectContains(installPowerShell, "-DCMAKE_MAKE_PROGRAM=$windowsNinja",
                    "install.ps1 must pass the resolved Ninja executable explicitly.");
+
+    expectContains(cmakeLists, "PROJECT_IS_TOP_LEVEL AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT",
+                   "CMake must preserve explicitly configured install prefixes.");
+    expectContains(cmakeLists, ".local/SDK/iiPaintEngine",
+                   "CMake must default to the SDK installation directory.");
 
     expectContains(cmakeLists, "include(GNUInstallDirs)",
                    "CMakeLists.txt must use GNUInstallDirs for install destinations.");
@@ -272,7 +283,7 @@ int main()
 
     expectContains(readme, "./install.sh", "README.md must document the install script.");
     expectContains(readme, ".\\install.ps1", "README.md must document the Windows install script.");
-    expectContains(readme, "~/.local/iiPaintEngine", "README.md must document the fixed install prefix.");
+    expectContains(readme, "~/.local/SDK/iiPaintEngine", "README.md must document the fixed install prefix.");
     expectContains(readme, "IIPAINTENGINE_INSTALL_PLATFORMS=macos ./install.sh",
                    "README.md must document constrained platform installs.");
     expectContains(readme, "/opt/homebrew/share/android-commandlinetools",

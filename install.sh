@@ -3,9 +3,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="${ROOT_DIR}/build"
-PREFIX="${IIPAINTENGINE_PREFIX:-${HOME}/.local/iiPaintEngine}"
+PREFIX="${IIPAINTENGINE_PREFIX:-${HOME}/.local/SDK/iiPaintEngine}"
 QT_ROOT="${IIPAINTENGINE_QT_ROOT:-${HOME}/Qt/6.8.3}"
-LVRS_PREFIX="${IIPAINTENGINE_LVRS_PREFIX:-${HOME}/.local/LVRS}"
+LVRS_PREFIX="${IIPAINTENGINE_LVRS_PREFIX:-${HOME}/.local/SDK/LVRS}"
 
 MACOS_QT_PREFIX="${IIPAINTENGINE_MACOS_QT_PREFIX:-${QT_ROOT}/macos}"
 LINUX_QT_PREFIX="${IIPAINTENGINE_LINUX_QT_PREFIX:-${QT_ROOT}/gcc_64}"
@@ -93,7 +93,10 @@ remove_stale_build_dir() {
         echo "Removing stale CMake build directory: ${build_dir}"
         echo "  cached source: ${cached_source:-unknown}"
         echo "  current source: ${ROOT_DIR}"
-        rm -rf "${build_dir}"
+        # Finder can recreate directory metadata while the old tree is removed.
+        if ! rm -rf "${build_dir}"; then
+            rm -rf "${build_dir}"
+        fi
     fi
 }
 

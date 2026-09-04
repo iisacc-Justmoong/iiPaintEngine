@@ -204,7 +204,7 @@ pressure curve, live preview, clear/reset view를 공개 API로 검증한다.
 
 ## Install
 
-기본 설치 prefix는 `~/.local/iiPaintEngine`이다. Unix 계열에서는 다음을 실행한다.
+기본 설치 prefix는 `~/.local/SDK/iiPaintEngine`이다. Unix 계열에서는 다음을 실행한다.
 
 ```sh
 ./install.sh
@@ -229,13 +229,13 @@ Windows host 빌드는 선택한 Qt kit과 일치하는 Qt MinGW 13.1.0과 Ninja
 host package와 플랫폼 mirror는 다음에 설치된다.
 
 ```text
-~/.local/iiPaintEngine/
-~/.local/iiPaintEngine/platforms/macos/
-~/.local/iiPaintEngine/platforms/linux/
-~/.local/iiPaintEngine/platforms/windows/
-~/.local/iiPaintEngine/platforms/ios/
-~/.local/iiPaintEngine/platforms/android/
-~/.local/iiPaintEngine/platforms/wasm/
+~/.local/SDK/iiPaintEngine/
+~/.local/SDK/iiPaintEngine/platforms/macos/
+~/.local/SDK/iiPaintEngine/platforms/linux/
+~/.local/SDK/iiPaintEngine/platforms/windows/
+~/.local/SDK/iiPaintEngine/platforms/ios/
+~/.local/SDK/iiPaintEngine/platforms/android/
+~/.local/SDK/iiPaintEngine/platforms/wasm/
 ```
 
 The root CMake package version is architecture independent so one prefix can
@@ -296,3 +296,14 @@ Windows installer detection heuristic 및 elevation 오탐을 피하기 위한 �
 SPDX-License-Identifier: AGPL-3.0-only
 
 iiPaintEngine은 GNU Affero General Public License v3 전용으로 배포된다. 전체 조건은 `LICENSE`를 따른다.
+
+### SDK workspace and installation paths
+
+The source checkout is `Workspace/SDK/iiPaintEngine`. Both `./install.sh` and a
+fresh direct CMake configuration default to `~/.local/SDK/iiPaintEngine`.
+An explicit `-DCMAKE_INSTALL_PREFIX` remains authoritative for direct CMake
+configuration. Build outputs stay in the repository's `build/` directory; the
+installer regenerates stale CMake caches after a workspace move.
+
+The default LVRS dependency prefix is `~/.local/SDK/LVRS`;
+`IIPAINTENGINE_LVRS_PREFIX` remains available for an explicit override.
