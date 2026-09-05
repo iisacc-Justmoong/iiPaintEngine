@@ -295,7 +295,11 @@ Windows installer detection heuristic 및 elevation 오탐을 피하기 위한 �
 
 SPDX-License-Identifier: AGPL-3.0-only
 
-iiPaintEngine은 GNU Affero General Public License v3 전용으로 배포된다. 전체 조건은 `LICENSE`를 따른다.
+iiPaintEngine의 자체 작성 코드와 문서는 GNU Affero General Public License version 3 only
+(`AGPL-3.0-only`)로 배포된다. 전체 조건은 [LICENSE](LICENSE)를 따른다.
+
+외부에서 제공하는 Qt, LVRS 및 그 밖의 서드파티 코드·라이브러리·도구·모델은 각각의
+라이선스와 저작권 고지를 유지하며, 이 저장소의 라이선스가 이를 대체하지 않는다.
 
 ### SDK workspace and installation paths
 
