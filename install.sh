@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="${ROOT_DIR}/build"
 PREFIX="${IIPAINTENGINE_PREFIX:-${HOME}/.local/SDK/iiPaintEngine}"
-QT_ROOT="${IIPAINTENGINE_QT_ROOT:-${HOME}/Qt/6.8.3}"
+QT_ROOT="${IIPAINTENGINE_QT_ROOT:-/Volumes/Storage/Qt/6.8.3}"
 LVRS_PREFIX="${IIPAINTENGINE_LVRS_PREFIX:-${HOME}/.local/SDK/LVRS}"
 
 MACOS_QT_PREFIX="${IIPAINTENGINE_MACOS_QT_PREFIX:-${QT_ROOT}/macos}"

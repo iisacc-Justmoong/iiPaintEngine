@@ -205,6 +205,7 @@ pressure curve, live preview, clear/reset view를 공개 API로 검증한다.
 ## Install
 
 기본 설치 prefix는 `~/.local/SDK/iiPaintEngine`이다. Unix 계열에서는 다음을 실행한다.
+로컬 Qt kit의 기본 루트는 `/Volumes/Storage/Qt/6.8.3`이며 `IIPAINTENGINE_QT_ROOT`로 재정의할 수 있다.
 
 ```sh
 ./install.sh

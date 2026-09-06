@@ -31,7 +31,7 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 if (APPLE AND NOT Qt6_DIR)
-    file(GLOB _qt_macos_roots LIST_DIRECTORIES true "$ENV{HOME}/Qt/*/macos")
+    file(GLOB _qt_macos_roots LIST_DIRECTORIES true "/Volumes/Storage/Qt/*/macos")
     if (_qt_macos_roots)
         list(SORT _qt_macos_roots COMPARE NATURAL ORDER DESCENDING)
         list(GET _qt_macos_roots 0 _qt_macos_root)

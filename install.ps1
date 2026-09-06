@@ -4,7 +4,7 @@ $ErrorActionPreference = "Stop"
 $RootDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 $BuildDir = Join-Path $RootDir "build"
 $Prefix = if ($env:IIPAINTENGINE_PREFIX) { $env:IIPAINTENGINE_PREFIX } else { Join-Path $HOME ".local/SDK/iiPaintEngine" }
-$QtRoot = if ($env:IIPAINTENGINE_QT_ROOT) { $env:IIPAINTENGINE_QT_ROOT } elseif (Test-Path -LiteralPath "C:\Qt\6.8.3" -PathType Container) { "C:\Qt\6.8.3" } else { Join-Path $HOME "Qt/6.8.3" }
+$QtRoot = if ($env:IIPAINTENGINE_QT_ROOT) { $env:IIPAINTENGINE_QT_ROOT } elseif (Test-Path -LiteralPath "C:\Qt\6.8.3" -PathType Container) { "C:\Qt\6.8.3" } else { "/Volumes/Storage/Qt/6.8.3" }
 $LvrsPrefix = if ($env:IIPAINTENGINE_LVRS_PREFIX) { $env:IIPAINTENGINE_LVRS_PREFIX } else { Join-Path $HOME ".local/SDK/LVRS" }
 
 $WindowsQtPrefix = if ($env:IIPAINTENGINE_WINDOWS_QT_PREFIX) { $env:IIPAINTENGINE_WINDOWS_QT_PREFIX } else { Join-Path $QtRoot "mingw_64" }
