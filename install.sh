@@ -379,6 +379,21 @@ configure_build_install() {
         cmake_args+=("$@")
     fi
 
+    case "${platform}" in
+        ios|android|wasm)
+            local host_qt_prefix="${IIPAINTENGINE_HOST_QT_PREFIX:-${QT_HOST_PATH:-}}"
+            if [[ -z "${host_qt_prefix}" ]]; then
+                case "$(uname -s)" in
+                    Darwin) host_qt_prefix="${MACOS_QT_PREFIX}" ;;
+                    Linux) host_qt_prefix="${LINUX_QT_PREFIX}" ;;
+                    MINGW*|MSYS*|CYGWIN*) host_qt_prefix="${WINDOWS_QT_PREFIX}" ;;
+                esac
+            fi
+            require_dir_or_skip "${platform}" "${host_qt_prefix}/lib/cmake/Qt6" "Host Qt tools are required for cross compilation" || return 0
+            cmake_args+=(-DQT_HOST_PATH="${host_qt_prefix}")
+            ;;
+    esac
+
     cmake --fresh "${cmake_args[@]}"
 
     echo "Building iiPaintEngine ${platform} library in ${build_dir}"

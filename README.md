@@ -214,6 +214,13 @@ IIPAINTENGINE_INSTALL_PLATFORMS=macos ./install.sh
 
 macOS의 기본 전체 설치는 Homebrew Android SDK/NDK도 자동 탐지하며, 탐지한 NDK toolchain을 Qt Android 체인로드 경로로 명시해 오래된 Qt cache 경로를 사용하지
 않는다.
+iOS·Android·WASM 설치는 현재 운영체제의 Qt 도구 경로를 `QT_HOST_PATH`로 전달한다.
+별도 호스트 Qt 설치본은 `IIPAINTENGINE_HOST_QT_PREFIX` 또는 `QT_HOST_PATH`로 지정한다.
+모바일 설치 후 다음 명령으로 실제 iOS/Android 라이브러리가 각각 iOS ARM64와 Android AArch64인지 검사한다.
+
+```sh
+python3 tests/verify_mobile_packages.py --prefix ~/.local/SDK/iiPaintEngine --ndk "$ANDROID_NDK_ROOT"
+```
 
 Windows PowerShell에서는 다음을 실행한다.
 
