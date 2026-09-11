@@ -11,6 +11,7 @@
 #include <type_traits>
 
 #include <iiPaintEngine>
+#include <iiFileProvider.h>
 
 namespace {
 
@@ -190,5 +191,7 @@ Iipe.BitmapFile {
     }
 
     delete object;
+    if (iiFileProvider::File::read(resolvedCopyPath).isEmpty()
+        || !iiFileProvider::File::remove(resolvedCopyPath)) return 11;
     return 0;
 }

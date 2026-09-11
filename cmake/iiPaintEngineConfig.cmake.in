@@ -93,6 +93,7 @@ unset(_iiPaintEngineCurrentPrefixParent)
 unset(_iiPaintEngineCurrentPrefixName)
 unset(_iiPaintEngineTargetPlatform)
 
+find_dependency(iiFileProvider 0.5.0 CONFIG)
 find_dependency(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick)
 
 if(APPLE)

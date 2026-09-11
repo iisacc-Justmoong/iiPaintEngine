@@ -47,6 +47,7 @@ if (NOT LVRS_DIR)
     endif ()
 endif ()
 
+find_package(iiFileProvider 0.5.0 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiFileProvider")
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Network)
 find_package(LVRS CONFIG REQUIRED)
 
@@ -238,6 +239,7 @@ target_include_directories(iiPaintEngine PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine>)
 
+target_link_libraries(iiPaintEngine PRIVATE iiFileProvider::iiFileProvider)
 target_link_libraries(iiPaintEngine PUBLIC
         Qt6::Core
         Qt6::Gui
@@ -423,6 +425,7 @@ add_test(NAME iiPaintEngineInstallUpgradeContract
         "-DIIPAINTENGINE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
         "-DIIPAINTENGINE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}"
         "-DIIPAINTENGINE_QT6_DIR=${Qt6_DIR}"
+        "-DIIPAINTENGINE_IIFILEPROVIDER_DIR=${iiFileProvider_DIR}"
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/InstallUpgradeContractTest.cmake)
 
 add_executable(iiPaintEnginePublicUmbrellaHeaderContractTests
@@ -462,6 +465,7 @@ add_executable(iiPaintEngineBitmapFileApiContractTests
         tests/BitmapFileApiContractTest.cpp)
 
 target_link_libraries(iiPaintEngineBitmapFileApiContractTests PRIVATE
+        iiFileProvider::iiFileProvider
         iiPaintEngine
         Qt6::Qml)
 

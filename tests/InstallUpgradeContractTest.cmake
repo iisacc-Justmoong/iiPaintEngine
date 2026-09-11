@@ -82,6 +82,7 @@ set(configure_command
     -B "${consumer_build_dir}"
     "-DiiPaintEngine_DIR=${test_prefix}/lib/cmake/iiPaintEngine"
     "-DQt6_DIR=${IIPAINTENGINE_QT6_DIR}"
+    "-DiiFileProvider_DIR=${IIPAINTENGINE_IIFILEPROVIDER_DIR}"
     -DCMAKE_BUILD_TYPE=Release)
 if (DEFINED IIPAINTENGINE_GENERATOR AND NOT IIPAINTENGINE_GENERATOR STREQUAL "")
     list(APPEND configure_command -G "${IIPAINTENGINE_GENERATOR}")

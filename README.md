@@ -319,3 +319,7 @@ installer regenerates stale CMake caches after a workspace move.
 
 The default LVRS dependency prefix is `~/.local/SDK/LVRS`;
 `IIPAINTENGINE_LVRS_PREFIX` remains available for an explicit override.
+
+## 파일 저장 소유권
+
+BitmapFile의 파일 읽기·원자 출력은 iiFileProvider 0.5에 위임한다. 이미지 코덱에는 provider가 연 QIODevice를 전달한다. 래스터 편집·색 변환·파일 형식 선택은 iiPaintEngine에 남는다. provider는 이 SDK를 참조하지 않는다.

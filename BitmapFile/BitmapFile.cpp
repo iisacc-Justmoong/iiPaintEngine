@@ -1,11 +1,10 @@
 #include "BitmapFile.h"
 
 #include <QColorSpace>
-#include <QFile>
+#include <iiFileProvider.h>
 #include <QFileInfo>
 #include <QImageReader>
 #include <QImageWriter>
-#include <QSaveFile>
 #include <QSet>
 
 #include <algorithm>
@@ -42,12 +41,9 @@ bool isVectorDocumentFormat(const QByteArray &format)
 
 bool hasVectorDocumentSignature(const QString &filePath)
 {
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        return false;
-    }
-
-    QByteArray prefix = file.read(64 * 1024);
+    QByteArray prefix;
+    try { prefix = iiFileProvider::File::readPrefix(filePath, 64 * 1024); }
+    catch (const iiFileProvider::FileError &) { return false; }
     if (prefix.startsWith("\x1F\x8B")
             || prefix.startsWith("%PDF-")
             || prefix.startsWith("%!PS")) {
@@ -190,26 +186,16 @@ QString writePixels(const QString &filePath,
                 .arg(QString::fromLatin1(format));
     }
 
-    QSaveFile output(filePath);
-    if (!output.open(QIODevice::WriteOnly)) {
-        return output.errorString();
-    }
-
-    QImageWriter writer(&output, writerFormat);
-    if (options.quality >= 0) {
-        writer.setQuality(std::clamp(options.quality, 0, 100));
-    }
-    const QImage writableImage = imageForWriter(pixels, format, options.backgroundColor);
-    if (writableImage.isNull() || !writer.write(writableImage)) {
-        const QString error = writer.errorString().isEmpty()
-                ? QStringLiteral("The bitmap writer returned no output.")
-                : writer.errorString();
-        output.cancelWriting();
-        return error;
-    }
-    if (!output.commit()) {
-        return output.errorString();
-    }
+    try {
+        iiFileProvider::File::writeWith(filePath, [&](QIODevice &output) {
+            QImageWriter writer(&output, writerFormat);
+            if (options.quality >= 0) writer.setQuality(std::clamp(options.quality, 0, 100));
+            const QImage writableImage = imageForWriter(pixels, format, options.backgroundColor);
+            if (writableImage.isNull() || !writer.write(writableImage))
+                throw std::runtime_error(writer.errorString().isEmpty()
+                    ? "The bitmap writer returned no output." : writer.errorString().toStdString());
+        });
+    } catch (const std::exception &error) { return QString::fromUtf8(error.what()); }
     return {};
 }
 
@@ -301,7 +287,10 @@ bool BitmapFile::open(const QString &filePath)
         return false;
     }
 
-    QImageReader reader(path);
+    std::unique_ptr<QIODevice> input;
+    try { input = iiFileProvider::File::openRead(path); }
+    catch (const std::exception &error) { setError(QString::fromUtf8(error.what())); return false; }
+    QImageReader reader(input.get());
     reader.setAutoDetectImageFormat(true);
     reader.setDecideFormatFromContent(true);
     reader.setAutoTransform(true);
