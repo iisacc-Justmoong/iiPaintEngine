@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "tests/RasterDabTestUtils.h"
+#include "RasterDabTestUtils.h"
 
 namespace {
 

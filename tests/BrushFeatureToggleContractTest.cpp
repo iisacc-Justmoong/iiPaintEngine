@@ -4,7 +4,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "tests/RasterDabTestUtils.h"
+#include "RasterDabTestUtils.h"
 
 namespace {
 

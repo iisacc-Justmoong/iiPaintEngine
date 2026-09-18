@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "Brush/BrushPresetSerializer.h"
-#include "tests/RasterDabTestUtils.h"
+#include "RasterDabTestUtils.h"
 
 namespace {
 

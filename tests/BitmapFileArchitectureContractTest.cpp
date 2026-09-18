@@ -35,14 +35,14 @@ bool containsForbiddenProductApi(const std::string &source)
 int main()
 {
     const std::filesystem::path sourceRoot{IIPAINTENGINE_SOURCE_DIR};
-    if (std::filesystem::exists(sourceRoot / (std::string{"Can"} + "vas"))) {
+    if (std::filesystem::exists(sourceRoot / "src" / (std::string{"Can"} + "vas"))) {
         return 1;
     }
 
     constexpr std::array<const char *, 5> productFiles{
             "CMakeLists.txt",
-            "iiPaintEngine",
-            "QtAdapter/IipeQmlTypes.cpp",
+            "src/iiPaintEngine",
+            "src/QtAdapter/IipeQmlTypes.cpp",
             "Example/Main.qml",
             "README.md",
     };
@@ -53,10 +53,10 @@ int main()
     }
 
     constexpr std::array<const char *, 4> removedFiles{
-            "QtAdapter/PaintCanvasItem.h",
-            "QtAdapter/CanvasAdapter.h",
-            "QtAdapter/CanvasApiConfig.h",
-            "QtAdapter/CanvasBrushConfig.h",
+            "src/QtAdapter/PaintCanvasItem.h",
+            "src/QtAdapter/CanvasAdapter.h",
+            "src/QtAdapter/CanvasApiConfig.h",
+            "src/QtAdapter/CanvasBrushConfig.h",
     };
     for (const char *relativePath : removedFiles) {
         if (std::filesystem::exists(sourceRoot / relativePath)) {
@@ -64,8 +64,8 @@ int main()
         }
     }
 
-    if (!std::filesystem::exists(sourceRoot / "BitmapFile/BitmapFile.h")
-            || !std::filesystem::exists(sourceRoot / "QtAdapter/BitmapFileItem.h")) {
+    if (!std::filesystem::exists(sourceRoot / "src/BitmapFile/BitmapFile.h")
+            || !std::filesystem::exists(sourceRoot / "src/QtAdapter/BitmapFileItem.h")) {
         return 4;
     }
 

@@ -1,6 +1,6 @@
 # iiPaintEngine
 
-iiPaintEngine은 C++/Qt/QML용 순수 비트맵 파일 페인팅 엔진이다. 작업 대상은 추상적인 화면 표면이 아니라 경로와 원본 형식이 결합된 `BitmapFile`이다. 입력 경로를 벡터 스트로크로
+iiPaintEngine은 C++/Qt/QML용 순수 비트맵 파일 페인팅 엔진이다. 작업 대상은 추상적인 화면 표면이 아니라 경로와 원본 형식이 결합된 `src/BitmapFile`이다. 입력 경로를 벡터 스트로크로
 만들거나 저장하거나 재생하지 않는다.
 
 ## Bitmap-only contract
@@ -24,7 +24,7 @@ curve, 원본 입력, replay command는 임시로도 만들지 않는다. `Brush
 `QGuiApplication` 생성 전에 호출한다. `registerIipeQmlTypes()`와 `BitmapFileItem`도 이 정책을 자동 적용하므로 지연 중 측정된 중간 좌표를 버리고 두 끝점만 직선으로 잇지 않는다.
 live preview는 새 dab이 실제로 건드린 sample pixel만 복사하며, 멀리 떨어진 두 점을 감싸는 사각형 전체를 매 입력마다 훑지 않는다.
 
-live preview는 pending bitmap buffer를 표시한 결과이다. release 시 그 픽셀 버퍼를 열린 `BitmapFile`의 ARGB 픽셀에 직접 합성한다. undo/redo는 raster
+live preview는 pending bitmap buffer를 표시한 결과이다. release 시 그 픽셀 버퍼를 열린 `src/BitmapFile`의 ARGB 픽셀에 직접 합성한다. undo/redo는 raster
 snapshot
 또는 dirty-rect pixel patch를 사용한다. 저장 파일에는 현재 픽셀만 기록하며 포인터 궤적을 저장하지 않는다.
 
@@ -45,7 +45,7 @@ BitmapFileItem
 → BitmapFile pixel mutation API
 ```
 
-`BitmapFile`이 파일 경로, 실제 바이트에서 감지한 형식, ARGB32 sRGB 픽셀, 수정 상태를 함께 소유한다. `BitmapFileItem`은 파일 픽셀을 소유하지 않으며 입력 좌표 변환과 화면 표시만
+`src/BitmapFile`이 파일 경로, 실제 바이트에서 감지한 형식, ARGB32 sRGB 픽셀, 수정 상태를 함께 소유한다. `BitmapFileItem`은 파일 픽셀을 소유하지 않으며 입력 좌표 변환과 화면 표시만
 담당한다.
 item의 width/height가 바뀌어도 파일 픽셀 크기는 바뀌지 않는다. 새 작업도 익명 표면 생성이 아니라 `createFile(path, width, height, format)`으로 실제 파일 대상을 먼저
 만든다.
@@ -55,16 +55,16 @@ item의 width/height가 바뀌어도 파일 픽셀 크기는 바뀌지 않는다
 
 주요 모듈은 다음과 같다.
 
-- `Core`: 좌표, rect, UUID, 오류, raster sample 값 타입
-- `Input`: mouse/tablet event normalization과 현재 점 방출
-- `Brush`: preset, dynamics, material, texture, wet/bristle 설정
-- `Stroke/Rasterizer`: 직전 점에서 현재 점까지 bitmap dab 배치와 pixel projection
-- `Layer`: raster surface, mask, blend, layer stack
-- `Render`: CPU/GPU raster layer 합성, tile cache, brush stamp atlas
-- `BitmapFile`: 런타임 bitmap format 감지/저장, 파일 경로, 직접 수정 가능한 ARGB 픽셀
-- `Document`: 단일 bitmap surface, layer stack, format version 3 직렬화와 version 2 단일 표면 읽기 호환성
-- `History`: raster patch/snapshot 기반 undo/redo 메타데이터
-- `QtAdapter`: `BitmapFileItem` view/input adapter, 문서 adapter, layer list facade
+- `src/Core`: 좌표, rect, UUID, 오류, raster sample 값 타입
+- `src/Input`: mouse/tablet event normalization과 현재 점 방출
+- `src/Brush`: preset, dynamics, material, texture, wet/bristle 설정
+- `src/Stroke/Rasterizer`: 직전 점에서 현재 점까지 bitmap dab 배치와 pixel projection
+- `src/Layer`: raster surface, mask, blend, layer stack
+- `src/Render`: CPU/GPU raster layer 합성, tile cache, brush stamp atlas
+- `src/BitmapFile`: 런타임 bitmap format 감지/저장, 파일 경로, 직접 수정 가능한 ARGB 픽셀
+- `src/Document`: 단일 bitmap surface, layer stack, format version 3 직렬화와 version 2 단일 표면 읽기 호환성
+- `src/History`: raster patch/snapshot 기반 undo/redo 메타데이터
+- `src/QtAdapter`: `BitmapFileItem` view/input adapter, 문서 adapter, layer list facade
 
 Render cache에는 tile cache와 brush stamp atlas만 있다. 입력 경로를 다시 계산하는 stroke replay cache는 없다.
 
@@ -158,7 +158,7 @@ viewport API는 `documentX`, `documentY`, `zoom`, `bitmapDevicePixelRatio`, `set
 
 ## Bitmap file compatibility
 
-`BitmapFile`은 Qt Gui에 이미 포함된 이미지 I/O 플러그인을 사용하므로 외부 의존성을 추가하지 않는다. 읽기는 파일 확장자보다 실제 바이트 형식을 우선 감지하고 EXIF 방향을 적용한 뒤
+`src/BitmapFile`은 Qt Gui에 이미 포함된 이미지 I/O 플러그인을 사용하므로 외부 의존성을 추가하지 않는다. 읽기는 파일 확장자보다 실제 바이트 형식을 우선 감지하고 EXIF 방향을 적용한 뒤
 자체 `RasterLayer`의 ARGB32 sRGB 픽셀로 정규화한다. 저장은 객체에 보존된 감지 형식을 사용하므로 확장자가 잘못된 파일도 원래 bitmap 형식으로 다시 쓴다. `saveAs`는 명시 형식 또는
 확장자를 사용하고 JPEG 같은 불투명 형식은 배경색에 합성하며, 모든 저장은 `QSaveFile`로 원자적으로 교체한다.
 
@@ -278,7 +278,7 @@ Windows installer detection heuristic 및 elevation 오탐을 피하기 위한 �
   이벤트별 pixel 누적
 - `iiPaintEngineBitmapFileCompatibilityContract`: 파일 계층의 path/format/pixel 소유, 직접 pixel mutation, 런타임 bitmap codec 전체 쓰기
   왕복, content sniffing, SVG/PDF 차단
-- `iiPaintEngineBitmapFileArchitectureContract`: 구형 화면 표면 API 부재, `BitmapFile`과 `BitmapFileItem` 공개 계약
+- `iiPaintEngineBitmapFileArchitectureContract`: 구형 화면 표면 API 부재, `src/BitmapFile`과 `BitmapFileItem` 공개 계약
 - `iiPaintEngineInstallUpgradeContract`: 재설치 시 삭제된 공개 헤더 제거, 현재 헤더 배치, 설치 package를 사용하는 별도 CMake 소비자의
   `find_package`·link·load
 - `iiPaintEnginePipelineHeartbeat`: pointer event부터 document raster surface까지 최소 파이프라인
@@ -323,3 +323,7 @@ The default LVRS dependency prefix is `~/.local/SDK/LVRS`;
 ## 파일 저장 소유권
 
 BitmapFile의 파일 읽기·원자 출력은 iiFileProvider 0.5에 위임한다. 이미지 코덱에는 provider가 연 QIODevice를 전달한다. 래스터 편집·색 변환·파일 형식 선택은 iiPaintEngine에 남는다. provider는 이 SDK를 참조하지 않는다.
+
+## Source layout
+
+Implementation files and their headers live together under `src/`. Existing feature and platform subdirectories retain their responsibilities. Build configuration, tests, documentation, resources, and maintenance scripts remain at the project root. Configure and build using the repository-local `build/` directory.

@@ -59,18 +59,18 @@ int main()
 
     const std::filesystem::path sourceRoot{IIPAINTENGINE_SOURCE_DIR};
     constexpr std::array<const char *, 12> forbiddenSourceStems{
-            "Layer/StrokeLayer",
-            "Layer/TextLayer",
-            "Layer/VectorLayer",
-            "Stroke/LiveStroke",
-            "Stroke/Stabilizer",
-            "Stroke/Stroke",
-            "Stroke/StrokeCommand",
-            "Stroke/StrokeCurve",
-            "Stroke/StrokeGeometry",
-            "Stroke/StrokeInput",
-            "Stroke/StrokeRepository",
-            "Stroke/StrokeResampler",
+            "src/Layer/StrokeLayer",
+            "src/Layer/TextLayer",
+            "src/Layer/VectorLayer",
+            "src/Stroke/LiveStroke",
+            "src/Stroke/Stabilizer",
+            "src/Stroke/Stroke",
+            "src/Stroke/StrokeCommand",
+            "src/Stroke/StrokeCurve",
+            "src/Stroke/StrokeGeometry",
+            "src/Stroke/StrokeInput",
+            "src/Stroke/StrokeRepository",
+            "src/Stroke/StrokeResampler",
     };
     for (const char *relativeStem : forbiddenSourceStems) {
         if (std::filesystem::exists(sourceRoot / (std::string{relativeStem} + ".h"))

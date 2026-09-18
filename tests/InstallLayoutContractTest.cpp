@@ -233,7 +233,7 @@ int main()
                    "Static WASM consumers must inherit Emscripten embind support.");
     expectContains(cmakeLists, "install(TARGETS iiPaintEngine",
                    "CMakeLists.txt must install the iiPaintEngine library target.");
-    expectContains(cmakeLists, "install(FILES library.h iiPaintEngine",
+    expectContains(cmakeLists, "install(FILES src/library.h src/iiPaintEngine",
                    "CMakeLists.txt must install the extensionless umbrella header.");
     expectContains(cmakeLists, "file(REMOVE_RECURSE",
                    "Upgrade installs must replace the package-owned public header tree.");

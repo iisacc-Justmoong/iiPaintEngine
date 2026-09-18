@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.31)
 
-set(ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
+set(ROOT "${CMAKE_CURRENT_LIST_DIR}/../src")
 set(MODULES Core Input Document Layer Stroke Brush Render History Color Selection Transform Filter Tool BitmapFile QtAdapter)
 
 function(module_for path out_var)

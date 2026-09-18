@@ -6,7 +6,7 @@ iiPaintEngine은 C++/Qt/QML 애플리케이션에 포함하는 순수 비트맵 
 
 이 계약에서 비트맵 전용이라는 표현은 다음을 뜻한다.
 
-- 파일에 기록되는 모든 결과는 `BitmapFile`의 `RasterLayer` 또는 `DrawingSurface` 픽셀이다.
+- 파일에 기록되는 모든 결과는 `src/BitmapFile`의 `RasterLayer` 또는 `DrawingSurface` 픽셀이다.
 - 입력 궤적은 다시 편집하거나 재생할 수 있는 경로 객체로 저장하지 않는다.
 - 그리기 도중에도 전체 좌표열, 곡선, 경로, 명령형 스트로크 모델을 만들지 않는다.
 - 텍스트, SVG, 도형 같은 외부 콘텐츠는 iiPaintEngine 경계에 들어오기 전에 비트맵으로 래스터화한다.
@@ -31,7 +31,7 @@ PointerEvent
 `InputStrokeBuilder`는 활성 여부만 가진다. `RasterDabStream`은 직전 점 하나, 이동 거리, 다음 dab 거리, 난수 시퀀스만 가진다. 두 타입 모두 점 목록을 소유해서는 안 된다.
 
 `BrushDab`은 벡터 도형이 아니라 한 번 투영하고 폐기하는 비트맵 브러시 스탬프이다. `BitmapFileItem`은 이벤트마다 생성된 dab을 즉시 `RasterSample`로 투영하고
-`BitmapFile`의 픽셀 변경 API에 누적한다. release 전까지 유지할 수 있는 그림 데이터는 픽셀 버퍼뿐이다.
+`src/BitmapFile`의 픽셀 변경 API에 누적한다. release 전까지 유지할 수 있는 그림 데이터는 픽셀 버퍼뿐이다.
 
 미래 좌표나 전체 길이가 필요한 후처리는 허용하지 않는다. 따라서 종료점 기준 taper, 전체 궤적 smoothing, 곡선 보간, 원본 입력 replay를 구현하지 않는다. 시작점부터 누적 거리만으로 계산 가능한
 warm-up 효과는 허용한다.
@@ -48,8 +48,8 @@ PaintDocument
 → ARGB 픽셀
 ```
 
-`BitmapFile`은 파일 경로, 실제 바이트에서 감지한 형식, 수정 상태, 직접 쓰는 ARGB 픽셀을 소유한다. `BitmapFileItem`은 화면 표시와 입력 좌표 변환만 담당하고 픽셀을 소유하지 않는다.
-`PaintDocument::surface`는 최종 합성 표면이며 `Layer::surface`는 각 페인트 레이어의 픽셀 표면이다. `Layer`의 children, mask, opacity, blend mode는
+`src/BitmapFile`은 파일 경로, 실제 바이트에서 감지한 형식, 수정 상태, 직접 쓰는 ARGB 픽셀을 소유한다. `BitmapFileItem`은 화면 표시와 입력 좌표 변환만 담당하고 픽셀을 소유하지 않는다.
+`PaintDocument::surface`는 최종 합성 표면이며 `Layer::surface`는 각 페인트 레이어의 픽셀 표면이다. `src/Layer`의 children, mask, opacity, blend mode는
 비트맵 합성 속성이다.
 레이어 메타데이터가 콘텐츠 종류를 설명하더라도 실제 콘텐츠는 항상 픽셀이어야 한다.
 
@@ -109,7 +109,7 @@ QtAdapter
 - 벡터·경로·원본 stroke 모델의 소스 파일이 존재하지 않는다.
 - press/move/release가 각 이벤트에서 즉시 raster pixel buffer로 누적된다.
 
-`iiPaintEngineBitmapFileArchitectureContract`는 구형 화면 표면 API가 없고 `BitmapFile`이 경로·형식·픽셀을 직접 소유하는지 검사한다.
+`iiPaintEngineBitmapFileArchitectureContract`는 구형 화면 표면 API가 없고 `src/BitmapFile`이 경로·형식·픽셀을 직접 소유하는지 검사한다.
 `iiPaintEngineBitmapFileCompatibilityContract`는 설치된 래스터 코덱만 노출하고 SVG·PDF를 디코더에 전달하지 않으며 content sniffing과 주요 비트맵 형식 왕복을
 검사한다.
 `iiPaintEngineInstallUpgradeContract`는 업그레이드 설치가 package 소유 공개 헤더 트리를 교체해 삭제된 API 헤더를 남기지 않는지 검사하고, 별도 CMake

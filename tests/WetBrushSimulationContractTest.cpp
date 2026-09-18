@@ -6,7 +6,7 @@
 #include "Brush/BrushPresetSerializer.h"
 #include "Layer/RasterLayer.h"
 #include "Stroke/Rasterizer.h"
-#include "tests/RasterDabTestUtils.h"
+#include "RasterDabTestUtils.h"
 
 namespace {
 
