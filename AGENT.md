@@ -28,7 +28,7 @@ PointerEvent
 → RasterLayer / DrawingSurface
 ```
 
-`InputStrokeBuilder`는 활성 여부만 가진다. `RasterDabStream`은 직전 점 하나, 이동 거리, 다음 dab 거리, 난수 시퀀스만 가진다. 두 타입 모두 점 목록을 소유해서는 안 된다.
+`InputStrokeBuilder`는 활성 여부만 가진다. `RasterDabStream`은 직전 점 하나, 이동 거리, 다음 dab 거리·시각, 획 시작 시각, 직전 방향, 배치·난수 시퀀스만 가진다. 시간 분사는 이 최소 상태를 사용하여 같은 위치를 다시 찍는다. 두 타입 모두 점 목록을 소유해서는 안 된다.
 
 `BrushDab`은 벡터 도형이 아니라 한 번 투영하고 폐기하는 비트맵 브러시 스탬프이다. `BitmapFileItem`은 이벤트마다 생성된 dab을 즉시 `RasterSample`로 투영하고
 `src/BitmapFile`의 픽셀 변경 API에 누적한다. release 전까지 유지할 수 있는 그림 데이터는 픽셀 버퍼뿐이다.
@@ -121,3 +121,10 @@ version 2 단일 표면 문서를 안전하게 이관하는지 검사한다. 손
 경로가 같은 비트맵 파이프라인을 사용하는지 검사한다.
 
 `iiPaintEngineHighFidelityPointerInputContract`는 Qt와 native pointer event 병합이 비활성화되고 `BitmapFileItem` 직접 생성 경로에도 자동 적용되는지 검사한다.
+
+## 8. 고급 브러시 계약
+
+`BrushPreset` 버전 2는 입력 전달 곡선, 매핑, 팁 뱅크, 색상, 모양, 산포, 시간 분사를 소유한다. 입력 전달 곡선은 스칼라 값의 변환이며 그리기 궤적이 아니다.
+`resolveBrushPreset`은 설정을 검증한 뒤 `BrushState`를 만들며 Brush는 Stroke나 Qt를 참조하지 않는다. 문서 format 3의 brushSources는 기존 필드와 완전한 presetV2를 함께 저장한다.
+활성 획은 시작 시점 설정을 사용한다. 시간 분사 타이머는 종료·취소·뷰/파일 교체 시 중지한다.
+고급 브러시 변경은 AdvancedBrushContract, AdvancedBrushRendering, AdvancedBrushAdapter 및 설치 소비자 검증을 통과해야 한다.

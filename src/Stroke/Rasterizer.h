@@ -8,19 +8,12 @@
 #include <cstddef>
 #include <vector>
 
-#include "Brush/BrushDynamics.h"
+#include "Brush/BrushState.h"
 #include "Brush/BrushMaterial.h"
 #include "Core/PaintRect.h"
 #include "Core/RasterSample.h"
 #include "Core/Types.h"
 #include "Stroke/StrokePoint.h"
-
-enum class StrokeTaperShape {
-    Linear,
-    EaseIn,
-    EaseOut,
-    SmoothStep,
-};
 
 struct BrushDab {
     DocumentPoint position;
@@ -48,6 +41,9 @@ struct BrushDab {
     std::uint32_t colorArgb = 0xFF000000U;
     RasterBlendMode blendMode = RasterBlendMode::SourceOver;
     std::uint32_t sequenceIndex = 0;
+    std::uint32_t tipIndex = 0;
+    bool flipX = false;
+    bool flipY = false;
 };
 
 using DabCommand = BrushDab;
@@ -112,39 +108,6 @@ struct RasterSourceSampler {
     Types::Pixel height = 0;
 };
 
-struct Rasterizer {
-    Types::Pixel radius = 2;
-    std::uint32_t argb = 0xFF000000U;
-    Types::Scalar brushSize = 0.0;
-    Types::Pixel brushWidth = 0;
-    Types::Pixel brushHeight = 0;
-    std::vector<Types::Byte> brushAlpha;
-    Types::Scalar spacing = 0.0;
-    Types::Scalar spacingRatio = 0.0;
-    bool spacingEnabled = true;
-    Types::Scalar opacity = 1.0;
-    bool opacityEnabled = true;
-    Types::Scalar flow = 1.0;
-    bool flowEnabled = true;
-    Types::Scalar hardness = 1.0;
-    bool hardnessEnabled = true;
-    Types::Scalar density = 1.0;
-    Types::Scalar pressureScale = 0.0;
-    Types::Scalar velocitySpacing = 0.0;
-    Types::Scalar warmupDistance = 0.0;
-    Types::Scalar taperMinimum = 0.25;
-    StrokeTaperShape warmupTaperShape = StrokeTaperShape::Linear;
-    Types::Scalar rotationJitter = 0.0;
-    RasterBlendMode blendMode = RasterBlendMode::SourceOver;
-};
-
-struct BrushState {
-    Rasterizer rasterizer;
-    BrushDynamics dynamics;
-    BrushMaterial material;
-    std::uint32_t randomSeed = 0;
-};
-
 // Minimal state for streaming bitmap dabs along incoming pointer positions.
 // It never owns a path, curve, point list, or replayable stroke object.
 struct RasterDabStream {
@@ -154,6 +117,10 @@ struct RasterDabStream {
     Types::Scalar nextDabDistance = 0.0;
     Types::Scalar lastDabDistance = -1.0;
     std::uint32_t sequenceIndex = 0;
+    std::uint32_t placementIndex = 0;
+    Types::Scalar startTime = 0.0;
+    Types::Scalar nextDabTime = 0.0;
+    Types::Scalar lastDirection = 0.0;
 };
 
 std::vector<BrushDab> appendRasterDabs(RasterDabStream &stream,

@@ -3,6 +3,9 @@
 //
 
 #include "BitmapFileItem.h"
+#include "Brush/BrushResolve.h"
+#include "Brush/BrushPresetSerializer.h"
+#include <stdexcept>
 
 #include <QImage>
 #include <QMouseEvent>
@@ -282,6 +285,15 @@ BitmapFileItem::BitmapFileItem(QQuickItem *parent)
     m_rasterizer.spacingRatio = 0.0;
     m_rasterizer.flow = 1.0;
 
+    m_airbrushTimer.setInterval(16);
+    m_airbrushTimer.setTimerType(Qt::PreciseTimer);
+    connect(&m_airbrushTimer, &QTimer::timeout, this, [this] {
+        if (!m_rasterDabStream.active || !m_activeBrush.rasterizer.airbrushEnabled) return;
+        const bool wasActive = liveStrokeActive();
+        appendPointerPointToRaster(m_rasterDabStream.previousPoint, false);
+        emitLiveStrokeActiveChangedIfNeeded(wasActive);
+    });
+
     connect(this, &BitmapFileItem::brushChanged, this, &BitmapFileItem::brushConfigChanged);
     connect(this, &BitmapFileItem::strokeSettingsChanged, this, &BitmapFileItem::brushConfigChanged);
     connect(this, &BitmapFileItem::viewportChanged, this, &BitmapFileItem::viewportConfigChanged);
@@ -307,8 +319,64 @@ BitmapFileItem::BitmapFileItem(QQuickItem *parent)
 
 BitmapFileItem::~BitmapFileItem() = default;
 
+bool BitmapFileItem::setBrushPreset(const BrushPreset &preset)
+{
+    const auto resolved = resolveBrushPreset(preset, m_rasterizer.argb, m_nextStrokeSeed);
+    if (!resolved.brush) {
+        m_lastBrushError = QString::fromStdString(resolved.errors.front());
+        emit lastBrushErrorChanged();
+        return false;
+    }
+    m_brushPreset = preset;
+    m_rasterizer = resolved.brush->rasterizer;
+    m_pressureToOpacityEnabled = preset.dynamics.pressureToOpacityEnabled;
+    m_lastBrushError.clear();
+    emit lastBrushErrorChanged();
+    emit brushChanged();
+    return true;
+}
+
+bool BitmapFileItem::setBrushPresetData(const QString &payload)
+{
+    const auto decoded = readBrushPreset(payload.toStdString());
+    if (!decoded.preset) {
+        m_lastBrushError = QString::fromStdString(decoded.errors.front());
+        emit lastBrushErrorChanged();
+        return false;
+    }
+    return setBrushPreset(*decoded.preset);
+}
+
+void BitmapFileItem::resetBrushPreset()
+{
+    const auto color = m_rasterizer.argb;
+    m_brushPreset.reset();
+    m_rasterizer = {};
+    m_rasterizer.argb = color;
+    m_pressureToOpacityEnabled = true;
+    m_lastBrushError.clear();
+    emit lastBrushErrorChanged();
+    emit brushChanged();
+}
+
+QString BitmapFileItem::brushPresetData() const
+{
+    if (!m_brushPreset) return {};
+    auto p = *m_brushPreset;
+    p.size = m_rasterizer.brushSize; p.flow = m_rasterizer.flow;
+    p.opacity = m_rasterizer.opacity; p.hardness = m_rasterizer.hardness;
+    p.stroke.spacing = m_rasterizer.spacing; p.stroke.spacingRatio = m_rasterizer.spacingRatio;
+    p.stroke.spacingEnabled = m_rasterizer.spacingEnabled; p.stroke.flowEnabled = m_rasterizer.flowEnabled;
+    p.stroke.opacityEnabled = m_rasterizer.opacityEnabled; p.stroke.hardnessEnabled = m_rasterizer.hardnessEnabled;
+    p.dynamics.pressureToOpacityEnabled = m_pressureToOpacityEnabled;
+    return QString::fromStdString(serializeBrushPreset(p));
+}
+
+QString BitmapFileItem::lastBrushError() const { return m_lastBrushError; }
+
 void BitmapFileItem::resetInteractionForFile()
 {
+    m_airbrushTimer.stop();
     const bool wasLiveStrokeActive = liveStrokeActive();
     const int previousStrokeCount = m_committedStrokeCount;
     resetInputStrokeBuilder(m_strokeBuilder);
@@ -708,7 +776,8 @@ qreal BitmapFileItem::brushSize() const
 
 void BitmapFileItem::setBrushSize(qreal value)
 {
-    const Types::Scalar nextSize = std::max<Types::Scalar>(1.0, static_cast<Types::Scalar>(value));
+    if (!std::isfinite(value)) return;
+    const Types::Scalar nextSize = std::clamp<Types::Scalar>(value, 1.0, 4096.0);
     if (m_rasterizer.brushSize == nextSize) {
         return;
     }
@@ -725,7 +794,8 @@ qreal BitmapFileItem::brushSpacing() const
 
 void BitmapFileItem::setBrushSpacing(qreal value)
 {
-    const Types::Scalar nextSpacing = std::max<Types::Scalar>(0.0, static_cast<Types::Scalar>(value));
+    if (!std::isfinite(value)) return;
+    const Types::Scalar nextSpacing = std::clamp<Types::Scalar>(value, 0.0, 1e6);
     if (m_rasterizer.spacing == nextSpacing) {
         return;
     }
@@ -741,6 +811,7 @@ qreal BitmapFileItem::brushSpacingRatio() const
 
 void BitmapFileItem::setBrushSpacingRatio(qreal value)
 {
+    if (!std::isfinite(value)) return;
     const Types::Scalar nextRatio = std::clamp(static_cast<Types::Scalar>(value), 0.0, 1.0);
     if (m_rasterizer.spacingRatio == nextRatio) {
         return;
@@ -772,6 +843,7 @@ qreal BitmapFileItem::brushFlow() const
 
 void BitmapFileItem::setBrushFlow(qreal value)
 {
+    if (!std::isfinite(value)) return;
     const Types::Scalar nextFlow = std::clamp(static_cast<Types::Scalar>(value), 0.0, 1.0);
     if (m_rasterizer.flow == nextFlow) {
         return;
@@ -803,6 +875,7 @@ qreal BitmapFileItem::brushOpacity() const
 
 void BitmapFileItem::setBrushOpacity(qreal value)
 {
+    if (!std::isfinite(value)) return;
     const Types::Scalar nextOpacity = std::clamp(static_cast<Types::Scalar>(value), 0.0, 1.0);
     if (m_rasterizer.opacity == nextOpacity) {
         return;
@@ -834,7 +907,8 @@ qreal BitmapFileItem::brushHardness() const
 
 void BitmapFileItem::setBrushHardness(qreal value)
 {
-    const Types::Scalar nextHardness = std::clamp(static_cast<Types::Scalar>(value), 0.01, 1.0);
+    if (!std::isfinite(value)) return;
+    const Types::Scalar nextHardness = std::clamp(static_cast<Types::Scalar>(value), 0.0, 1.0);
     if (m_rasterizer.hardness == nextHardness) {
         return;
     }
@@ -1361,6 +1435,7 @@ TabletState BitmapFileItem::makeTabletState(QTabletEvent *event, PointerEventPha
     tablet.tiltX = std::clamp(static_cast<Types::Scalar>(event->xTilt()) / 60.0, -1.0, 1.0);
     tablet.tiltY = std::clamp(static_cast<Types::Scalar>(event->yTilt()) / 60.0, -1.0, 1.0);
     tablet.rotationRadians = static_cast<Types::Scalar>(event->rotation()) * 3.14159265358979323846 / 180.0;
+    tablet.tangentialPressure = event->tangentialPressure();
     tablet.time = static_cast<Types::Scalar>(event->timestamp());
     tablet.inProximity = true;
     tablet.contact = primaryDown;
@@ -1407,6 +1482,11 @@ void BitmapFileItem::applyPointerBuildResult(const InputStrokeBuildResult &resul
         clearPendingRasterStroke();
         resetRasterDabStream(m_rasterDabStream);
         m_activeBrush = currentBrushState();
+        if (m_activeBrush.rasterizer.airbrushEnabled) {
+            m_airbrushTimeOrigin = result.point.time;
+            m_airbrushClock.start();
+            m_airbrushTimer.start();
+        }
         m_liveStrokePreviewDestinationOut =
                 m_activeBrush.rasterizer.blendMode == RasterBlendMode::DestinationOut;
     }
@@ -1422,10 +1502,18 @@ void BitmapFileItem::applyPointerBuildResult(const InputStrokeBuildResult &resul
 
 void BitmapFileItem::appendPointerPointToRaster(const StrokePoint &point, bool finishStroke)
 {
-    const std::vector<BrushDab> dabs = appendRasterDabs(m_rasterDabStream,
-                                                        point,
-                                                        m_activeBrush,
-                                                        finishStroke);
+    auto samplePoint = point;
+    if (m_activeBrush.rasterizer.airbrushEnabled)
+        samplePoint.time = m_airbrushTimeOrigin + static_cast<double>(m_airbrushClock.nsecsElapsed()) / 1e9;
+    std::vector<BrushDab> dabs;
+    try {
+        dabs = appendRasterDabs(m_rasterDabStream, samplePoint, m_activeBrush, finishStroke);
+    } catch (const std::exception &error) {
+        m_lastBrushError = QString::fromUtf8(error.what());
+        cancelActiveRasterStroke();
+        emit lastBrushErrorChanged();
+        return;
+    }
     if (dabs.empty()) {
         return;
     }
@@ -1494,6 +1582,7 @@ void BitmapFileItem::commitPendingRasterStroke()
 
 void BitmapFileItem::clearPendingRasterStroke()
 {
+    m_airbrushTimer.stop();
     const DevicePixelRect previousDirtyBounds = m_liveStrokeDeviceDirtyBounds;
     clearRasterLayerRect(m_liveRasterLayer, previousDirtyBounds);
     m_pendingRasterBuffer = makeStrokeCompositeBuffer(m_bitmapFile.width(), m_bitmapFile.height());
@@ -1537,9 +1626,9 @@ BrushState BitmapFileItem::currentBrushState() const
         rasterizer.argb = 0xFF000000U;
         rasterizer.blendMode = RasterBlendMode::DestinationOut;
     }
-    BrushDynamics dynamics = pressureSensitiveDynamics();
+    BrushDynamics dynamics = m_brushPreset ? m_brushPreset->dynamics : pressureSensitiveDynamics();
     dynamics.pressureToOpacityEnabled = m_pressureToOpacityEnabled;
-    return BrushState{rasterizer, dynamics, BrushMaterial{}, m_nextStrokeSeed};
+    return BrushState{rasterizer, dynamics, m_brushPreset ? m_brushPreset->material : BrushMaterial{}, m_nextStrokeSeed};
 }
 
 void BitmapFileItem::cancelActiveRasterStroke()

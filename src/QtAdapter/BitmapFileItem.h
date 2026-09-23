@@ -4,11 +4,15 @@
 #include <QQuickPaintedItem>
 #include <QString>
 #include <QStringList>
+#include <QTimer>
+#include <QElapsedTimer>
+#include <optional>
 
 #include <cstdint>
 #include <vector>
 
 #include "BitmapFile/BitmapFile.h"
+#include "Brush/BrushPreset.h"
 #include "Input/InputNormalizer.h"
 #include "Input/InputStrokeBuilder.h"
 #include "QtAdapter/BitmapBrushConfig.h"
@@ -38,6 +42,8 @@ class BitmapFileItem : public QQuickPaintedItem {
     Q_PROPERTY(QString lastFileError READ lastFileError NOTIFY lastFileErrorChanged)
     Q_PROPERTY(QString toolMode READ toolMode WRITE setToolMode NOTIFY toolModeChanged)
     Q_PROPERTY(BitmapBrushConfig brushConfig READ brushConfig WRITE setBrushConfig NOTIFY brushConfigChanged)
+    Q_PROPERTY(QString brushPresetData READ brushPresetData NOTIFY brushChanged)
+    Q_PROPERTY(QString lastBrushError READ lastBrushError NOTIFY lastBrushErrorChanged)
     Q_PROPERTY(BitmapViewportConfig viewportConfig READ viewportConfig WRITE setViewportConfig NOTIFY viewportConfigChanged)
     Q_PROPERTY(BitmapRuntimeConfig runtimeConfig READ runtimeConfig WRITE setRuntimeConfig NOTIFY runtimeConfigChanged)
     Q_PROPERTY(BitmapFileState stateSnapshot READ stateSnapshot NOTIFY stateSnapshotChanged)
@@ -92,6 +98,11 @@ public:
     void setToolMode(const QString &mode);
     BitmapBrushConfig brushConfig() const;
     Q_INVOKABLE void setBrushConfig(const BitmapBrushConfig &config);
+    bool setBrushPreset(const BrushPreset &preset);
+    Q_INVOKABLE bool setBrushPresetData(const QString &payload);
+    Q_INVOKABLE void resetBrushPreset();
+    QString brushPresetData() const;
+    QString lastBrushError() const;
     BitmapViewportConfig viewportConfig() const;
     Q_INVOKABLE void setViewportConfig(const BitmapViewportConfig &config);
     BitmapRuntimeConfig runtimeConfig() const;
@@ -172,6 +183,7 @@ public:
     Q_INVOKABLE void setBrush(qreal size, const QColor &color, qreal flow, qreal opacity);
 
 signals:
+    void lastBrushErrorChanged();
     void fileChanged();
     void lastFileErrorChanged();
     void toolModeChanged();
@@ -259,6 +271,11 @@ private:
     RasterDabStream m_rasterDabStream;
     BrushState m_activeBrush;
     Rasterizer m_rasterizer{};
+    std::optional<BrushPreset> m_brushPreset;
+    QString m_lastBrushError;
+    QTimer m_airbrushTimer;
+    QElapsedTimer m_airbrushClock;
+    Types::Scalar m_airbrushTimeOrigin = 0.0;
     RasterViewport m_viewport{};
     DocumentPoint m_documentOrigin{};
     Types::Scalar m_zoom = 1.0;

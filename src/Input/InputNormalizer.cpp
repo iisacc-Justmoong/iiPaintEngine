@@ -132,6 +132,8 @@ PointerEvent normalizeTabletPointerEvent(const InputNormalizer &normalizer,
     event.barrelButtonDown = normalizer.barrelButtonEnabled && tablet.barrelButtonDown;
     event.eraserActive = isEraser(normalizer, tablet);
     event.rotationRadians = normalizer.rotationEnabled ? tablet.rotationRadians : 0.0;
+    event.tangentialPressure = std::clamp(tablet.tangentialPressure, -1.0, 1.0);
+    event.custom = tablet.custom;
     event.deviceState = tabletDeviceState(normalizer, tablet, phase);
     return event;
 }

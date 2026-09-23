@@ -5,6 +5,11 @@
 #include "BrushPresetSerializer.h"
 
 #include <cstddef>
+#include <cmath>
+#include <locale>
+#include <stdexcept>
+#include <type_traits>
+#include "Brush/BrushResolve.h"
 #include <iomanip>
 #include <limits>
 #include <map>
@@ -23,6 +28,7 @@ template <typename T>
 std::string numberText(T value)
 {
     std::ostringstream output;
+    output.imbue(std::locale::classic());
     output << std::setprecision(std::numeric_limits<long double>::digits10 + 1) << value;
     return output.str();
 }
@@ -34,9 +40,18 @@ std::string boolText(bool value)
 
 std::string stringText(const std::string &value)
 {
-    std::ostringstream output;
-    output << std::quoted(value);
-    return output.str();
+    std::string result = "\"";
+    for (char c : value) {
+        switch (c) {
+            case '\\': result += "\\\\"; break;
+            case '"': result += "\\\""; break;
+            case '\n': result += "\\n"; break;
+            case '\r': result += "\\r"; break;
+            case '\t': result += "\\t"; break;
+            default: result += c; break;
+        }
+    }
+    return result + '"';
 }
 
 void appendHexByte(std::string &text, unsigned int value)
@@ -86,7 +101,7 @@ int hexValue(char value)
     if (value >= 'A' && value <= 'F') {
         return value - 'A' + 10;
     }
-    return 0;
+    throw std::invalid_argument("invalid hexadecimal byte");
 }
 
 std::uint8_t parseHexByte(const std::string &text, std::size_t offset)
@@ -96,15 +111,18 @@ std::uint8_t parseHexByte(const std::string &text, std::size_t offset)
 
 std::map<std::string, std::string> parsePayload(const std::string &payload)
 {
+    if (payload.size() > 40 * 1024 * 1024) throw std::invalid_argument("brush payload exceeds 40 MiB");
     std::map<std::string, std::string> values;
     std::istringstream input(payload);
     std::string line;
     while (std::getline(input, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.empty()) continue;
         const std::size_t separator = line.find('\t');
-        if (separator == std::string::npos) {
-            continue;
-        }
-        values[line.substr(0, separator)] = line.substr(separator + 1);
+        if (separator == std::string::npos || separator == 0) throw std::invalid_argument("invalid brush field");
+        if (values.size() >= 65536) throw std::invalid_argument("too many brush fields");
+        if (!values.emplace(line.substr(0, separator), line.substr(separator + 1)).second)
+            throw std::invalid_argument("duplicate brush field");
     }
     return values;
 }
@@ -121,9 +139,16 @@ T readNumber(const std::map<std::string, std::string> &values,
 
     T result{};
     std::istringstream input(iterator->second);
+    input.imbue(std::locale::classic());
+    if constexpr (std::is_unsigned_v<T>) {
+        if (iterator->second.find('-') != std::string::npos) throw std::invalid_argument(key + ": negative unsigned value");
+    }
     input >> result;
-    if (!input) {
-        return fallback;
+    if (!input) throw std::invalid_argument(key + ": invalid number");
+    input >> std::ws;
+    if (!input.eof()) throw std::invalid_argument(key + ": trailing data");
+    if constexpr (std::is_floating_point_v<T>) {
+        if (!std::isfinite(result)) throw std::invalid_argument(key + ": non-finite number");
     }
     return result;
 }
@@ -132,7 +157,9 @@ bool readBool(const std::map<std::string, std::string> &values,
               const std::string &key,
               bool fallback = false)
 {
-    return readNumber<int>(values, key, fallback ? 1 : 0) != 0;
+    const auto value = readNumber<int>(values, key, fallback ? 1 : 0);
+    if (value != 0 && value != 1) throw std::invalid_argument(key + ": expected boolean");
+    return value != 0;
 }
 
 std::string readString(const std::map<std::string, std::string> &values,
@@ -144,11 +171,24 @@ std::string readString(const std::map<std::string, std::string> &values,
         return fallback;
     }
 
+    const auto &text = iterator->second;
+    if (text.size() < 2 || text.front() != '"' || text.back() != '"')
+        throw std::invalid_argument(key + ": expected quoted string");
+    const bool modern = readNumber<unsigned int>(values, "formatVersion", 1) >= 2;
     std::string result;
-    std::istringstream input(iterator->second);
-    input >> std::quoted(result);
-    if (!input) {
-        return fallback;
+    for (std::size_t i = 1; i + 1 < text.size(); ++i) {
+        char c = text[i];
+        if (c == '\\') {
+            if (++i + 1 >= text.size()) throw std::invalid_argument(key + ": incomplete escape");
+            c = text[i];
+            if (modern) {
+                if (c == 'n') c = '\n';
+                else if (c == 'r') c = '\r';
+                else if (c == 't') c = '\t';
+                else if (c != '\\' && c != '"') throw std::invalid_argument(key + ": invalid escape");
+            }
+        } else if (c == '"') throw std::invalid_argument(key + ": unescaped quote");
+        result += c;
     }
     return result;
 }
@@ -157,9 +197,8 @@ PaintUuid readUuid(const std::map<std::string, std::string> &values, const std::
 {
     PaintUuid uuid{};
     const auto iterator = values.find(key);
-    if (iterator == values.end() || iterator->second.size() < uuid.bytes.size() * 2) {
-        return uuid;
-    }
+    if (iterator == values.end()) return uuid;
+    if (iterator->second.size() != uuid.bytes.size() * 2) throw std::invalid_argument(key + ": invalid uuid");
 
     for (std::size_t index = 0; index < uuid.bytes.size(); ++index) {
         uuid.bytes[index] = parseHexByte(iterator->second, index * 2);
@@ -177,6 +216,7 @@ std::vector<Types::Byte> readByteVector(const std::map<std::string, std::string>
 
     std::vector<Types::Byte> bytes;
     const std::string &text = iterator->second;
+    if (text.size() % 2 || text.size() > 32 * 1024 * 1024) throw std::invalid_argument(key + ": invalid mask byte length");
     bytes.reserve(text.size() / 2);
     for (std::size_t offset = 0; offset + 1 < text.size(); offset += 2) {
         bytes.push_back(parseHexByte(text, offset));
@@ -194,6 +234,7 @@ std::vector<std::byte> readStdByteVector(const std::map<std::string, std::string
 
     std::vector<std::byte> bytes;
     const std::string &text = iterator->second;
+    if (text.size() % 2 || text.size() > 32 * 1024 * 1024) throw std::invalid_argument(key + ": invalid mask byte length");
     bytes.reserve(text.size() / 2);
     for (std::size_t offset = 0; offset + 1 < text.size(); offset += 2) {
         bytes.push_back(static_cast<std::byte>(parseHexByte(text, offset)));
@@ -211,6 +252,11 @@ void writeDynamicsResponseCurve(std::ostringstream &output,
     writeLine(output, prefix + ".max", numberText(curve.max));
     writeLine(output, prefix + ".jitter", numberText(curve.jitter));
     writeLine(output, prefix + ".easing", numberText(static_cast<int>(curve.easing)));
+    writeLine(output, prefix + ".points.count", numberText(curve.points.size()));
+    for (std::size_t i = 0; i < curve.points.size(); ++i) {
+        writeLine(output, prefix + ".points." + numberText(i) + ".input", numberText(curve.points[i].input));
+        writeLine(output, prefix + ".points." + numberText(i) + ".output", numberText(curve.points[i].output));
+    }
 }
 
 void writeDynamicsPropertyResponse(std::ostringstream &output,
@@ -275,6 +321,11 @@ BrushDynamicsResponseCurve readDynamicsResponseCurve(const std::map<std::string,
     curve.jitter = readNumber<Types::Scalar>(values, prefix + ".jitter", curve.jitter);
     curve.easing = static_cast<BrushDynamicsEasing>(
             readNumber<int>(values, prefix + ".easing", static_cast<int>(curve.easing)));
+    const auto count = readNumber<std::size_t>(values, prefix + ".points.count");
+    if (count > 64) throw std::invalid_argument("curve exceeds 64 knots");
+    for (std::size_t i = 0; i < count; ++i)
+        curve.points.push_back({readNumber<double>(values, prefix + ".points." + numberText(i) + ".input"),
+                                readNumber<double>(values, prefix + ".points." + numberText(i) + ".output")});
     return curve;
 }
 
@@ -470,13 +521,128 @@ BrushMaterial readMaterial(const std::map<std::string, std::string> &values)
     return material;
 }
 
+void writeAdvanced(std::ostringstream &output, const BrushPreset &p)
+{
+    writeLine(output, "shape.kind", numberText(static_cast<int>(p.shape.kind)));
+    writeLine(output, "shape.angleMode", numberText(static_cast<int>(p.shape.angleMode)));
+    writeLine(output, "shape.angleRadians", numberText(p.shape.angleRadians));
+    writeLine(output, "shape.roundness", numberText(p.shape.roundness));
+    writeLine(output, "shape.flipX", boolText(p.shape.flipX));
+    writeLine(output, "shape.flipY", boolText(p.shape.flipY));
+    writeLine(output, "stroke.spacing", numberText(p.stroke.spacing));
+    writeLine(output, "stroke.spacingRatio", numberText(p.stroke.spacingRatio));
+    writeLine(output, "stroke.spacingEnabled", boolText(p.stroke.spacingEnabled));
+    writeLine(output, "stroke.spacingFollowsSize", boolText(p.stroke.spacingFollowsSize));
+    writeLine(output, "stroke.flowEnabled", boolText(p.stroke.flowEnabled));
+    writeLine(output, "stroke.opacityEnabled", boolText(p.stroke.opacityEnabled));
+    writeLine(output, "stroke.hardnessEnabled", boolText(p.stroke.hardnessEnabled));
+    writeLine(output, "stroke.warmupDistance", numberText(p.stroke.warmupDistance));
+    writeLine(output, "stroke.taperMinimum", numberText(p.stroke.taperMinimum));
+    writeLine(output, "stroke.warmupTaperShape", numberText(static_cast<int>(p.stroke.warmupTaperShape)));
+    writeLine(output, "stroke.airbrushEnabled", boolText(p.stroke.airbrushEnabled));
+    writeLine(output, "stroke.airbrushRate", numberText(p.stroke.airbrushRate));
+    writeLine(output, "stroke.blendMode", numberText(static_cast<int>(p.stroke.blendMode)));
+    writeLine(output, "color.enabled", boolText(p.color.enabled));
+    writeLine(output, "color.secondaryArgb", numberText(p.color.secondaryArgb));
+    writeLine(output, "color.mix", numberText(p.color.mix));
+    writeLine(output, "color.hueJitter", numberText(p.color.hueJitter));
+    writeLine(output, "color.saturationJitter", numberText(p.color.saturationJitter));
+    writeLine(output, "color.valueJitter", numberText(p.color.valueJitter));
+    writeLine(output, "color.perStroke", boolText(p.color.perStroke));
+    writeLine(output, "tipSequence.selection", numberText(static_cast<int>(p.tipSequence.selection)));
+    writeLine(output, "material.scatter.axes", numberText(static_cast<int>(p.material.scatter.axes)));
+    writeLine(output, "material.scatter.distribution", numberText(static_cast<int>(p.material.scatter.distribution)));
+    writeLine(output, "material.scatter.countJitter", numberText(p.material.scatter.countJitter));
+    writeLine(output, "material.scatter.relativeToSize", boolText(p.material.scatter.relativeToSize));
+    writeLine(output, "tipSequence.count", numberText(p.tipSequence.tips.size()));
+    for (std::size_t i = 0; i < p.tipSequence.tips.size(); ++i) {
+        const auto prefix = "tipSequence." + numberText(i);
+        const auto &tip = p.tipSequence.tips[i];
+        writeLine(output, prefix + ".width", numberText(tip.width));
+        writeLine(output, prefix + ".height", numberText(tip.height));
+        writeLine(output, prefix + ".mask", byteVectorText(tip.mask));
+    }
+    writeLine(output, "dynamics.bindings.count", numberText(p.dynamics.bindings.size()));
+    for (std::size_t i = 0; i < p.dynamics.bindings.size(); ++i) {
+        const auto prefix = "dynamics.bindings." + numberText(i);
+        const auto &b = p.dynamics.bindings[i];
+        writeLine(output, prefix + ".enabled", boolText(b.enabled));
+        writeLine(output, prefix + ".source", numberText(static_cast<int>(b.source)));
+        writeLine(output, prefix + ".target", numberText(static_cast<int>(b.target)));
+        writeLine(output, prefix + ".combineMode", numberText(static_cast<int>(b.combineMode)));
+        writeLine(output, prefix + ".inputMinimum", numberText(b.inputMinimum));
+        writeLine(output, prefix + ".inputMaximum", numberText(b.inputMaximum));
+        writeLine(output, prefix + ".customInput", numberText(b.customInput));
+        writeDynamicsResponseCurve(output, prefix + ".curve", b.curve);
+    }
+}
+
+void readAdvanced(const std::map<std::string, std::string> &values, BrushPreset &p)
+{
+    p.shape.kind = static_cast<BrushTipShape>(readNumber<int>(values, "shape.kind", static_cast<int>(p.shape.kind)));
+    p.shape.angleMode = static_cast<BrushAngleMode>(readNumber<int>(values, "shape.angleMode", static_cast<int>(p.shape.angleMode)));
+    p.shape.angleRadians = readNumber<double>(values, "shape.angleRadians", p.shape.angleRadians);
+    p.shape.roundness = readNumber<double>(values, "shape.roundness", p.shape.roundness);
+    p.shape.flipX = readBool(values, "shape.flipX", p.shape.flipX);
+    p.shape.flipY = readBool(values, "shape.flipY", p.shape.flipY);
+    p.stroke.spacing = readNumber<double>(values, "stroke.spacing", p.stroke.spacing);
+    p.stroke.spacingRatio = readNumber<double>(values, "stroke.spacingRatio", p.stroke.spacingRatio);
+    p.stroke.spacingEnabled = readBool(values, "stroke.spacingEnabled", p.stroke.spacingEnabled);
+    p.stroke.spacingFollowsSize = readBool(values, "stroke.spacingFollowsSize", p.stroke.spacingFollowsSize);
+    p.stroke.flowEnabled = readBool(values, "stroke.flowEnabled", p.stroke.flowEnabled);
+    p.stroke.opacityEnabled = readBool(values, "stroke.opacityEnabled", p.stroke.opacityEnabled);
+    p.stroke.hardnessEnabled = readBool(values, "stroke.hardnessEnabled", p.stroke.hardnessEnabled);
+    p.stroke.warmupDistance = readNumber<double>(values, "stroke.warmupDistance", p.stroke.warmupDistance);
+    p.stroke.taperMinimum = readNumber<double>(values, "stroke.taperMinimum", p.stroke.taperMinimum);
+    p.stroke.warmupTaperShape = static_cast<StrokeTaperShape>(readNumber<int>(values, "stroke.warmupTaperShape", static_cast<int>(p.stroke.warmupTaperShape)));
+    p.stroke.airbrushEnabled = readBool(values, "stroke.airbrushEnabled", p.stroke.airbrushEnabled);
+    p.stroke.airbrushRate = readNumber<double>(values, "stroke.airbrushRate", p.stroke.airbrushRate);
+    p.stroke.blendMode = static_cast<RasterBlendMode>(readNumber<int>(values, "stroke.blendMode", static_cast<int>(p.stroke.blendMode)));
+    p.color.enabled = readBool(values, "color.enabled", p.color.enabled);
+    p.color.secondaryArgb = readNumber<std::uint32_t>(values, "color.secondaryArgb", p.color.secondaryArgb);
+    p.color.mix = readNumber<double>(values, "color.mix", p.color.mix);
+    p.color.hueJitter = readNumber<double>(values, "color.hueJitter", p.color.hueJitter);
+    p.color.saturationJitter = readNumber<double>(values, "color.saturationJitter", p.color.saturationJitter);
+    p.color.valueJitter = readNumber<double>(values, "color.valueJitter", p.color.valueJitter);
+    p.color.perStroke = readBool(values, "color.perStroke", p.color.perStroke);
+    p.tipSequence.selection = static_cast<BrushTipSelection>(readNumber<int>(values, "tipSequence.selection", static_cast<int>(p.tipSequence.selection)));
+    p.material.scatter.axes = static_cast<BrushScatterAxes>(readNumber<int>(values, "material.scatter.axes", static_cast<int>(p.material.scatter.axes)));
+    p.material.scatter.distribution = static_cast<BrushScatterDistribution>(readNumber<int>(values, "material.scatter.distribution", static_cast<int>(p.material.scatter.distribution)));
+    p.material.scatter.countJitter = readNumber<double>(values, "material.scatter.countJitter", p.material.scatter.countJitter);
+    p.material.scatter.relativeToSize = readBool(values, "material.scatter.relativeToSize", p.material.scatter.relativeToSize);
+    auto count = readNumber<std::size_t>(values, "tipSequence.count");
+    if (count > 256) throw std::invalid_argument("tip bank exceeds 256 masks");
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto prefix = "tipSequence." + numberText(i);
+        p.tipSequence.tips.push_back({readNumber<int>(values, prefix + ".width"),
+                readNumber<int>(values, prefix + ".height"), readStdByteVector(values, prefix + ".mask")});
+    }
+    count = readNumber<std::size_t>(values, "dynamics.bindings.count");
+    if (count > 64) throw std::invalid_argument("dynamics exceeds 64 bindings");
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto prefix = "dynamics.bindings." + numberText(i);
+        BrushDynamicsBinding b;
+        b.enabled = readBool(values, prefix + ".enabled", true);
+        b.source = static_cast<BrushDynamicsSource>(readNumber<int>(values, prefix + ".source"));
+        b.target = static_cast<BrushDynamicsTarget>(readNumber<int>(values, prefix + ".target"));
+        b.combineMode = static_cast<BrushDynamicsCombineMode>(readNumber<int>(values, prefix + ".combineMode"));
+        b.inputMinimum = readNumber<double>(values, prefix + ".inputMinimum");
+        b.inputMaximum = readNumber<double>(values, prefix + ".inputMaximum", 1);
+        b.customInput = readNumber<unsigned int>(values, prefix + ".customInput");
+        b.curve = readDynamicsResponseCurve(values, prefix + ".curve", b.curve);
+        p.dynamics.bindings.push_back(std::move(b));
+    }
+}
+
 } // namespace
 
 std::string serializeBrushPreset(const BrushPreset &preset)
 {
+    const auto errors = validateBrushPreset(preset);
+    if (!errors.empty()) throw std::invalid_argument(errors.front());
     std::ostringstream output;
     writeLine(output, "formatMagic", stringText("iiPaintBrushPreset"));
-    writeLine(output, "formatVersion", numberText(1));
+    writeLine(output, "formatVersion", numberText(2));
     writeLine(output, "brushId", uuidText(preset.brushId));
     writeLine(output, "name", stringText(preset.name));
     writeLine(output, "tip.width", numberText(preset.tip.width));
@@ -489,12 +655,16 @@ std::string serializeBrushPreset(const BrushPreset &preset)
     writeLine(output, "density", numberText(preset.density));
     writeDynamics(output, preset.dynamics);
     writeMaterial(output, preset.material);
+    writeAdvanced(output, preset);
     return output.str();
 }
 
 BrushPreset deserializeBrushPreset(const std::string &payload)
 {
     const std::map<std::string, std::string> values = parsePayload(payload);
+    const auto version = readNumber<unsigned int>(values, "formatVersion");
+    if (readString(values, "formatMagic") != "iiPaintBrushPreset" || version < 1 || version > 2)
+        throw std::invalid_argument("unsupported brush preset format or version");
     BrushPreset preset;
     preset.brushId = readUuid(values, "brushId");
     preset.name = readString(values, "name");
@@ -508,5 +678,16 @@ BrushPreset deserializeBrushPreset(const std::string &payload)
     preset.density = readNumber<float>(values, "density");
     preset.dynamics = readDynamics(values);
     preset.material = readMaterial(values);
+    readAdvanced(values, preset);
+    const auto errors = validateBrushPreset(preset);
+    if (!errors.empty()) throw std::invalid_argument(errors.front());
     return preset;
+}
+
+BrushPresetReadResult readBrushPreset(const std::string &payload)
+{
+    BrushPresetReadResult result;
+    try { result.preset = deserializeBrushPreset(payload); }
+    catch (const std::invalid_argument &error) { result.errors.push_back(error.what()); }
+    return result;
 }

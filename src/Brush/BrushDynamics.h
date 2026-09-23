@@ -5,6 +5,8 @@
 #pragma once
 
 #include "Core/Types.h"
+#include <array>
+#include <vector>
 
 enum class BrushDynamicsEasing {
     Linear,
@@ -16,6 +18,12 @@ enum class BrushDynamicsEasing {
 enum class BrushDynamicsCombineMode {
     Multiply,
     Add,
+    Replace,
+};
+
+struct BrushCurvePoint {
+    Types::Scalar input = 0.0;
+    Types::Scalar output = 0.0;
 };
 
 struct BrushDynamicsResponseCurve {
@@ -25,6 +33,29 @@ struct BrushDynamicsResponseCurve {
     Types::Scalar max = 1.0;
     Types::Scalar jitter = 0.0;
     BrushDynamicsEasing easing = BrushDynamicsEasing::Linear;
+    std::vector<BrushCurvePoint> points; // Strictly increasing x in [0,1]; overrides min/center/max.
+};
+
+enum class BrushDynamicsSource {
+    Pressure, Velocity, Tilt, TiltX, TiltY, Direction, Rotation,
+    TangentialPressure, Distance, Time, Random, StrokeRandom, Custom,
+};
+
+enum class BrushDynamicsTarget {
+    Size, Flow, Opacity, Hardness, Spacing, Scatter, Rotation, Roundness,
+    TextureDepth, Wetness, DryOut, BristleSpread, ScatterCount,
+    Hue, Saturation, Value, ColorMix,
+};
+
+struct BrushDynamicsBinding {
+    bool enabled = true;
+    BrushDynamicsSource source = BrushDynamicsSource::Pressure;
+    BrushDynamicsTarget target = BrushDynamicsTarget::Size;
+    BrushDynamicsCombineMode combineMode = BrushDynamicsCombineMode::Multiply;
+    Types::Scalar inputMinimum = 0.0;
+    Types::Scalar inputMaximum = 1.0;
+    BrushDynamicsResponseCurve curve{true, 0.0, 0.5, 1.0};
+    unsigned int customInput = 0; // One of eight application-defined scalar channels.
 };
 
 struct BrushDynamicsPropertyResponse {
@@ -72,6 +103,7 @@ struct BrushDynamics {
     BrushDynamicsPropertyResponse wetnessResponse;
     BrushDynamicsPropertyResponse dryOutResponse;
     BrushDynamicsPropertyResponse bristleSpreadResponse;
+    std::vector<BrushDynamicsBinding> bindings; // Applied in order after legacy responses.
 };
 
 struct BrushDynamicsInput {
@@ -81,6 +113,13 @@ struct BrushDynamicsInput {
     Types::Scalar tiltY = 0.0;
     Types::Scalar randomRotation = 0.0;
     Types::Scalar randomGrain = 0.0;
+    Types::Scalar directionRadians = 0.0;
+    Types::Scalar rotationRadians = 0.0;
+    Types::Scalar tangentialPressure = 0.0;
+    Types::Scalar distance = 0.0;
+    Types::Scalar elapsedTime = 0.0;
+    Types::Scalar strokeRandom = 0.0;
+    std::array<Types::Scalar, 8> custom{};
 };
 
 struct BrushDynamicsResult {
@@ -103,7 +142,15 @@ struct BrushDynamicsResult {
     Types::Scalar dryOutScale = 1.0;
     Types::Scalar bristleSpreadScale = 1.0;
     Types::Scalar grain = 0.0;
+    Types::Scalar roundnessScale = 1.0;
+    Types::Scalar scatterCountScale = 1.0;
+    Types::Scalar hueOffset = 0.0;
+    Types::Scalar saturationScale = 1.0;
+    Types::Scalar valueScale = 1.0;
+    Types::Scalar colorMix = 0.0;
 };
+
+Types::Scalar evaluateBrushResponseCurve(const BrushDynamicsResponseCurve &curve, Types::Scalar input);
 
 BrushDynamicsResult resolveBrushDynamics(const BrushDynamics &dynamics,
                                          const BrushDynamicsInput &input);

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <array>
 
 #include "Core/PaintPoint.h"
 #include "Core/Types.h"
@@ -36,4 +37,6 @@ struct TabletState {
     bool barrelButtonDown = false;
     bool eraser = false;
     TabletToolKind tool = TabletToolKind::Pen;
+    Types::Scalar tangentialPressure = 0.0;
+    std::array<Types::Scalar, 8> custom{};
 };

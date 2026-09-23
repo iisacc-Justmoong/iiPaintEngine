@@ -70,9 +70,17 @@ file(WRITE "${consumer_source_dir}/main.cpp" [=[
 
 int main()
 {
-    BrushState brush{};
+    const auto presets = builtInBrushPresets();
+    if (presets.size() < 6) return 1;
+    const auto decoded = readBrushPreset(serializeBrushPreset(presets.front()));
+    if (!decoded.preset) return 2;
+    auto resolved = resolveBrushPreset(*decoded.preset);
+    if (!resolved.brush) return 3;
+    RasterDabStream stream;
+    const auto dabs = appendRasterDabs(stream, StrokePoint{{8,8}, 0.8}, *resolved.brush);
+    const auto samples = projectBrushDabs(dabs, resolved.brush->rasterizer, {}, resolved.brush->material);
     hello();
-    return brush.randomSeed == 0 ? 0 : 1;
+    return samples.empty() ? 4 : 0;
 }
 ]=])
 

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <array>
 
 #include "Core/PaintPoint.h"
 #include "Core/Types.h"
@@ -19,4 +20,6 @@ struct StrokePoint {
     std::uint32_t deviceState = 0;
     Types::Scalar arcLength = 0.0;
     Types::Scalar rotationRadians = 0.0;
+    Types::Scalar tangentialPressure = 0.0;
+    std::array<Types::Scalar, 8> custom{};
 };

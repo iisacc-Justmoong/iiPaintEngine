@@ -70,6 +70,8 @@ StrokePoint makeStrokePoint(const PointerEvent &event)
             deviceStateFromEvent(event),
             0.0,
             event.rotationRadians,
+            event.tangentialPressure,
+            event.custom,
     };
 }
 

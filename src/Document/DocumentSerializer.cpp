@@ -3,6 +3,8 @@
 //
 
 #include "DocumentSerializer.h"
+#include "Brush/BrushPresetSerializer.h"
+#include <stdexcept>
 
 #include <algorithm>
 #include <array>
@@ -640,7 +642,11 @@ void writeBrushTextureAssetCache(std::ostringstream &output,
 {
     writeLine(output, prefix + ".enabled", boolText(cache.enabled));
     writeLine(output, prefix + ".assetId", uuidText(cache.assetId));
-    writeLine(output, prefix + ".cacheKey", stringText(cache.cacheKey));
+    // Version 2 preserves the original; old readers still require single-line fields.
+    auto legacyKey = cache.cacheKey;
+    std::replace(legacyKey.begin(), legacyKey.end(), '\n', ' ');
+    std::replace(legacyKey.begin(), legacyKey.end(), '\r', ' ');
+    writeLine(output, prefix + ".cacheKey", stringText(legacyKey));
     writeLine(output, prefix + ".revision", numberText(cache.revision));
     writeLine(output, prefix + ".width", numberText(cache.width));
     writeLine(output, prefix + ".height", numberText(cache.height));
@@ -782,8 +788,14 @@ void writeBrushSnapshot(std::ostringstream &output,
                         const std::string &prefix,
                         const BrushSnapshot &brush)
 {
+    const auto payload = serializeBrushPreset(restoreBrushPreset(brush));
+    const std::vector<Types::Byte> bytes(payload.begin(), payload.end());
+    writeLine(output, prefix + ".presetV2", byteVectorText(bytes));
     writeLine(output, prefix + ".brushId", uuidText(brush.brushId));
-    writeLine(output, prefix + ".name", stringText(brush.name));
+    auto legacyName = brush.name;
+    std::replace(legacyName.begin(), legacyName.end(), '\n', ' ');
+    std::replace(legacyName.begin(), legacyName.end(), '\r', ' ');
+    writeLine(output, prefix + ".name", stringText(legacyName));
     writeLine(output, prefix + ".tip.width", numberText(brush.tip.width));
     writeLine(output, prefix + ".tip.height", numberText(brush.tip.height));
     writeLine(output, prefix + ".tip.mask", byteVectorText(brush.tip.mask));
@@ -799,6 +811,18 @@ void writeBrushSnapshot(std::ostringstream &output,
 BrushSnapshot readBrushSnapshot(const std::map<std::string, std::string> &values,
                                 const std::string &prefix)
 {
+    const auto embedded = values.find(prefix + ".presetV2");
+    if (embedded != values.end()) {
+        const auto &hex = embedded->second;
+        if (hex.size() % 2 || hex.size() > 80 * 1024 * 1024
+                || hex.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos)
+            throw std::invalid_argument("Invalid embedded brush preset bytes.");
+        const auto bytes = readTypesByteVector(values, prefix + ".presetV2");
+        const std::string payload(bytes.begin(), bytes.end());
+        const auto decoded = readBrushPreset(payload);
+        if (!decoded.preset) throw std::invalid_argument(decoded.errors.front());
+        return snapshotBrushPreset(*decoded.preset);
+    }
     BrushSnapshot brush;
     brush.brushId = readUuid(values, prefix + ".brushId");
     brush.name = readString(values, prefix + ".name");
@@ -1084,7 +1108,14 @@ DocumentArchive deserializeDocumentArchive(const std::string &payload)
     const std::size_t brushCount = readNumber<std::size_t>(values, "brushSources.count");
     archive.brushSources.reserve(brushCount);
     for (std::size_t index = 0; index < brushCount; ++index) {
-        archive.brushSources.push_back(readBrushSnapshot(values, "brushSources." + numberText(index)));
+        try {
+            archive.brushSources.push_back(readBrushSnapshot(values, "brushSources." + numberText(index)));
+        } catch (const std::invalid_argument &error) {
+            archive.compatible = false;
+            archive.compatibilityError = error.what();
+            archive.brushSources.clear();
+            return archive;
+        }
     }
 
     const std::size_t colorSpaceCount = readNumber<std::size_t>(values, "colorSpaces.count");

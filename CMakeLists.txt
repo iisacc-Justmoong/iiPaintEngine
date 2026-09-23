@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.31)
-project(iiPaintEngine VERSION 0.1.0 LANGUAGES CXX)
+project(iiPaintEngine VERSION 0.2.0 LANGUAGES CXX)
 
 if(PROJECT_IS_TOP_LEVEL AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(_sdk_home "$ENV{HOME}")
@@ -24,7 +24,7 @@ endif ()
 
 set(IIPAINTENGINE_LICENSE_SPDX "AGPL-3.0-only")
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(GNUInstallDirs)
@@ -145,6 +145,8 @@ set(IIPAINTENGINE_SOURCES
         src/Brush/BrushDynamics.h
         src/Brush/BrushShape.cpp
         src/Brush/BrushShape.h
+        src/Brush/BrushSettings.h
+        src/Brush/BrushState.h
         src/Brush/BrushTip.cpp
         src/Brush/BrushTip.h
         src/Brush/BrushLibrary.cpp
@@ -260,6 +262,8 @@ install(TARGETS iiPaintEngine
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+install(FILES README.md docs/BRUSHES.md DESTINATION ${CMAKE_INSTALL_DATADIR}/iiPaintEngine)
+
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/licenses/iiPaintEngine")
 
@@ -347,7 +351,24 @@ if (APPLE AND IIPAINTENGINE_LVRS_LIBRARY_DIR)
             BUILD_RPATH "${IIPAINTENGINE_LVRS_LIBRARY_DIR}")
 endif ()
 
+add_executable(iiPaintEngineBrushGallery Example/BrushGallery.cpp)
+target_link_libraries(iiPaintEngineBrushGallery PRIVATE iiPaintEngine)
+
 enable_testing()
+
+add_executable(iiPaintEngineAdvancedBrushContractTests tests/AdvancedBrushContractTest.cpp)
+target_link_libraries(iiPaintEngineAdvancedBrushContractTests PRIVATE iiPaintEngine)
+add_test(NAME iiPaintEngineAdvancedBrushContract COMMAND iiPaintEngineAdvancedBrushContractTests)
+
+add_executable(iiPaintEngineAdvancedBrushRenderingTests tests/AdvancedBrushRenderingTest.cpp)
+target_link_libraries(iiPaintEngineAdvancedBrushRenderingTests PRIVATE iiPaintEngine)
+add_test(NAME iiPaintEngineAdvancedBrushRendering COMMAND iiPaintEngineAdvancedBrushRenderingTests)
+
+add_executable(iiPaintEngineAdvancedBrushAdapterTests tests/AdvancedBrushAdapterTest.cpp)
+target_link_libraries(iiPaintEngineAdvancedBrushAdapterTests PRIVATE iiPaintEngine)
+target_compile_definitions(iiPaintEngineAdvancedBrushAdapterTests PRIVATE IIPAINTENGINE_BINARY_DIR="${CMAKE_CURRENT_BINARY_DIR}")
+add_test(NAME iiPaintEngineAdvancedBrushAdapter COMMAND iiPaintEngineAdvancedBrushAdapterTests)
+
 
 add_executable(iiPaintEngineTests
         tests/BlueprintStructureTest.cpp)

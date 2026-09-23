@@ -11,7 +11,7 @@ namespace {
 
 Types::Scalar clamp01(Types::Scalar value)
 {
-    return std::clamp(value, 0.0, 1.0);
+    return std::isfinite(value) ? std::clamp(value, 0.0, 1.0) : 0.0;
 }
 
 Types::Scalar positiveScale(Types::Scalar value)
@@ -48,13 +48,7 @@ Types::Scalar resolveCurve(const BrushDynamicsResponseCurve &curve,
                            Types::Scalar randomJitter,
                            bool randomEnabled)
 {
-    const Types::Scalar t = clamp01(input);
-    Types::Scalar value = curve.center;
-    if (t < 0.5) {
-        value = interpolate(curve.min, curve.center, easedValue(curve.easing, t * 2.0));
-    } else {
-        value = interpolate(curve.center, curve.max, easedValue(curve.easing, (t - 0.5) * 2.0));
-    }
+    Types::Scalar value = evaluateBrushResponseCurve(curve, input);
     if (randomEnabled && curve.jitter != 0.0) {
         value += randomJitter * curve.jitter;
     }
@@ -82,7 +76,9 @@ void combineCurve(Types::Scalar &value,
         return;
     }
 
-    if (response.combineMode == BrushDynamicsCombineMode::Add) {
+    if (response.combineMode == BrushDynamicsCombineMode::Replace) {
+        value = curveValue;
+    } else if (response.combineMode == BrushDynamicsCombineMode::Add) {
         value += curveValue;
     } else {
         value *= curveValue;
@@ -122,6 +118,24 @@ Types::Scalar resolvePropertyResponse(const BrushDynamicsPropertyResponse &respo
 }
 
 } // namespace
+
+Types::Scalar evaluateBrushResponseCurve(const BrushDynamicsResponseCurve &curve, Types::Scalar input)
+{
+    const auto t = clamp01(input);
+    if (!curve.points.empty()) {
+        if (t <= curve.points.front().input) return curve.points.front().output;
+        for (std::size_t i = 1; i < curve.points.size(); ++i) {
+            const auto &a = curve.points[i - 1];
+            const auto &b = curve.points[i];
+            if (t <= b.input && b.input > a.input)
+                return interpolate(a.output, b.output, easedValue(curve.easing, (t - a.input) / (b.input - a.input)));
+        }
+        return curve.points.back().output;
+    }
+    return t < 0.5
+            ? interpolate(curve.min, curve.center, easedValue(curve.easing, t * 2.0))
+            : interpolate(curve.center, curve.max, easedValue(curve.easing, (t - 0.5) * 2.0));
+}
 
 BrushDynamicsResult resolveBrushDynamics(const BrushDynamics &dynamics,
                                          const BrushDynamicsInput &input)
@@ -289,5 +303,73 @@ BrushDynamicsResult resolveBrushDynamics(const BrushDynamics &dynamics,
         result.textureDirectionRadians = std::atan2(tiltY, tiltX);
     }
 
+    for (const auto &binding : dynamics.bindings) {
+        if (!binding.enabled || !binding.curve.enabled) continue;
+        Types::Scalar source = 0.0;
+        switch (binding.source) {
+            case BrushDynamicsSource::Pressure:
+                if (!dynamics.pressureInputEnabled) continue;
+                source = pressure; break;
+            case BrushDynamicsSource::Velocity:
+                if (!dynamics.velocityInputEnabled) continue;
+                source = velocity; break;
+            case BrushDynamicsSource::Tilt:
+                if (!dynamics.tiltInputEnabled) continue;
+                source = tiltMagnitude; break;
+            case BrushDynamicsSource::TiltX:
+                if (!dynamics.tiltInputEnabled) continue;
+                source = tiltX; break;
+            case BrushDynamicsSource::TiltY:
+                if (!dynamics.tiltInputEnabled) continue;
+                source = tiltY; break;
+            case BrushDynamicsSource::Direction: source = input.directionRadians; break;
+            case BrushDynamicsSource::Rotation: source = input.rotationRadians; break;
+            case BrushDynamicsSource::TangentialPressure: source = input.tangentialPressure; break;
+            case BrushDynamicsSource::Distance: source = input.distance; break;
+            case BrushDynamicsSource::Time: source = input.elapsedTime; break;
+            case BrushDynamicsSource::Random:
+                if (!dynamics.randomInputEnabled) continue;
+                source = input.randomGrain; break;
+            case BrushDynamicsSource::StrokeRandom:
+                if (!dynamics.randomInputEnabled) continue;
+                source = input.strokeRandom; break;
+            case BrushDynamicsSource::Custom:
+                if (binding.customInput >= input.custom.size()) continue;
+                source = input.custom[binding.customInput]; break;
+        }
+        const auto span = binding.inputMaximum - binding.inputMinimum;
+        if (!std::isfinite(source) || !std::isfinite(span) || span <= 0.0) continue;
+        const auto value = resolveCurve(binding.curve, (source - binding.inputMinimum) / span,
+                                        input.randomRotation, dynamics.randomInputEnabled);
+        if (!std::isfinite(value)) continue;
+        Types::Scalar *target = nullptr;
+        switch (binding.target) {
+            case BrushDynamicsTarget::Size: target = &result.sizeScale; break;
+            case BrushDynamicsTarget::Flow: target = &result.flowScale; break;
+            case BrushDynamicsTarget::Opacity: target = &result.opacityScale; break;
+            case BrushDynamicsTarget::Hardness: target = &result.hardnessScale; break;
+            case BrushDynamicsTarget::Spacing: target = &result.spacingScale; break;
+            case BrushDynamicsTarget::Scatter: target = &result.scatterScale; break;
+            case BrushDynamicsTarget::Rotation: target = &result.rotationOffsetRadians; break;
+            case BrushDynamicsTarget::Roundness: target = &result.roundnessScale; break;
+            case BrushDynamicsTarget::TextureDepth: target = &result.textureDepthScale; break;
+            case BrushDynamicsTarget::Wetness: target = &result.wetnessScale; break;
+            case BrushDynamicsTarget::DryOut: target = &result.dryOutScale; break;
+            case BrushDynamicsTarget::BristleSpread: target = &result.bristleSpreadScale; break;
+            case BrushDynamicsTarget::ScatterCount: target = &result.scatterCountScale; break;
+            case BrushDynamicsTarget::Hue: target = &result.hueOffset; break;
+            case BrushDynamicsTarget::Saturation: target = &result.saturationScale; break;
+            case BrushDynamicsTarget::Value: target = &result.valueScale; break;
+            case BrushDynamicsTarget::ColorMix: target = &result.colorMix; break;
+        }
+        if (!target) continue;
+        switch (binding.combineMode) {
+            case BrushDynamicsCombineMode::Multiply: *target *= value; break;
+            case BrushDynamicsCombineMode::Add: *target += value; break;
+            case BrushDynamicsCombineMode::Replace: *target = value; break;
+        }
+        const bool signedTarget = binding.target == BrushDynamicsTarget::Rotation || binding.target == BrushDynamicsTarget::Hue;
+        *target = std::clamp(*target, signedTarget ? -1024.0 : 0.0, 1024.0);
+    }
     return result;
 }

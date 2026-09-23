@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <array>
 
 #include "Core/PaintPoint.h"
 #include "Core/Types.h"
@@ -74,4 +75,6 @@ struct PointerEvent {
     Types::Scalar gestureScale = 1.0;
     Types::Scalar gestureRotationRadians = 0.0;
     std::uint32_t touchPointCount = 0;
+    Types::Scalar tangentialPressure = 0.0;
+    std::array<Types::Scalar, 8> custom{};
 };

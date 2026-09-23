@@ -9,6 +9,9 @@
 #include "Brush/BrushDynamics.h"
 #include "Brush/BrushMaterial.h"
 #include "Brush/BrushTip.h"
+#include "Brush/BrushShape.h"
+#include "Brush/BrushSettings.h"
+#include "Brush/BrushPreset.h"
 #include "Core/PaintUuid.h"
 
 struct BrushSnapshot {
@@ -22,4 +25,11 @@ struct BrushSnapshot {
     float density = 0.0F;
     BrushDynamics dynamics;
     BrushMaterial material;
+    BrushShape shape;
+    BrushStrokeSettings stroke;
+    BrushTipSequence tipSequence;
+    BrushColorSettings color;
 };
+
+BrushSnapshot snapshotBrushPreset(const BrushPreset &preset);
+BrushPreset restoreBrushPreset(const BrushSnapshot &snapshot);

@@ -9,6 +9,8 @@
 #include "Brush/BrushPresetSerializer.h"
 #include "Brush/BrushResolve.h"
 #include "Brush/BrushShape.h"
+#include "Brush/BrushSettings.h"
+#include "Brush/BrushState.h"
 #include "Brush/BrushSnapshot.h"
 #include "Brush/BrushTip.h"
 #include "Color/ColorSpace.h"

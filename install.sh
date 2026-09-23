@@ -305,6 +305,9 @@ IIPAINTENGINE_HOST_TEST_TARGETS=(
     iiPaintEngineBrushDynamicsMappingTests
     iiPaintEngineBrushDynamicsResponseCurveContractTests
     iiPaintEngineBrushFeatureToggleContractTests
+    iiPaintEngineAdvancedBrushContractTests
+    iiPaintEngineAdvancedBrushRenderingTests
+    iiPaintEngineAdvancedBrushAdapterTests
     iiPaintEngineBrushExpressionContractTests
     iiPaintEngineBrushTextureLayerContractTests
     iiPaintEngineWetBrushSimulationContractTests

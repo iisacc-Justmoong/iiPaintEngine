@@ -81,10 +81,17 @@ struct DualBrush {
     Types::Pixel height = 0;
 };
 
+enum class BrushScatterAxes { Both, Perpendicular, AlongStroke };
+enum class BrushScatterDistribution { Square, Disk };
+
 struct BrushScatter {
     bool enabled = false;
     Types::Scalar radius = 0.0;
     std::uint32_t count = 1;
+    BrushScatterAxes axes = BrushScatterAxes::Both;
+    BrushScatterDistribution distribution = BrushScatterDistribution::Square;
+    Types::Scalar countJitter = 0.0;
+    bool relativeToSize = false;
 };
 
 struct BrushSimulation {

@@ -78,7 +78,7 @@ int main()
     BrushState unscatteredBrush = brush;
     unscatteredBrush.material.scatter.enabled = false;
     const std::vector<BrushDab> unscattered = lineDabs(unscatteredBrush);
-    if (command.size() != unscattered.size()) {
+    if (command.size() != unscattered.size() * brush.material.scatter.count) {
         return 1;
     }
 

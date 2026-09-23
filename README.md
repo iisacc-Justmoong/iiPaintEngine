@@ -17,7 +17,7 @@ PointerEvent
 → RasterLayer
 ```
 
-`InputStrokeBuilder`는 좌표 목록을 보유하지 않고 현재 이벤트의 점 하나만 방출한다. `RasterDabStream`은 직전 점 하나와 spacing/random 누적 상태만 가진다. 전체 궤적,
+`InputStrokeBuilder`는 좌표 목록을 보유하지 않고 현재 이벤트의 점 하나만 방출한다. `RasterDabStream`은 직전 점 하나와 간격·시각·방향·난수의 누적 상태만 가진다. 전체 궤적,
 curve, 원본 입력, replay command는 임시로도 만들지 않는다. `BrushDab`은 재편집 가능한 도형이 아니라 즉시 픽셀로 투영되는 일회성 비트맵 스탬프이다.
 
 `configureHighFidelityPointerInput()`은 Qt의 고빈도·태블릿 이벤트 병합을 끄고 macOS에서는 AppKit의 mouse/drag/tablet coalescing도 끈다. 가능한 경우
@@ -67,6 +67,13 @@ item의 width/height가 바뀌어도 파일 픽셀 크기는 바뀌지 않는다
 - `src/QtAdapter`: `BitmapFileItem` view/input adapter, 문서 adapter, layer list facade
 
 Render cache에는 tile cache와 brush stamp atlas만 있다. 입력 경로를 다시 계산하는 stroke replay cache는 없다.
+
+## Advanced brushes
+
+`BrushPreset`에 다중 마스크 팁, 모양·방향·반전, 산포 개수·분포, HSV 색상 변화, 시간 분사, 입력별 사용자 곡선과 속성 연결을 설정한다.
+`resolveBrushPreset()`은 설정을 검증해 실행용 `BrushState`로 변환하며 `builtInBrushPresets()`는 여섯 종류의 편집 가능한 예제를 제공한다.
+`BitmapFileItem::setBrushPreset()` 또는 QML의 `setBrushPresetData()`로 같은 객체를 실제 파일 페인팅에 사용한다.
+프리셋 버전 2와 문서의 brushSources는 확장 설정 전체를 왕복한다. [브러시 API, 단위, 예제와 호환성](docs/BRUSHES.md)을 참고한다.
 
 ## C++ integration
 
