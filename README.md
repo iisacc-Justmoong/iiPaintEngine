@@ -279,3 +279,6 @@ BitmapFile delegates file reads and atomic output to iiFileProvider 0.5. Image c
 ## Source layout
 
 Implementation files and their headers live together under `src/`. Existing feature and platform subdirectories retain their responsibilities. Build configuration, tests, documentation, resources, and maintenance scripts remain at the project root. Configure and build using the repository-local `build/` directory.
+# Windows 설치 검증
+
+Windows installer detection heuristic에 따라 설치 프로그램으로 오인되지 않도록 레이아웃 검증 실행 파일은 `Install`로 시작하지 않는다. Windows 빌드는 Qt MinGW 13.1.0과 Ninja를 사용하며 모든 출력은 `build/`에 생성한다.
