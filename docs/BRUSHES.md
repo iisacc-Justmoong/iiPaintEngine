@@ -23,7 +23,7 @@ StrokePoint point{{100, 80}, 0.6, 0.0};
 point.rotationRadians = 0.4;
 auto dabs = appendRasterDabs(stream, point, *resolved.brush);
 auto pixels = projectBrushDabs(dabs, resolved.brush->rasterizer, {}, resolved.brush->material);
-// Apply pixels immediately to a RasterLayer / BitmapFile. Do not retain dabs as artwork.
+// 픽셀을 RasterLayer / BitmapFile에 즉시 적용한다. 붓 자국을 작품 데이터로 보관하지 않는다.
 ```
 
 ## 설정과 단위

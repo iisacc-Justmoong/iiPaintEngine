@@ -1,11 +1,10 @@
 # iiPaintEngine
 
-iiPaintEngine은 C++/Qt/QML용 순수 비트맵 파일 페인팅 엔진이다. 작업 대상은 추상적인 화면 표면이 아니라 경로와 원본 형식이 결합된 `src/BitmapFile`이다. 입력 경로를 벡터 스트로크로
-만들거나 저장하거나 재생하지 않는다.
+iiPaintEngine is a pure bitmap file painting engine for C++ / Qt /QML. The target is not an abstract screen surface but `src/BitmapFile` combined with paths and original format. Input paths are not created as vector strokes, saved, or replayed.
 
 ## Bitmap-only contract
 
-그리기 입력은 press, move, release 이벤트마다 즉시 비트맵으로 바뀐다.
+Drawing input changes to bitmap immediately for each press, move, release event.
 
 ```text
 PointerEvent
@@ -17,22 +16,17 @@ PointerEvent
 → RasterLayer
 ```
 
-`InputStrokeBuilder`는 좌표 목록을 보유하지 않고 현재 이벤트의 점 하나만 방출한다. `RasterDabStream`은 직전 점 하나와 간격·시각·방향·난수의 누적 상태만 가진다. 전체 궤적,
-curve, 원본 입력, replay command는 임시로도 만들지 않는다. `BrushDab`은 재편집 가능한 도형이 아니라 즉시 픽셀로 투영되는 일회성 비트맵 스탬프이다.
+`InputStrokeBuilder` does not hold a coordinate list and emits only one point of the current event. `RasterDabStream` holds only the accumulated state of the previous point and interval·visual·direction·randomness. Entire trajectory, curve, original input, and replay command are not created even temporarily. `BrushDab` is a one-time bitmap stamp projected immediately to pixels, not a re-editable shape.
 
-`configureHighFidelityPointerInput()`은 Qt의 고빈도·태블릿 이벤트 병합을 끄고 macOS에서는 AppKit의 mouse/drag/tablet coalescing도 끈다. 가능한 경우
-`QGuiApplication` 생성 전에 호출한다. `registerIipeQmlTypes()`와 `BitmapFileItem`도 이 정책을 자동 적용하므로 지연 중 측정된 중간 좌표를 버리고 두 끝점만 직선으로 잇지 않는다.
-live preview는 새 dab이 실제로 건드린 sample pixel만 복사하며, 멀리 떨어진 두 점을 감싸는 사각형 전체를 매 입력마다 훑지 않는다.
+`configureHighFidelityPointerInput()` disables Qt's high-frequency tablet event coalescing, and macOS also disables AppKit's mouse/drag/tablet coalescing. It is called before `QGuiApplication` generation if possible. `registerIipeQmlTypes()` and `BitmapFileItem` also automatically apply this policy, so intermediate coordinates measured during delay are discarded and only the two endpoints are connected in a straight line. Live preview copies only the sample pixels actually touched by the new dab, and does not scan the entire rectangle enclosing two distant points on each input.
 
-live preview는 pending bitmap buffer를 표시한 결과이다. release 시 그 픽셀 버퍼를 열린 `src/BitmapFile`의 ARGB 픽셀에 직접 합성한다. undo/redo는 raster
-snapshot
-또는 dirty-rect pixel patch를 사용한다. 저장 파일에는 현재 픽셀만 기록하며 포인터 궤적을 저장하지 않는다.
+Live preview is the result of displaying the pending bitmap buffer. At release, that pixel buffer is directly composited into the open `src/BitmapFile` ARGB pixels. Undo/redo uses a raster snapshot or dirty-rect pixel patch. The saved file records only the current pixels and does not store the pointer trajectory.
 
-텍스트, SVG, 도형 같은 외부 콘텐츠는 iiPaintEngine에 넣기 전에 비트맵으로 변환해야 한다. 엔진은 raster paint layer만 소유한다.
+External content such as text, SVG, and shapes must be converted to a bitmap before being placed in iiPaintEngine. The engine owns only the raster paint layer.
 
 ## Architecture
 
-파일 편집 소유 구조는 다음과 같다.
+The file editing ownership structure is as follows.
 
 ```text
 BitmapFile
@@ -45,39 +39,32 @@ BitmapFileItem
 → BitmapFile pixel mutation API
 ```
 
-`src/BitmapFile`이 파일 경로, 실제 바이트에서 감지한 형식, ARGB32 sRGB 픽셀, 수정 상태를 함께 소유한다. `BitmapFileItem`은 파일 픽셀을 소유하지 않으며 입력 좌표 변환과 화면 표시만
-담당한다.
-item의 width/height가 바뀌어도 파일 픽셀 크기는 바뀌지 않는다. 새 작업도 익명 표면 생성이 아니라 `createFile(path, width, height, format)`으로 실제 파일 대상을 먼저
-만든다.
+`src/BitmapFile` owns the file path, format detected from the actual bytes, ARGB32 sRGB pixels, and modification state together. `BitmapFileItem` does not own the file pixels; it only handles input-coordinate conversion and screen display. Changing the item's width/height does not change the file's pixel dimensions. A new operation also creates an actual file target first through `createFile(path, width, height, format)` rather than creating an anonymous surface.
 
-레이어 문서 archive가 필요한 C++ 흐름에서는 `PaintDocument`가 최종 합성 `DrawingSurface`와 `LayerStack`을 직접 소유한다. 이 흐름도 실제 콘텐츠는 픽셀뿐이며 파일 편집
-경로와 별개의 화면 표면 모델을 만들지 않는다.
+In the C++ flow where a layer document archive is required, `PaintDocument` directly owns the final synthesized `DrawingSurface` and `LayerStack`. This flow also creates only a pixel-based actual content and does not create a separate screen surface model from the file edit path.
 
-주요 모듈은 다음과 같다.
+The main modules are as follows.
 
-- `src/Core`: 좌표, rect, UUID, 오류, raster sample 값 타입
-- `src/Input`: mouse/tablet event normalization과 현재 점 방출
-- `src/Brush`: preset, dynamics, material, texture, wet/bristle 설정
-- `src/Stroke/Rasterizer`: 직전 점에서 현재 점까지 bitmap dab 배치와 pixel projection
+- `src/Core`: coordinate, rect, UUID, error, raster sample value type
+- `src/Input`: mouse/tablet event normalization and current point release
+- `src/Brush`: preset, dynamics, material, texture, wet/bristle settings
+- `src/Stroke/Rasterizer`: bitmap dab placement from the previous point to the current point and pixel projection
 - `src/Layer`: raster surface, mask, blend, layer stack
-- `src/Render`: CPU/GPU raster layer 합성, tile cache, brush stamp atlas
-- `src/BitmapFile`: 런타임 bitmap format 감지/저장, 파일 경로, 직접 수정 가능한 ARGB 픽셀
-- `src/Document`: 단일 bitmap surface, layer stack, format version 3 직렬화와 version 2 단일 표면 읽기 호환성
-- `src/History`: raster patch/snapshot 기반 undo/redo 메타데이터
-- `src/QtAdapter`: `BitmapFileItem` view/input adapter, 문서 adapter, layer list facade
+- `src/Render`: CPU / GPU raster layer compositing, tile cache, brush stamp atlas
+- `src/BitmapFile`: runtime bitmap format detection/storage, file path, directly editable ARGB pixels
+- `src/Document`: single bitmap surface, layer stack, and format version 3 serialization and version 2 single surface read compatibility
+- `src/History`: raster patch/snapshot-based undo/redo metadata
+- `src/QtAdapter`: `BitmapFileItem` view/input adapter, document adapter, and layer list facade
 
-Render cache에는 tile cache와 brush stamp atlas만 있다. 입력 경로를 다시 계산하는 stroke replay cache는 없다.
+Render cache contains only tile cache and brush stamp atlas. There is no stroke replay cache that recalculates input paths.
 
 ## Advanced brushes
 
-`BrushPreset`에 다중 마스크 팁, 모양·방향·반전, 산포 개수·분포, HSV 색상 변화, 시간 분사, 입력별 사용자 곡선과 속성 연결을 설정한다.
-`resolveBrushPreset()`은 설정을 검증해 실행용 `BrushState`로 변환하며 `builtInBrushPresets()`는 여섯 종류의 편집 가능한 예제를 제공한다.
-`BitmapFileItem::setBrushPreset()` 또는 QML의 `setBrushPresetData()`로 같은 객체를 실제 파일 페인팅에 사용한다.
-프리셋 버전 2와 문서의 brushSources는 확장 설정 전체를 왕복한다. [브러시 API, 단위, 예제와 호환성](docs/BRUSHES.md)을 참고한다.
+`BrushPreset` sets multi-mask tips, shape, direction, and inversion, scatter count and distribution, HSV color changes, time injection, and per-input user curves and property connections. `resolveBrushPreset()` validates the settings and converts them to runtime `BrushState`, while `builtInBrushPresets()` provides six kinds of editable examples. The same object is used for actual file painting via `BitmapFileItem::setBrushPreset()` or QML's `setBrushPresetData()`. Preset version 2 and the document's brushSources traverse the entire extended settings. [brush API, units, examples, and compatibility](docs/BRUSHES.md)are referenced.
 
 ## C++ integration
 
-설치된 소비자는 extensionless umbrella header 하나로 공개 API를 사용할 수 있다.
+Installed consumers can use the public API via a single extensionless umbrella header.
 
 ```cpp
 #include <QGuiApplication>
@@ -97,7 +84,7 @@ find_package(iiPaintEngine CONFIG REQUIRED)
 target_link_libraries(app PRIVATE iiPaintEngine::iiPaintEngine)
 ```
 
-문서 레이어에 그릴 때는 이미 rasterized된 픽셀을 전달한다.
+When drawing to a document layer, already rasterized pixels are passed.
 
 ```cpp
 PaintEngineController engine = makePaintEngineController(1024, 768);
@@ -110,11 +97,11 @@ std::vector<RasterSample> pixels{
 commitPaintSamples(engine, pixels, {{100.0, 100.0}, 2.0, 1.0});
 ```
 
-`commitPaintSamples`는 active layer의 픽셀을 갱신하고 raster paint history를 기록한다. 원본 좌표나 brush trajectory는 문서에 남기지 않는다.
+`commitPaintSamples` updates the pixels of the active layer and records the raster paint history, leaving no original coordinates or brush trajectory in the document.
 
 ## QML API
 
-애플리케이션 시작 시 `registerIipeQmlTypes()`를 호출한 뒤 `iipe` 모듈을 가져온다.
+The application calls `registerIipeQmlTypes()` at startup and then loads the `iipe` module.
 
 ```qml
 import QtQuick 2.15
@@ -150,46 +137,34 @@ Iipe.BitmapFile {
 }
 ```
 
-viewport API는 `documentX`, `documentY`, `zoom`, `bitmapDevicePixelRatio`, `setDocumentViewport`, `resetView`, `panBy`,
-`zoomAt`을 제공한다. 브러시 API는 color, size, spacing, flow, opacity, hardness, pressure curve와 각 enabled flag를 제공한다. 상태 API는
-`liveStrokeActive`, `strokeCount`, `inputDevice`, `inputPressure`를 읽을 수 있다.
+The viewport API provides `documentX`, `documentY`, `zoom`, `bitmapDevicePixelRatio`, `setDocumentViewport`, `resetView`, `panBy`, and `zoomAt`. The brush API provides color, size, spacing, flow, opacity, hardness, pressure curve, and each enabled flag. The state API can read `liveStrokeActive`, `strokeCount`, `inputDevice`, and `inputPressure`.
 
-`BitmapFileItem`은 `createFile`, `openFile`, `save`, `saveAs`, `undo`, `redo`, `toolMode`, `brushConfig`,
-`viewportConfig`, `runtimeConfig`,
-`stateSnapshot`을 하나의 파일 중심 API로 제공한다. `filePath`, `fileFormat`, `fileOpen`, `modified`, `pixelWritable`,
-`canSaveInPlace`, `bitmapWidth`,
-`bitmapHeight`로 현재 파일 상태를 확인한다. `supportedOpenFormats`와 `supportedSaveFormats`는 현재 Qt 런타임의 실제 bitmap codec을 보고하며,
-`supportedEditableFormats`는 읽기와 쓰기가 모두 가능한 교집합이다. 읽기 전용 형식도 픽셀 편집은 가능하며, 원래 형식 writer가 없으면 `saveAs`로 설치된 쓰기 형식을 선택한다.
+`BitmapFileItem` provides `createFile`, `openFile`, `save`, `saveAs`, `undo`, `redo`, `toolMode`, `brushConfig`, `viewportConfig`, `runtimeConfig`, and `stateSnapshot` as a single file-centric API. `filePath`, `fileFormat`, `fileOpen`, `modified`, `pixelWritable`, `canSaveInPlace`, `bitmapWidth`, and `bitmapHeight` check the current file status. `supportedOpenFormats` and `supportedSaveFormats` inspect the actual bitmap codec of the current Qt runtime, and `supportedEditableFormats` is the intersection where both reading and writing are possible. Pixel editing is also possible for read-only formats, and if no original format writer exists, the installed write format `saveAs` is selected.
 
-`toolMode: "eraser"`는 pending bitmap alpha mask를 destination-out으로 합성한다.
+`toolMode: "eraser"` composites the pending bitmap alpha mask with destination-out.
 
 ## Bitmap file compatibility
 
-`src/BitmapFile`은 Qt Gui에 이미 포함된 이미지 I/O 플러그인을 사용하므로 외부 의존성을 추가하지 않는다. 읽기는 파일 확장자보다 실제 바이트 형식을 우선 감지하고 EXIF 방향을 적용한 뒤
-자체 `RasterLayer`의 ARGB32 sRGB 픽셀로 정규화한다. 저장은 객체에 보존된 감지 형식을 사용하므로 확장자가 잘못된 파일도 원래 bitmap 형식으로 다시 쓴다. `saveAs`는 명시 형식 또는
-확장자를 사용하고 JPEG 같은 불투명 형식은 배경색에 합성하며, 모든 저장은 `QSaveFile`로 원자적으로 교체한다.
+`src/BitmapFile` already includes an image I/O plugin in Qt Gui, so no external dependencies are added. Reading prioritizes detecting the actual byte format over file extension, applies EXIF direction, and normalizes to ARGB32 sRGB pixels of its own `RasterLayer`. Saving uses the detected format preserved in the object, so even files with wrong extensions are rewritten as the original bitmap format. `saveAs` uses explicit format or extension, and opaque formats like JPEG are composited to the background color, and all saving atomically replaces with `QSaveFile`.
 
-PNG, JPEG, BMP, WebP, TIFF, GIF, ICO/ICNS, HEIF, JPEG 2000 등은 해당 Qt 런타임에 코덱이 설치되어 있을 때만 노출한다. SVG, SVGZ, PDF 같은 벡터 입력은
-플러그인이 설치되어 있어도 허용 목록에서 제외하며 디코더로 넘기지 않는다. 따라서 벡터 도형이나 경로를 임시 표현으로도 생성하지 않는다. 애니메이션 컨테이너는 첫 번째 비트맵 프레임만 읽는다.
+PNG, JPEG, BMP, WebP, TIFF, GIF, ICO / ICNS, HEIF, JPEG 2000, etc., are exposed only when the codec is installed at the corresponding Qt runtime. SVG, SVGZ, PDF and similar vector inputs are excluded from the allow list even if the plugin is installed and are not passed to the decoder. Therefore, vector shapes or paths are not created even as temporary representations. The animation container reads only the first bitmap frame.
 
 ## Document format
 
-`DocumentArchive::formatVersion`과 `DocumentSerializer::formatVersion`은 3이다. version 3은 `PaintDocument`의 surface와 layer
-stack을 직접 저장한다. version 2의 단일 표면 archive는 읽을 때 같은 비트맵 문서 구조로 이관하고, 다음 저장부터 version 3으로 기록한다. 여러 표면을 가진 레거시 archive와 더
-높은 미래 버전은 일부 데이터만 취하는 대신 `compatible=false`와 오류를 반환하여 원본을 보존한다. archive는 다음 데이터를 왕복한다.
+`DocumentArchive::formatVersion` and `DocumentSerializer::formatVersion` are 3. version 3 directly saves the surface and layer stack of `PaintDocument`. The single-surface archive of version 2 is migrated to the same bitmap document structure when reading, and is recorded as version 3 from the next save. Legacy archives with multiple surfaces and higher future versions return `compatible=false` and an error instead of taking some data, thereby preserving the original. The archive round-trips the following data.
 
-- document composite와 raster layer pixel surface
+- document composite and raster layer pixel surface
 - layer metadata, mask, children, blend/opacity
 - brush source preset
-- color space와 ICC profile
+- color space and ICC profile
 - embedded asset
-- raster command history metadata와 pixel patch payload
+- raster command history metadata and pixel patch payload
 
-archive는 전체 입력점, 곡선, dab sequence 또는 replay 가능한 stroke를 포함하지 않는다.
+The archive does not include the entire input point, curve, dab sequence, or replayable stroke.
 
 ## Build and example
 
-빌드 디렉터리는 항상 `build/`이다.
+The build directory is always `build/`.
 
 ```sh
 cmake -S . -B build
@@ -197,39 +172,30 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-예제 실행 파일은 소스 트리가 아니라 다음 build-tree 경로에 생성된다.
+The example executable is created in the following build-tree path, not in the source tree.
 
 ```text
 build/Example/bin/iiPaintEngineExample
 ```
 
-`Example/Main.qml`은 LVRS control과 `Iipe.BitmapFile`을 사용하며 임시 PNG 파일을 실제 작업 대상으로 생성한 뒤 size, flow, opacity, hardness,
-spacing,
-pressure curve, live preview, clear/reset view를 공개 API로 검증한다.
-예제의 slider 범위는 size 2–72 px, flow/opacity/hardness 0.05–1.0, spacing 0–1.0이며 `iiPaintEngineExampleDemoContract`가 이 QML
-계약을 검증한다.
+`Example/Main.qml` uses LVRS controls and `Iipe.BitmapFile`, creates a temporary PNG file as the actual working target, and verifies size, flow, opacity, hardness, spacing, pressure curve, live preview, and clear/reset view through the public API. Example slider ranges are 2–72 px for size, 0.05–1.0for flow/opacity/hardness, and 0–1.0 for spacing. `iiPaintEngineExampleDemoContract` verifies this QML contract.
 
 ## Install
 
-기본 설치 prefix는 `~/.local/SDK/iiPaintEngine`이다. Unix 계열에서는 다음을 실행한다.
-로컬 Qt kit의 기본 루트는 `/Volumes/Storage/Qt/6.8.3`이며 `IIPAINTENGINE_QT_ROOT`로 재정의할 수 있다.
+The default install prefix is `~/.local/SDK/iiPaintEngine`. On Unix-like systems, run the following. The default root of the local Qt kit is `/Volumes/Storage/Qt/6.8.3` and can be overridden with `IIPAINTENGINE_QT_ROOT`.
 
 ```sh
 ./install.sh
 IIPAINTENGINE_INSTALL_PLATFORMS=macos ./install.sh
 ```
 
-macOS의 기본 전체 설치는 Homebrew Android SDK/NDK도 자동 탐지하며, 탐지한 NDK toolchain을 Qt Android 체인로드 경로로 명시해 오래된 Qt cache 경로를 사용하지
-않는다.
-iOS·Android·WASM 설치는 현재 운영체제의 Qt 도구 경로를 `QT_HOST_PATH`로 전달한다.
-별도 호스트 Qt 설치본은 `IIPAINTENGINE_HOST_QT_PREFIX` 또는 `QT_HOST_PATH`로 지정한다.
-모바일 설치 후 다음 명령으로 실제 iOS/Android 라이브러리가 각각 iOS ARM64와 Android AArch64인지 검사한다.
+macOS default full installation automatically detects Homebrew Android SDK /NDK and specifies the detected NDK toolchain to the Qt Android chainload path, avoiding use of old Qt cache paths. iOS · Android · WASM installation passes the current operating system's Qt tool path to `QT_HOST_PATH`. A separate host Qt installation is specified via `IIPAINTENGINE_HOST_QT_PREFIX` or `QT_HOST_PATH`. After mobile installation, the actual iOS / Android library is checked to see if it is iOS ARM64 and Android AArch64 respectively.
 
 ```sh
 python3 tests/verify_mobile_packages.py --prefix ~/.local/SDK/iiPaintEngine --ndk "$ANDROID_NDK_ROOT"
 ```
 
-Windows PowerShell에서는 다음을 실행한다.
+At Windows PowerShell, the following is executed.
 
 ```powershell
 .\install.ps1
@@ -238,10 +204,9 @@ $env:IIPAINTENGINE_INSTALL_PLATFORMS = "windows"
 .\install.ps1
 ```
 
-Windows host 빌드는 선택한 Qt kit과 일치하는 Qt MinGW 13.1.0과 Ninja 조합을 고정해 사용한다. Visual Studio generator와 MinGW Qt binary를 섞지 않는다.
-설치 스크립트는 matching compiler와 Ninja 경로를 CMake에 명시한다.
+Windows host builds are fixed to use the selected Qt kit matching Qt MinGW 13.1.0 and Ninja combination. Visual Studio generator and MinGW Qt binary are not mixed. The install script specifies matching compiler and Ninja path to CMake.
 
-host package와 플랫폼 mirror는 다음에 설치된다.
+Host package and platform mirror are installed next.
 
 ```text
 ~/.local/SDK/iiPaintEngine/
@@ -257,64 +222,42 @@ The root CMake package version is architecture independent so one prefix can
 dispatch both 64-bit native consumers and 32-bit WASM consumers. Each
 platform package keeps its generated binary architecture compatibility check.
 
-설치 스크립트는 shared library, headers, CMake package config, license를 함께 배치하고 host 테스트를 실행한다. 단일 구성 generator도 Release로
-구성하므로 설치된 `iiPaintEngine::iiPaintEngine` target에는 소비자가 링크할 수 있는 `IMPORTED_LOCATION_RELEASE`가 포함된다. 선택적 cross SDK가 없는
-기본 all-platform 설치는 해당 플랫폼을 건너뛰며, 플랫폼을 명시 요청했는데 toolchain이 없으면 실패한다.
-업그레이드 설치는 package가 소유하는 `include/iiPaintEngine` 트리를 현재 공개 헤더로 교체한다. 따라서 삭제된 API 헤더가 prefix에 남아 새 타입과 충돌하지
-않으며, 소비자 전용 헤더는 이 package 소유 디렉터리 밖에 둬야 한다.
-macOS package config는 현재 SDK에 binary가 없는 legacy AGL framework를 Qt link interface에서 제거하므로 설치 target을 링크하는 소비자도 최신 macOS
-SDK에서 빌드할 수 있다. 또한 compiler의 `LIBRARY_PATH`에 설치 경로가 있어 CMake가 이를 implicit link directory로 판단하더라도 package target이
-iiPaintEngine dylib의 runtime search path를 직접 전달한다.
-Apple shared library는 처음부터 install RPATH로 빌드하므로 같은 prefix에 반복 설치해도 이미 제거된 build RPATH를 다시 후처리하지 않는다.
-Qt WASM은 정적 Qt SDK를 사용하므로 WASM 패키지는 `libiiPaintEngine.a` static archive로
-설치한다. 네이티브 플랫폼은 shared library를 유지하며, WASM 정적 archive는 다른 설치
-라이브러리와 한 최종 실행 파일에 결합해도 Qt 심볼을 중복 포함하지 않는다. 설치된 CMake
-target은 Qt WASM 플랫폼 플러그인에 필요한 Emscripten embind 링크 옵션도 소비자에게 전파한다.
-macOS에서는 `~/Library/Android/sdk` 외에 Homebrew의
-`/opt/homebrew/share/android-commandlinetools`와 `/opt/homebrew/share/android-ndk`도
-자동으로 탐지한다.
+The installation script places shared library, headers, CMake package config, and license together and runs host tests. Since the single configuration generator is also configured as Release, the installed `iiPaintEngine::iiPaintEngine` target includes `IMPORTED_LOCATION_RELEASE` that consumers can link. Default all-platform installation without optional cross SDK skips the corresponding platform, and fails if the platform is explicitly requested but no toolchain is available. Upgrade installation replaces the tree owned by the package `include/iiPaintEngine` with the current public headers. Therefore, deleted API headers remain in the prefix without colliding with new types, and consumer-only headers must be kept outside the directory owned by this package. macOS package config removes the legacy AGL framework with no binary in the current SDK from the Qt link interface, so consumers linking the installation target can also build from the latest macOS SDK. Additionally, since the installation path exists for the compiler's `LIBRARY_PATH`, the package target directly passes the iiPaintEngine dylib runtime search path even if CMake judges it as an implicit link directory. Apple shared library is built with install RPATH from the start, so repeated installation to the same prefix does not reprocess the already removed build RPATH. Qt WASM uses a static Qt SDK, so WASM packages are installed as `libiiPaintEngine.a` static archives. The native platform holds the shared library and, even when combined with a final executable in a separate installation library with a static archive at WASM, does not include duplicate symbols at Qt. Installed CMake targets also propagate the Emscripten embind link options required by Qt WASM platform plugins to the consumer. At macOS, it also automatically detects Homebrew's `~/Library/Android/sdk` and `/opt/homebrew/share/android-commandlinetools` in addition to `/opt/homebrew/share/android-ndk`.
 
-Windows의 layout-contract 테스트 실행 파일은 `iiPaintEngineLayoutContractTests`라는 이름을 쓴다. `Install...`로 시작하는 실행 파일에 적용될 수 있는
-Windows installer detection heuristic 및 elevation 오탐을 피하기 위한 계약이다.
+The layout-contract test executable for Windows uses the name `iiPaintEngineLayoutContractTests`. It is a contract to avoid applying `Install...` installer detection heuristics and elevation false positives to executables starting with Windows.
 
 ## Verification contracts
 
-핵심 검증은 다음과 같다.
+Core validations are as follows.
 
-- `iiPaintEngineBitmapOnlyArchitectureContract`: 금지된 경로/레이어 소스 부재, 문서의 retained stroke 부재, input point collection 부재,
-  이벤트별 pixel 누적
-- `iiPaintEngineBitmapFileCompatibilityContract`: 파일 계층의 path/format/pixel 소유, 직접 pixel mutation, 런타임 bitmap codec 전체 쓰기
-  왕복, content sniffing, SVG/PDF 차단
-- `iiPaintEngineBitmapFileArchitectureContract`: 구형 화면 표면 API 부재, `src/BitmapFile`과 `BitmapFileItem` 공개 계약
-- `iiPaintEngineInstallUpgradeContract`: 재설치 시 삭제된 공개 헤더 제거, 현재 헤더 배치, 설치 package를 사용하는 별도 CMake 소비자의
-  `find_package`·link·load
-- `iiPaintEnginePipelineHeartbeat`: pointer event부터 document raster surface까지 최소 파이프라인
-- `iiPaintEngineDocumentSerializerContract`: format version 3 bitmap archive 왕복, version 2 단일 표면 이관, raw trajectory 부재
-- `iiPaintEngineAppDocumentApiContract`: raster sample commit, layer/history, save/open 왕복
-- `iiPaintEnginePointerStrokeFlow`: mouse event별 bitmap dab spacing/flow
-- `iiPaintEngineHighFidelityPointerInputContract`: Qt·macOS pointer event 병합 비활성화와 `BitmapFileItem` 자동 적용
-- `iiPaintEngineRasterPaintingModel`: velocity, pressure, tilt, spacing, opacity/flow의 bitmap dab 반영
-- `iiPaintEngineBitmapFileLivePreviewRealtimeContract`: 열린 파일의 pending raster preview, direct pixel commit, eraser,
-  undo/redo
-- `iiPaintEngineBrushDynamicsMapping`: pressure/velocity/tilt/random의 dab 속성 반영
-- `iiPaintEngineBrushTextureLayerContract`: document/tip/follow/paper bitmap texture와 dual brush
+- `iiPaintEngineBitmapOnlyArchitectureContract` : absence of forbidden path/layer source, absence of retained stroke in document, absence of input point collection, per-event pixel accumulation
+- `iiPaintEngineBitmapFileCompatibilityContract` : ownership of path/format/pixel in file hierarchy, direct pixel mutation, full runtime bitmap codec write round-trip, content sniffing, SVG / PDF block
+- `iiPaintEngineBitmapFileArchitectureContract`: absence of legacy screen surface API, public contract with `src/BitmapFile` and `BitmapFileItem`
+- `iiPaintEngineInstallUpgradeContract` : remove deleted public headers upon reinstallation, current header layout, separate CMake consumer's `find_package` ·link·load using installation package
+- `iiPaintEnginePipelineHeartbeat` : minimum pipeline from pointer event to document raster surface
+- `iiPaintEngineDocumentSerializerContract` : bitmap archive round-trip of format version 3, version 2 single surface transfer, absence of raw trajectory
+- `iiPaintEngineAppDocumentApiContract` : raster sample commit, layer/history, save/open round-trip
+- `iiPaintEnginePointerStrokeFlow` : bitmap dab spacing/flow per mouse event
+- `iiPaintEngineHighFidelityPointerInputContract` : deactivation of Qt · macOS pointer event merging and `BitmapFileItem` automatic application
+- `iiPaintEngineRasterPaintingModel` : bitmap dab reflection of velocity, pressure, tilt, spacing, opacity/flow
+- `iiPaintEngineBitmapFileLivePreviewRealtimeContract` : pending raster preview of open files, direct pixel commit, eraser, undo/redo
+- `iiPaintEngineBrushDynamicsMapping` : dab attribute reflection of pressure/velocity/tilt/random
+- `iiPaintEngineBrushTextureLayerContract` : document/tip/follow/paper bitmap texture and dual brush
 - `iiPaintEngineWetBrushSimulationContract`: source raster sampling, pickup/deposit/mix, bristle footprint
-- `iiPaintEngineRenderCacheBackendContract`: raster tile cache, brush stamp atlas, CPU/GPU 계획
-- `iiPaintEnginePublicUmbrellaHeaderContract`: 외부 소비자의 단일 `#include <iiPaintEngine>` 계약
-- `iiPaintEnginePublicCxx17HeaderContract`: C++17 공개 header 호환성
-- `iiPaintEngineInstallLayoutContract`: Unix/Windows install, package export, example output, license 계약
+- `iiPaintEngineRenderCacheBackendContract` : raster tile cache, brush stamp atlas, CPU / GPU plan
+- `iiPaintEnginePublicUmbrellaHeaderContract` : single `#include <iiPaintEngine>` contract for external consumers
+- `iiPaintEnginePublicCxx17HeaderContract`: C++17 public header compatibility
+- `iiPaintEngineInstallLayoutContract`: Unix/ Windows install, package export, example output, license contract
 
-정적 확인 시 제품 소스에서 전체 입력 collection, curve/path 모델, replay cache, 비트맵 외 레이어가 다시 생기지 않았는지 함께 검사한다.
+During static verification, the product source is checked together to ensure that no layers other than the full input collection, curve/path model, and replay cache are regenerated.
 
 ## License
 
 SPDX-License-Identifier: AGPL-3.0-only
 
-iiPaintEngine의 자체 작성 코드와 문서는 GNU Affero General Public License version 3 only
-(`AGPL-3.0-only`)로 배포된다. 전체 조건은 [LICENSE](LICENSE)를 따른다.
+The self-written code and documents of iiPaintEngine are distributed under the GNU Affero General Public License version 3 only ( `AGPL-3.0-only` ). The full terms follow [LICENSE](LICENSE).
 
-외부에서 제공하는 Qt, LVRS 및 그 밖의 서드파티 코드·라이브러리·도구·모델은 각각의
-라이선스와 저작권 고지를 유지하며, 이 저장소의 라이선스가 이를 대체하지 않는다.
+External Qt, LVRS, and other third-party code, libraries, tools, and models retain their respective licenses and copyright notices, and this repository's license does not replace them.
 
 ### SDK workspace and installation paths
 
@@ -327,9 +270,11 @@ installer regenerates stale CMake caches after a workspace move.
 The default LVRS dependency prefix is `~/.local/SDK/LVRS`;
 `IIPAINTENGINE_LVRS_PREFIX` remains available for an explicit override.
 
-## 파일 저장 소유권
+<a id="파일-저장-소유권"></a>
 
-BitmapFile의 파일 읽기·원자 출력은 iiFileProvider 0.5에 위임한다. 이미지 코덱에는 provider가 연 QIODevice를 전달한다. 래스터 편집·색 변환·파일 형식 선택은 iiPaintEngine에 남는다. provider는 이 SDK를 참조하지 않는다.
+## File storage ownership
+
+BitmapFile delegates file reads and atomic output to iiFileProvider 0.5. Image codecs receive the QIODevice opened by the provider. Raster editing, color conversion, and file-format selection remain in iiPaintEngine. The provider does not reference this SDK.
 
 ## Source layout
 
