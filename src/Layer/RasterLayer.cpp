@@ -195,6 +195,29 @@ void copyStrokeCompositeSamplePixels(RasterLayer &layer,
     }
 }
 
+void copyStrokePreviewSamplePixels(RasterLayer &preview, const RasterLayer &committed,
+                                   const StrokeCompositeBuffer &pending, std::span<const RasterSample> samples,
+                                   bool erase)
+{
+    if (preview.width != committed.width || preview.height != committed.height
+            || preview.width != pending.width || preview.height != pending.height
+            || preview.pixels.size() != committed.pixels.size()
+            || pending.pixels.size() != committed.pixels.size()) return;
+    for (const auto &sample : samples) {
+        if (!contains(committed,sample.position)) continue;
+        const auto index = pixelIndex(committed,sample.position);
+        const auto &source = pending.pixels[index];
+        if (source.alpha <= 0.0) {
+            preview.pixels[index] = committed.pixels[index];
+            continue;
+        }
+        if (erase) {
+            const auto mask = static_cast<std::uint32_t>(std::lround(std::clamp(source.alpha,0.0,1.0) * 255)) << 24;
+            preview.pixels[index] = destinationOut(committed.pixels[index],mask);
+        } else preview.pixels[index] = unpremultiply(sourceOver(source,premultiply(committed.pixels[index])));
+    }
+}
+
 void compositeStrokeBufferOntoLayer(RasterLayer &layer, const StrokeCompositeBuffer &buffer)
 {
     const Types::Pixel width = std::min(layer.width, buffer.width);

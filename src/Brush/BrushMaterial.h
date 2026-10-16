@@ -36,6 +36,12 @@ enum class DualBrushCompositeMode {
     Add,
     Subtract,
     Difference,
+    Darken, Lighten, ColorDodge, ColorBurn, LinearBurn, HardMix,
+};
+
+enum class BrushTextureBlendMode {
+    Multiply, Subtract, Darken, Lighten, ColorDodge, ColorBurn,
+    LinearBurn, HardMix, Height, LinearHeight,
 };
 
 struct BrushTextureAssetCache {
@@ -63,6 +69,26 @@ struct BrushTexture {
     Types::Scalar scaleJitter = 0.0;
     Types::Scalar rotationJitter = 0.0;
     BrushTextureAssetCache assetCache;
+    bool invert = false;
+    Types::Scalar brightness = 0.0; // Normalized signed tone adjustment, [-1,1].
+    Types::Scalar contrast = 0.0;
+    Types::Scalar depth = 1.0;
+    Types::Scalar minimumDepth = 0.0;
+    bool textureEachTip = false; // Overrides the configured coordinate space with Tip.
+    BrushTextureBlendMode blendMode = BrushTextureBlendMode::Multiply;
+};
+
+enum class BrushScatterAxes { Both, Perpendicular, AlongStroke };
+enum class BrushScatterDistribution { Square, Disk };
+
+struct BrushScatter {
+    bool enabled = false;
+    Types::Scalar radius = 0.0;
+    std::uint32_t count = 1;
+    BrushScatterAxes axes = BrushScatterAxes::Both;
+    BrushScatterDistribution distribution = BrushScatterDistribution::Square;
+    Types::Scalar countJitter = 0.0;
+    bool relativeToSize = false;
 };
 
 struct DualBrush {
@@ -79,19 +105,9 @@ struct DualBrush {
     std::vector<Types::Byte> alpha;
     Types::Pixel width = 0;
     Types::Pixel height = 0;
-};
-
-enum class BrushScatterAxes { Both, Perpendicular, AlongStroke };
-enum class BrushScatterDistribution { Square, Disk };
-
-struct BrushScatter {
-    bool enabled = false;
-    Types::Scalar radius = 0.0;
-    std::uint32_t count = 1;
-    BrushScatterAxes axes = BrushScatterAxes::Both;
-    BrushScatterDistribution distribution = BrushScatterDistribution::Square;
-    Types::Scalar countJitter = 0.0;
-    bool relativeToSize = false;
+    bool flipX = false;
+    bool flipY = false;
+    BrushScatter scatter;
 };
 
 struct BrushSimulation {
@@ -102,6 +118,7 @@ struct BrushSimulation {
     Types::Scalar mixStrength = 0.0;
     Types::Scalar pickup = 0.0;
     Types::Scalar deposit = 1.0;
+    Types::Scalar load = 1.0; // Reservoir contribution in the bitmap mixing model.
 };
 
 struct BristleSimulation {
@@ -110,6 +127,25 @@ struct BristleSimulation {
     std::uint32_t count = 0;
     Types::Scalar length = 0.0;
     Types::Scalar stiffness = 1.0;
+    Types::Scalar thickness = 1.0; // Relative width of the 2D footprint, (0,1].
+    Types::Scalar angleRadians = 0.0;
+};
+
+// Bitmap approximations. These do not reproduce Adobe's native physical tip simulation.
+struct ErodibleTip {
+    bool enabled = false;
+    Types::Scalar softness = 0.5;
+    Types::Scalar wear = 0.0; // Caller may carry RasterDabStream::tipWear to the next stroke.
+};
+
+void sharpenErodibleTip(ErodibleTip &tip);
+
+struct AirbrushTip {
+    bool enabled = false;
+    Types::Scalar granularity = 0.0;
+    Types::Scalar spatter = 0.0;
+    Types::Scalar spatterSize = 1.0; // Document pixels.
+    Types::Scalar distortion = 0.0;
 };
 
 struct BrushMaterial {
@@ -119,4 +155,6 @@ struct BrushMaterial {
     BrushScatter scatter;
     BrushSimulation simulation;
     BristleSimulation bristle;
+    ErodibleTip erodible;
+    AirbrushTip airbrushTip;
 };

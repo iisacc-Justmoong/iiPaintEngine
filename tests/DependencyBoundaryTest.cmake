@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.31)
 
 set(ROOT "${CMAKE_CURRENT_LIST_DIR}/../src")
-set(MODULES Core Input Document Layer Stroke Brush Render History Color Selection Transform Filter Tool BitmapFile QtAdapter)
+set(MODULES Core Input Document Layer Stroke Brush Render History Color Selection Transform Filter Tool BitmapFile Application)
 
 function(module_for path out_var)
     string(REGEX MATCH "^[^/]+" module "${path}")
@@ -36,8 +36,8 @@ function(allowed_modules_for source_module out_var)
     elseif (source_module STREQUAL "Input")
         set(allowed Core Stroke)
     elseif (source_module STREQUAL "BitmapFile")
-        set(allowed Core Layer Stroke Render)
-    elseif (source_module STREQUAL "QtAdapter")
+        set(allowed Core Layer Render)
+    elseif (source_module STREQUAL "Application")
         set(allowed Core Input Document Layer Stroke Brush Render History Color Selection Transform Filter Tool BitmapFile)
     else ()
         set(allowed "")
@@ -49,6 +49,7 @@ endfunction()
 file(GLOB_RECURSE source_files
         RELATIVE "${ROOT}"
         "${ROOT}/*.h"
+        "${ROOT}/*.hpp"
         "${ROOT}/*.cpp")
 
 foreach (source_file IN LISTS source_files)
@@ -63,35 +64,9 @@ foreach (source_file IN LISTS source_files)
 
     file(READ "${ROOT}/${source_file}" content)
 
-    if (NOT source_module STREQUAL "QtAdapter"
-            AND NOT source_module STREQUAL "BitmapFile")
-        if (content MATCHES "#include[ \t]*<Q[A-Za-z0-9_/\\.]+>"
-                OR content MATCHES "\\bQ_OBJECT\\b"
-                OR content MATCHES "\\bQObject\\b"
-                OR content MATCHES "\\bQQuickItem\\b"
-                OR content MATCHES "\\bQQuickPaintedItem\\b"
-                OR content MATCHES "\\bQPainter\\b")
-            message(FATAL_ERROR "${source_file} must not depend on Qt object or QML headers")
-        endif ()
-    endif ()
-
-    if (source_module STREQUAL "BitmapFile")
-        if (content MATCHES "\\bQ_OBJECT\\b"
-                OR content MATCHES "\\bQObject\\b"
-                OR content MATCHES "\\bQQuickItem\\b"
-                OR content MATCHES "\\bQQuickPaintedItem\\b"
-                OR content MATCHES "\\bQPainter\\b")
-            message(FATAL_ERROR "${source_file} may use Qt bitmap codecs but must not depend on Qt object or view types")
-        endif ()
-    endif ()
-
-    if (source_module STREQUAL "QtAdapter"
-            AND NOT source_file MATCHES "^QtAdapter/BitmapFileItem\\.(h|cpp)$")
-        if (content MATCHES "\\bQQuickPaintedItem\\b"
-                OR content MATCHES "\\bQPainter\\b")
-            message(FATAL_ERROR "${source_file} must not depend on the painted-item renderer boundary")
-        endif ()
-    endif ()
+    if(content MATCHES "#include[ \t]*[<\"]Q[A-Za-z0-9_/]+[>\"]")
+        message(FATAL_ERROR "${source_file} must use C++ standard or approved open-source headers")
+    endif()
 
     allowed_modules_for("${source_module}" allowed_modules)
     if (source_file MATCHES "^Document/DocumentSerializer\\.(h|cpp)$")

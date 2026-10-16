@@ -59,6 +59,26 @@ struct Validator {
         range(key + ".rotation", t.rotationRadians, -1024, 1024); range(key + ".rotationJitter", t.rotationJitter, 0, 1024);
         range(key + ".offsetX", t.offsetX, -1e9, 1e9); range(key + ".offsetY", t.offsetY, -1e9, 1e9);
         if (t.assetCache.cacheKey.size() > 8192) errors.push_back(key + ": cache key too long");
+        range(key + ".brightness", t.brightness, -1, 1);
+        range(key + ".contrast", t.contrast, -1, 1);
+        range(key + ".depth", t.depth, 0, 1);
+        range(key + ".minimumDepth", t.minimumDepth, 0, 1);
+        enumeration(key + ".blendMode", t.blendMode, BrushTextureBlendMode::LinearHeight);
+    }
+    void variation(const std::string &key, const BrushDynamicsVariation &v)
+    {
+        range(key + ".jitter", v.jitter, 0, 1);
+        range(key + ".minimum", v.minimum, 0, 1);
+        range(key + ".fadeSteps", v.fadeSteps, 1, 9999);
+        enumeration(key + ".control", v.control, BrushDynamicsControl::Direction);
+    }
+    void scatter(const std::string &key, const BrushScatter &s)
+    {
+        enumeration(key + ".axes", s.axes, BrushScatterAxes::AlongStroke);
+        enumeration(key + ".distribution", s.distribution, BrushScatterDistribution::Disk);
+        range(key + ".count", s.count, 1, 256);
+        range(key + ".countJitter", s.countJitter, 0, 1);
+        range(key + ".radius", s.radius, 0, 1e6);
     }
 };
 }
@@ -84,7 +104,7 @@ std::vector<std::string> validateBrushPreset(const BrushPreset &p)
             + m.paperGrain.alpha.size() + m.paperGrain.assetCache.alpha.size() + m.dualBrush.alpha.size();
     if (totalBytes > maxMaskBytes) v.errors.push_back("masks: total exceeds 16 MiB");
     v.enumeration("shape.kind", p.shape.kind, BrushTipShape::Diamond);
-    v.enumeration("shape.angleMode", p.shape.angleMode, BrushAngleMode::StylusRotation);
+    v.enumeration("shape.angleMode", p.shape.angleMode, BrushAngleMode::InitialStrokeDirection);
     v.range("shape.angleRadians", p.shape.angleRadians, -1024, 1024);
     v.range("shape.roundness", p.shape.roundness, 0.01, 1);
     const auto &s = p.stroke;
@@ -93,6 +113,9 @@ std::vector<std::string> validateBrushPreset(const BrushPreset &p)
     v.range("airbrushRate", s.airbrushRate, 0.1, 1000);
     v.enumeration("warmupTaperShape", s.warmupTaperShape, StrokeTaperShape::SmoothStep);
     v.enumeration("blendMode", s.blendMode, RasterBlendMode::Overlay);
+    v.range("noiseStrength", s.noiseStrength, 0, 1);
+    v.range("wetEdgesStrength", s.wetEdgesStrength, 0, 1);
+    v.range("smoothing", s.smoothing, 0, 1);
     const auto &d = p.dynamics;
     for (auto value : {d.pressureToSize, d.pressureToOpacity, d.pressureToFlow, d.velocityToSpacing,
                       d.velocityToOpacity, d.velocityToDryOut, d.tiltToEllipse, d.rotationJitter, d.grainJitter})
@@ -105,7 +128,7 @@ std::vector<std::string> validateBrushPreset(const BrushPreset &p)
     if (d.bindings.size() > 64) v.errors.push_back("bindings: at most 64 mappings");
     for (const auto &b : d.bindings) {
         v.enumeration("binding.source", b.source, BrushDynamicsSource::Custom);
-        v.enumeration("binding.target", b.target, BrushDynamicsTarget::ColorMix);
+        v.enumeration("binding.target", b.target, BrushDynamicsTarget::Mix);
         v.enumeration("binding.combineMode", b.combineMode, BrushDynamicsCombineMode::Replace);
         v.range("binding.customInput", b.customInput, 0, 7);
         v.range("binding.inputMinimum", b.inputMinimum, -1e9, 1e9);
@@ -113,9 +136,18 @@ std::vector<std::string> validateBrushPreset(const BrushPreset &p)
         if (b.inputMaximum <= b.inputMinimum) v.errors.push_back("binding: input range must increase");
         v.curve("binding.curve", b.curve);
     }
+    v.range("pose.pressure", d.pose.pressure, 0, 1);
+    v.range("pose.tiltX", d.pose.tiltX, -1, 1); v.range("pose.tiltY", d.pose.tiltY, -1, 1);
+    v.range("pose.rotation", d.pose.rotationRadians, -1024, 1024);
+    v.variation("sizeVariation", d.sizeVariation); v.variation("angleVariation", d.angleVariation);
+    v.variation("roundnessVariation", d.roundnessVariation); v.variation("scatterVariation", d.scatterVariation);
+    v.variation("scatterCountVariation", d.scatterCountVariation); v.variation("textureDepthVariation", d.textureDepthVariation);
+    v.variation("colorMixVariation", d.colorMixVariation); v.variation("opacityVariation", d.opacityVariation);
+    v.variation("flowVariation", d.flowVariation); v.variation("wetnessVariation", d.wetnessVariation);
+    v.variation("mixVariation", d.mixVariation);
     v.texture("texture", m.texture); v.texture("paperGrain", m.paperGrain);
     v.mask("dualBrush", m.dualBrush.width, m.dualBrush.height, m.dualBrush.alpha.size());
-    v.enumeration("dualBrush.mode", m.dualBrush.compositeMode, DualBrushCompositeMode::Difference);
+    v.enumeration("dualBrush.mode", m.dualBrush.compositeMode, DualBrushCompositeMode::HardMix);
     v.range("dualBrush.scale", m.dualBrush.scale, 0.001, 1024);
     v.range("dualBrush.spacingRatio", m.dualBrush.spacingRatio, 0.001, 100);
     v.range("dualBrush.opacity", m.dualBrush.opacity, 0, 1);
@@ -124,18 +156,23 @@ std::vector<std::string> validateBrushPreset(const BrushPreset &p)
     v.range("dualBrush.scaleJitter", m.dualBrush.scaleJitter, 0, 1);
     v.range("dualBrush.offsetX", m.dualBrush.offsetX, -1e9, 1e9);
     v.range("dualBrush.offsetY", m.dualBrush.offsetY, -1e9, 1e9);
-    v.enumeration("scatter.axes", m.scatter.axes, BrushScatterAxes::AlongStroke);
-    v.enumeration("scatter.distribution", m.scatter.distribution, BrushScatterDistribution::Disk);
-    v.range("scatter.count", m.scatter.count, 1, 256); v.range("scatter.countJitter", m.scatter.countJitter, 0, 1);
-    v.range("scatter.radius", m.scatter.radius, 0, 1e6);
+    v.scatter("scatter", m.scatter); v.scatter("dualBrush.scatter", m.dualBrush.scatter);
     v.enumeration("simulation.model", m.simulation.model, BrushSimulationModel::Mixer);
     for (auto value : {m.simulation.wetness, m.simulation.smudgeStrength, m.simulation.mixStrength,
-                      m.simulation.pickup, m.simulation.deposit}) v.range("simulation", value, 0, 1);
+                      m.simulation.pickup, m.simulation.deposit, m.simulation.load}) v.range("simulation", value, 0, 1);
     v.enumeration("bristle.shape", m.bristle.shape, BristleShape::Fan);
     v.range("bristle.count", m.bristle.count, 0, 4096); v.range("bristle.length", m.bristle.length, 0, 4096);
     v.range("bristle.stiffness", m.bristle.stiffness, 0, 1);
-    for (auto value : {p.color.mix, p.color.hueJitter, p.color.saturationJitter, p.color.valueJitter})
+    v.range("bristle.thickness", m.bristle.thickness, .001, 1);
+    v.range("bristle.angleRadians", m.bristle.angleRadians, -1024, 1024);
+    v.range("erodible.softness", m.erodible.softness, 0, 1); v.range("erodible.wear", m.erodible.wear, 0, 1);
+    v.range("airbrushTip.granularity", m.airbrushTip.granularity, 0, 1);
+    v.range("airbrushTip.spatter", m.airbrushTip.spatter, 0, 1);
+    v.range("airbrushTip.spatterSize", m.airbrushTip.spatterSize, .01, 4096);
+    v.range("airbrushTip.distortion", m.airbrushTip.distortion, 0, 1);
+    for (auto value : {p.color.mix, p.color.hueJitter, p.color.saturationJitter, p.color.valueJitter, p.color.mixJitter})
         v.range("color", value, 0, 1);
+    v.range("color.purity", p.color.purity, -1, 1);
     return v.errors;
 }
 
@@ -163,6 +200,22 @@ BrushResolve resolveBrushPreset(const BrushPreset &p, std::uint32_t colorArgb, s
     r.taperMinimum = p.stroke.taperMinimum; r.warmupTaperShape = p.stroke.warmupTaperShape;
     r.airbrushEnabled = p.stroke.airbrushEnabled; r.airbrushRate = p.stroke.airbrushRate;
     r.blendMode = p.stroke.blendMode;
+    r.noiseEnabled = p.stroke.noiseEnabled; r.noiseStrength = p.stroke.noiseStrength;
+    r.wetEdgesEnabled = p.stroke.wetEdgesEnabled; r.wetEdgesStrength = p.stroke.wetEdgesStrength;
+    r.smoothingEnabled = p.stroke.smoothingEnabled; r.smoothing = p.stroke.smoothing;
     result.brush = std::move(brush);
     return result;
+}
+
+BrushPreset selectBrushPreset(const BrushPreset &current, const BrushPreset &replacement, bool preserveProtectedTexture)
+{
+    auto selected = replacement;
+    if (!preserveProtectedTexture || !current.stroke.protectTexture) return selected;
+    auto &texture = selected.material.texture;
+    const auto &protectedTexture = current.material.texture;
+    texture.width = protectedTexture.width; texture.height = protectedTexture.height;
+    texture.alpha = protectedTexture.alpha; texture.assetCache = protectedTexture.assetCache;
+    texture.scale = protectedTexture.scale;
+    selected.stroke.protectTexture = true;
+    return selected;
 }

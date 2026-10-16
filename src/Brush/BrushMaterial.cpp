@@ -3,3 +3,8 @@
 //
 
 #include "BrushMaterial.h"
+
+void sharpenErodibleTip(ErodibleTip &tip)
+{
+    tip.wear = 0;
+}

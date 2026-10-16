@@ -20,3 +20,7 @@ std::vector<std::string> validateBrushPreset(const BrushPreset &preset);
 BrushResolve resolveBrushPreset(const BrushPreset &preset,
                                std::uint32_t colorArgb = 0xFF000000U,
                                std::uint32_t randomSeed = 0);
+
+// Applies the current brush's Protect Texture selection policy to a replacement.
+BrushPreset selectBrushPreset(const BrushPreset &current, const BrushPreset &replacement,
+                              bool preserveProtectedTexture = true);

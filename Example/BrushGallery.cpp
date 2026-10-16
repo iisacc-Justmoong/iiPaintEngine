@@ -1,29 +1,12 @@
-#include <QGuiApplication>
-#include <QImage>
-#include <QPainter>
-#include <QFont>
+#include <iiPaintEngine>
 #include <cmath>
 #include <iostream>
-#include "Brush/BrushLibrary.h"
-#include "Brush/BrushResolve.h"
-#include "Layer/RasterLayer.h"
-#include "Stroke/Rasterizer.h"
-
-// A headless, reproducible consumer of the same immediate-pixel API as BitmapFileItem.
-int main(int argc, char **argv)
+int main(int argc,char **argv)
 {
-    QGuiApplication app(argc, argv);
-    if (argc != 2) { std::cerr << "Usage: iiPaintEngineBrushGallery output.png\n"; return 1; }
-    constexpr int width = 960, rowHeight = 106;
-    auto presets = builtInBrushPresets();
-    QImage gallery(width, 84 + rowHeight * static_cast<int>(presets.size()), QImage::Format_ARGB32);
-    gallery.fill(QColor("#F4F2EE"));
-    QPainter painter(&gallery);
-    painter.setPen(QColor("#202833"));
-    painter.setFont(QFont("Helvetica", 22, QFont::Bold));
-    painter.drawText(QPoint(28, 36), "iiPaintEngine / brush studies");
-    painter.setFont(QFont("Helvetica", 11));
-    painter.drawText(QPoint(28, 60), "Native raster output  |  pressure, tilt, time and seeded variation");
+    if(argc!=2) return 1;
+    constexpr int width=720,rowHeight=106;
+    auto presets=builtInBrushPresets();
+    auto gallery=makeRasterLayer(width,rowHeight*static_cast<int>(presets.size()),0xFFF4F2EEU);
     for (std::size_t row = 0; row < presets.size(); ++row) {
         auto &preset = presets[row];
         if (row == 1) preset.size = 12;
@@ -54,18 +37,18 @@ int main(int argc, char **argv)
             accumulateStrokeSamples(pixels, samples);
         }
         compositeStrokeBufferOntoLayer(layer, pixels);
-        QImage panel(reinterpret_cast<const uchar *>(layer.pixels.data()), panelWidth, panelHeight,
-                     panelWidth * 4, QImage::Format_ARGB32);
-        const int top = 84 + static_cast<int>(row) * rowHeight;
-        painter.fillRect(18, top, width - 36, rowHeight - 10, Qt::white);
-        painter.setPen(QColor("#202833"));
-        painter.setFont(QFont("Helvetica", 13, QFont::Bold));
-        painter.drawText(QPoint(34, top + 39), QString::fromStdString(preset.name));
-        painter.setFont(QFont("Helvetica", 10));
-        painter.setPen(QColor("#6D7480"));
-        painter.drawText(QPoint(34, top + 61), QString("%1 px  /  flow %2").arg(preset.size).arg(preset.flow, 0, 'f', 2));
-        painter.drawImage(240, top + 3, panel);
+        const int top=static_cast<int>(row)*rowHeight;
+        auto rowPixels=makeRasterLayer(panelWidth,panelHeight,0xFFFFFFFFU);
+        std::vector<RasterSample> samples;
+        for(int y=0;y<panelHeight;++y) for(int x=0;x<panelWidth;++x)
+            samples.push_back({{x,y},rasterLayerPixelAt(layer,{x,y}),0xFFU});
+        paintRasterSamples(rowPixels,samples);
+        for(int y=0;y<panelHeight;++y) for(int x=0;x<panelWidth;++x)
+            gallery.pixels[(top+y)*width+x+15]=rasterLayerPixelAt(rowPixels,{x,y});
     }
-    painter.end();
-    return gallery.save(QString::fromLocal8Bit(argv[1]), "PNG") ? 0 : 3;
+    BitmapFile file;
+    if(!file.create(argv[1],gallery.width,gallery.height,"png")) return 3;
+    if(!file.replacePixels(gallery)||!file.save()) return 4;
+    std::cout<<"Rendered "<<presets.size()<<" brush presets\n";
+    return 0;
 }

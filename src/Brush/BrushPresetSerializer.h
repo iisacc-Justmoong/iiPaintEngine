@@ -13,7 +13,7 @@
 
 struct BrushPresetSerializer {
     std::string formatMagic = "iiPaintBrushPreset";
-    std::uint32_t formatVersion = 2;
+    std::uint32_t formatVersion = 3;
 };
 
 std::string serializeBrushPreset(const BrushPreset &preset);

@@ -1,39 +1,40 @@
 #pragma once
 
-#include <QByteArray>
-#include <QColor>
-#include <QImage>
-#include <QList>
-#include <QString>
-
 #include <cstdint>
+#include <filesystem>
+#include <string>
+#include <string_view>
 #include <vector>
 
+#include "Core/PaintRect.h"
 #include "Layer/RasterLayer.h"
-#include "Stroke/Rasterizer.h"
+
+inline constexpr std::uint64_t maxBitmapPixelCount = 64ULL * 1024 * 1024;
+inline constexpr int maxBitmapDimension = 16384;
+inline constexpr std::uint64_t maxBitmapEncodedBytes = 256ULL * 1024 * 1024;
 
 struct BitmapFileWriteOptions {
     int quality = -1;
-    QColor backgroundColor = Qt::white;
+    std::uint32_t backgroundArgb = 0xFFFFFFFFU;
 };
 
-QList<QByteArray> supportedBitmapReadFormats();
+const std::vector<std::string> &supportedBitmapReadFormats();
 
-QList<QByteArray> supportedBitmapWriteFormats();
+const std::vector<std::string> &supportedBitmapWriteFormats();
 
-QList<QByteArray> supportedEditableBitmapFormats();
+const std::vector<std::string> &supportedEditableBitmapFormats();
 
 class BitmapFile final {
 public:
-    bool create(const QString &filePath,
+    bool create(const std::filesystem::path &filePath,
                 Types::Pixel width,
                 Types::Pixel height,
-                const QByteArray &format,
+                std::string_view format = {},
                 std::uint32_t clearArgb = 0x00000000U);
-    bool open(const QString &filePath);
+    bool open(const std::filesystem::path &filePath);
     bool save(const BitmapFileWriteOptions &options = {});
-    bool saveAs(const QString &filePath,
-                const QByteArray &format = {},
+    bool saveAs(const std::filesystem::path &filePath,
+                std::string_view format = {},
                 const BitmapFileWriteOptions &options = {});
     void close();
 
@@ -41,13 +42,12 @@ public:
     bool isModified() const;
     bool isPixelWritable() const;
     bool canSaveInPlace() const;
-    QString filePath() const;
-    QByteArray fileFormat() const;
-    QString lastError() const;
+    const std::filesystem::path &filePath() const;
+    const std::string &fileFormat() const;
+    const std::string &lastError() const;
     Types::Pixel width() const;
     Types::Pixel height() const;
     const RasterLayer &pixels() const;
-    QImage image() const;
 
     bool clear(std::uint32_t argb = 0x00000000U);
     bool setPixel(DevicePixelPoint position, std::uint32_t argb);
@@ -56,12 +56,12 @@ public:
     bool applyStrokePixels(const StrokeCompositeBuffer &stroke, bool destinationOut);
 
 private:
-    QString m_filePath;
-    QByteArray m_fileFormat;
-    QString m_lastError;
+    std::filesystem::path m_filePath;
+    std::string m_fileFormat;
+    std::string m_lastError;
     RasterLayer m_pixels;
     bool m_open = false;
     bool m_modified = false;
 
-    void setError(const QString &error);
+    void setError(const std::string &error);
 };

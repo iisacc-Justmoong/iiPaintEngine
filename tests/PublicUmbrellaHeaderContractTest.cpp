@@ -34,28 +34,18 @@ int main()
     static_assert(isCompleteType<TransformState>());
     static_assert(isCompleteType<FilterPipeline>());
     static_assert(isCompleteType<FillOperation>());
-    static_assert(isCompleteType<BitmapFileItem>());
-    static_assert(isCompleteType<BitmapBrushConfig>());
-    static_assert(isCompleteType<BitmapViewportConfig>());
-    static_assert(isCompleteType<BitmapRuntimeConfig>());
-    static_assert(isCompleteType<BitmapFileState>());
+    static_assert(isCompleteType<BitmapPaintSession>());
+    static_assert(isCompleteType<BitmapPaintUpdate>());
     static_assert(isCompleteType<BitmapFile>());
     static_assert(isCompleteType<BitmapFileWriteOptions>());
+    static_assert(isCompleteType<PixelMask>());
+    static_assert(isCompleteType<LocalMaskBrushOptions>());
+    static_assert(isCompleteType<MaskPaintSession>());
+    static_assert(isCompleteType<MaskPaintUpdate>());
 
-    BitmapBrushConfig brush;
-    BitmapViewportConfig viewport;
-    BitmapRuntimeConfig runtime;
-    BitmapFileState state;
-    auto configureInput = &configureHighFidelityPointerInput;
-    auto inputConfigured = &highFidelityPointerInputConfigured;
-
-    return configureInput != nullptr
-            && inputConfigured != nullptr
-            && brush.size > 0.0
-            && brush.pressureToOpacityEnabled
-            && viewport.zoom > 0.0
-            && runtime.livePreviewEnabled
-            && state.inputPressure >= 0.0
-            ? 0
-            : 1;
+    static_assert(__cplusplus > 202002L);
+    BitmapPaintSession session;
+    MaskPaintSession mask;
+    return !session.file().isOpen() && !session.strokeActive() && session.brushPreset().size > 0
+            && !mask.hasMask() && mask.createMask(4,4) && mask.mask().coverage.size() == 16 ? 0 : 1;
 }

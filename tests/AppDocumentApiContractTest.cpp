@@ -2,9 +2,9 @@
 #include <string>
 #include <vector>
 
-#include "QtAdapter/DocumentAdapter.h"
-#include "QtAdapter/LayerListModel.h"
-#include "QtAdapter/PaintEngineController.h"
+#include "Application/DocumentAdapter.h"
+#include "Application/LayerListModel.h"
+#include "Application/PaintEngineController.h"
 
 int main()
 {

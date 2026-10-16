@@ -41,6 +41,12 @@ struct Rasterizer {
     bool spacingFollowsSize = false;
     bool airbrushEnabled = false;
     Types::Scalar airbrushRate = 30.0;
+    bool noiseEnabled = false;
+    Types::Scalar noiseStrength = 0.5;
+    bool wetEdgesEnabled = false;
+    Types::Scalar wetEdgesStrength = 0.5;
+    bool smoothingEnabled = false;
+    Types::Scalar smoothing = 0.5;
 };
 
 struct BrushState {

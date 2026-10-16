@@ -1,152 +1,127 @@
-if (NOT DEFINED IIPAINTENGINE_BINARY_DIR)
+cmake_minimum_required(VERSION 3.31)
+if(NOT DEFINED IIPAINTENGINE_BINARY_DIR)
     message(FATAL_ERROR "IIPAINTENGINE_BINARY_DIR is required")
-endif ()
-
+endif()
 set(test_root "${IIPAINTENGINE_BINARY_DIR}/install-upgrade-contract")
 set(test_prefix "${test_root}/prefix")
-set(obsolete_header "${test_prefix}/include/iiPaintEngine/Stroke/StrokeCommand.h")
-
 file(REMOVE_RECURSE "${test_root}")
-file(MAKE_DIRECTORY "${test_prefix}/include/iiPaintEngine/Stroke")
-file(WRITE "${obsolete_header}" "#pragma once\nstruct BrushState {};\n")
-
-set(install_command
-    "${CMAKE_COMMAND}"
-    --install "${IIPAINTENGINE_BINARY_DIR}"
-    --prefix "${test_prefix}")
-if (DEFINED IIPAINTENGINE_INSTALL_CONFIG AND NOT IIPAINTENGINE_INSTALL_CONFIG STREQUAL "")
+file(MAKE_DIRECTORY "${test_prefix}/include/iiPaintEngine/QtAdapter")
+file(WRITE "${test_prefix}/include/iiPaintEngine/QtAdapter/BitmapFileItem.h" "retired header\n")
+file(WRITE "${test_prefix}/include/iiPaintEngine/obsolete.h" "retired header\n")
+set(install_command "${CMAKE_COMMAND}" --install "${IIPAINTENGINE_BINARY_DIR}" --prefix "${test_prefix}")
+if(IIPAINTENGINE_INSTALL_CONFIG)
     list(APPEND install_command --config "${IIPAINTENGINE_INSTALL_CONFIG}")
-endif ()
-
-execute_process(
-    COMMAND ${install_command}
-    RESULT_VARIABLE install_result
-    OUTPUT_VARIABLE install_output
-    ERROR_VARIABLE install_error)
-
-if (NOT install_result EQUAL 0)
-    message(FATAL_ERROR
-        "The upgrade install failed with exit code ${install_result}.\n"
-        "stdout:\n${install_output}\n"
-        "stderr:\n${install_error}")
-endif ()
-
-if (EXISTS "${obsolete_header}")
-    message(FATAL_ERROR
-        "The upgrade install retained an obsolete public header: ${obsolete_header}")
-endif ()
-
-if (NOT EXISTS "${test_prefix}/include/iiPaintEngine/Stroke/Rasterizer.h")
-    message(FATAL_ERROR "The upgrade install did not publish the current Rasterizer.h header")
-endif ()
-
+endif()
+execute_process(COMMAND ${install_command} RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Upgrade install failed (${result}):\n${output}\n${error}")
+endif()
+if(CMAKE_HOST_APPLE AND EXISTS "${test_prefix}/lib/libiiPaintEngine.dylib")
+    execute_process(COMMAND /usr/bin/otool -D "${test_prefix}/lib/libiiPaintEngine.dylib"
+        RESULT_VARIABLE id_result OUTPUT_VARIABLE install_id ERROR_VARIABLE id_error)
+    if(NOT id_result EQUAL 0 OR NOT install_id MATCHES "\n@rpath/libiiPaintEngine[.]dylib\n")
+        message(FATAL_ERROR "Staged SDK dylib must have a relocatable install ID: ${install_id} ${id_error}")
+    endif()
+endif()
+if(EXISTS "${test_prefix}/include/iiPaintEngine/QtAdapter" OR EXISTS "${test_prefix}/include/iiPaintEngine/obsolete.h")
+    message(FATAL_ERROR "Upgrade retained retired public headers")
+endif()
+if(NOT EXISTS "${test_prefix}/include/iiPaintEngine/Application/BitmapPaintSession.h")
+    message(FATAL_ERROR "Upgrade did not install the C++ painting session")
+endif()
+if(NOT EXISTS "${test_prefix}/include/iiPaintEngine/Application/MaskPaintSession.h"
+        OR NOT EXISTS "${test_prefix}/include/iiPaintEngine/Core/PixelMask.h"
+        OR NOT EXISTS "${test_prefix}/include/iiPaintEngine/Brush/LocalMaskBrush.h"
+        OR NOT EXISTS "${test_prefix}/include/iiPaintEngine/Brush/LocalizedBrushMath.h"
+        OR NOT EXISTS "${test_prefix}/share/iiPaintEngine/LOCAL_MASK_BRUSH.md"
+        OR NOT EXISTS "${test_prefix}/share/iiPaintEngine/LOCALIZED_BRUSH_MATH.md"
+        OR NOT EXISTS "${test_prefix}/share/iiPaintEngine/localized-brush-math-provenance.json"
+        OR NOT EXISTS "${test_prefix}/share/iiPaintEngine/localized-brush-vectors.json")
+    message(FATAL_ERROR "Upgrade did not install the local mask brush API and documentation")
+endif()
 set(consumer_source_dir "${test_root}/consumer")
-set(consumer_build_dir "${test_root}/consumer-build")
+set(consumer_build_dir "${test_root}/build")
 file(MAKE_DIRECTORY "${consumer_source_dir}")
 file(WRITE "${consumer_source_dir}/CMakeLists.txt" [=[
 cmake_minimum_required(VERSION 3.31)
 project(iiPaintEngineInstalledConsumer LANGUAGES CXX)
-
-find_package(iiPaintEngine CONFIG REQUIRED)
-
+find_package(iiPaintEngine 0.4.2 EXACT CONFIG REQUIRED)
 add_executable(iiPaintEngineInstalledConsumer main.cpp)
-target_compile_features(iiPaintEngineInstalledConsumer PRIVATE cxx_std_17)
 target_link_libraries(iiPaintEngineInstalledConsumer PRIVATE iiPaintEngine::iiPaintEngine)
-
-if (WIN32)
+set_target_properties(iiPaintEngineInstalledConsumer PROPERTIES CXX_EXTENSIONS OFF)
+if(WIN32)
     add_custom_command(TARGET iiPaintEngineInstalledConsumer POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
             "$<TARGET_FILE:iiPaintEngine::iiPaintEngine>"
             "$<TARGET_FILE_DIR:iiPaintEngineInstalledConsumer>")
-endif ()
-
+endif()
 add_custom_target(runInstalledConsumer ALL
-    COMMAND "$<TARGET_FILE:iiPaintEngineInstalledConsumer>"
-    DEPENDS iiPaintEngineInstalledConsumer
-    VERBATIM)
+    COMMAND "${CMAKE_COMMAND}" -E env
+        "DYLD_LIBRARY_PATH=$<TARGET_FILE_DIR:iiPaintEngine::iiPaintEngine>"
+        "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:iiPaintEngine::iiPaintEngine>"
+        "$<TARGET_FILE:iiPaintEngineInstalledConsumer>" "${CMAKE_CURRENT_BINARY_DIR}/paint.png"
+    DEPENDS iiPaintEngineInstalledConsumer VERBATIM)
 ]=])
 file(WRITE "${consumer_source_dir}/main.cpp" [=[
 #include <iiPaintEngine>
-
-int main()
+#include <iostream>
+static_assert(__cplusplus > 202002L);
+int main(int argc, char **argv)
 {
-    const auto presets = builtInBrushPresets();
-    if (presets.size() < 6) return 1;
-    const auto decoded = readBrushPreset(serializeBrushPreset(presets.front()));
-    if (!decoded.preset) return 2;
-    auto resolved = resolveBrushPreset(*decoded.preset);
-    if (!resolved.brush) return 3;
-    RasterDabStream stream;
-    const auto dabs = appendRasterDabs(stream, StrokePoint{{8,8}, 0.8}, *resolved.brush);
-    const auto samples = projectBrushDabs(dabs, resolved.brush->rasterizer, {}, resolved.brush->material);
-    hello();
-    return samples.empty() ? 4 : 0;
+    if(argc != 2) return 1;
+    BitmapPaintSession session;
+    if(!session.createFile(argv[1],32,32)) return 2;
+    auto preset = builtInBrushPresets().front();
+    preset.size = 8;
+    preset.dynamics.sizeVariation.enabled = true;
+    preset.dynamics.sizeVariation.control = BrushDynamicsControl::PenPressure;
+    if(!session.setBrushPresetData(serializeBrushPreset(preset))) return 3;
+    PointerEvent point;
+    point.phase = PointerEventPhase::Press;
+    point.button = PointerButton::Primary;
+    point.primaryButtonDown = true;
+    point.documentPosition = {16,16};
+    point.pressure = 0.8;
+    if(!session.processPointerEvent(point).accepted) return 4;
+    point.phase = PointerEventPhase::Release;
+    point.primaryButtonDown = false;
+    if(!session.processPointerEvent(point).committed || !session.save()) return 5;
+    BitmapFile reopened;
+    if(!reopened.open(argv[1]) || reopened.pixels().pixels != session.file().pixels().pixels) return 6;
+    if(!session.undo() || !session.redo()) return 7;
+    MaskPaintSession mask;
+    if(!mask.createMask(8,8)) return 8;
+    LocalMaskBrushOptions options; options.sizePixels=4; options.feather=0; options.density=.6;
+    if(!mask.setBrushOptions(options)) return 9;
+    point.phase=PointerEventPhase::Press; point.primaryButtonDown=true; point.button=PointerButton::Primary;
+    point.documentPosition={4,4};
+    if(!mask.processPointerEvent(point).accepted || mask.mask().coverage[36]!=0) return 10;
+    point.phase=PointerEventPhase::Release; point.primaryButtonDown=false;
+    if(!mask.processPointerEvent(point).committed || mask.mask().coverage[36]<.59F || mask.mask().coverage[36]>.61F) return 11;
+    if(!mask.undo() || mask.mask().coverage[36]!=0 || !mask.redo()) return 12;
+    std::cout << "Installed C++23 bitmap consumer passed\n";
 }
 ]=])
-
-set(configure_command
-    "${CMAKE_COMMAND}"
-    -S "${consumer_source_dir}"
-    -B "${consumer_build_dir}"
-    "-DiiPaintEngine_DIR=${test_prefix}/lib/cmake/iiPaintEngine"
-    "-DQt6_DIR=${IIPAINTENGINE_QT6_DIR}"
-    "-DiiFileProvider_DIR=${IIPAINTENGINE_IIFILEPROVIDER_DIR}"
-    -DCMAKE_BUILD_TYPE=Release)
-if (DEFINED IIPAINTENGINE_GENERATOR AND NOT IIPAINTENGINE_GENERATOR STREQUAL "")
+set(configure_command "${CMAKE_COMMAND}" -S "${consumer_source_dir}" -B "${consumer_build_dir}"
+    "-DiiPaintEngine_DIR=${test_prefix}/lib/cmake/iiPaintEngine" -DCMAKE_BUILD_TYPE=Release)
+if(IIPAINTENGINE_GENERATOR)
     list(APPEND configure_command -G "${IIPAINTENGINE_GENERATOR}")
-endif ()
-if (DEFINED IIPAINTENGINE_GENERATOR_PLATFORM AND NOT IIPAINTENGINE_GENERATOR_PLATFORM STREQUAL "")
-    list(APPEND configure_command -A "${IIPAINTENGINE_GENERATOR_PLATFORM}")
-endif ()
-if (DEFINED IIPAINTENGINE_GENERATOR_TOOLSET AND NOT IIPAINTENGINE_GENERATOR_TOOLSET STREQUAL "")
-    list(APPEND configure_command -T "${IIPAINTENGINE_GENERATOR_TOOLSET}")
-endif ()
-if (DEFINED IIPAINTENGINE_CXX_COMPILER AND NOT IIPAINTENGINE_CXX_COMPILER STREQUAL "")
+endif()
+if(IIPAINTENGINE_CXX_COMPILER)
     list(APPEND configure_command "-DCMAKE_CXX_COMPILER=${IIPAINTENGINE_CXX_COMPILER}")
-endif ()
-if (DEFINED IIPAINTENGINE_MAKE_PROGRAM AND NOT IIPAINTENGINE_MAKE_PROGRAM STREQUAL "")
-    list(APPEND configure_command "-DCMAKE_MAKE_PROGRAM=${IIPAINTENGINE_MAKE_PROGRAM}")
-endif ()
-
-set(configure_invocation ${configure_command})
-if (APPLE)
-    set(consumer_library_path "${test_prefix}/lib")
-    if (NOT "$ENV{LIBRARY_PATH}" STREQUAL "")
-        string(APPEND consumer_library_path ":$ENV{LIBRARY_PATH}")
-    endif ()
-    set(configure_invocation
-        "${CMAKE_COMMAND}" -E env
-        "LIBRARY_PATH=${consumer_library_path}"
-        ${configure_command})
-endif ()
-
-execute_process(
-    COMMAND ${configure_invocation}
-    RESULT_VARIABLE configure_result
-    OUTPUT_VARIABLE configure_output
-    ERROR_VARIABLE configure_error)
-if (NOT configure_result EQUAL 0)
-    message(FATAL_ERROR
-        "The installed-package consumer configure failed with exit code ${configure_result}.\n"
-        "stdout:\n${configure_output}\n"
-        "stderr:\n${configure_error}")
-endif ()
-
+endif()
+execute_process(COMMAND ${configure_command} RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Installed consumer configure failed (${result}):\n${output}\n${error}")
+endif()
 set(build_command "${CMAKE_COMMAND}" --build "${consumer_build_dir}")
-if (DEFINED IIPAINTENGINE_INSTALL_CONFIG AND NOT IIPAINTENGINE_INSTALL_CONFIG STREQUAL "")
+if(IIPAINTENGINE_INSTALL_CONFIG)
     list(APPEND build_command --config "${IIPAINTENGINE_INSTALL_CONFIG}")
-endif ()
-execute_process(
-    COMMAND ${build_command}
-    RESULT_VARIABLE build_result
-    OUTPUT_VARIABLE build_output
-    ERROR_VARIABLE build_error)
-if (NOT build_result EQUAL 0)
-    message(FATAL_ERROR
-        "The installed-package consumer build or load failed with exit code ${build_result}.\n"
-        "stdout:\n${build_output}\n"
-        "stderr:\n${build_error}")
-endif ()
-if (NOT build_output MATCHES "Hello, World!")
-    message(FATAL_ERROR "The installed-package consumer did not execute the iiPaintEngine library")
-endif ()
+endif()
+execute_process(COMMAND ${build_command} RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Installed consumer build or load failed (${result}):\n${output}\n${error}")
+endif()
+if(NOT output MATCHES "Installed C[+][+]23 bitmap consumer passed")
+    message(FATAL_ERROR "Installed consumer did not execute successfully:\n${output}")
+endif()

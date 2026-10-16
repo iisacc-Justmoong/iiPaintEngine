@@ -7,7 +7,7 @@
 #include "Core/Types.h"
 
 enum class BrushTipShape { Round, Square, Diamond };
-enum class BrushAngleMode { Automatic, Fixed, StrokeDirection, TiltDirection, StylusRotation };
+enum class BrushAngleMode { Automatic, Fixed, StrokeDirection, TiltDirection, StylusRotation, InitialStrokeDirection };
 
 struct BrushShape {
     BrushTipShape kind = BrushTipShape::Round;

@@ -155,7 +155,7 @@ std::uint32_t wetDabColorArgb(const BrushDab &dab,
     const Types::Scalar smudge = clamp01(simulation.smudgeStrength * wetness);
     const Types::Scalar pickup = clamp01(simulation.pickup);
     const Types::Scalar deposit = clamp01(simulation.deposit);
-    const Types::Scalar mix = clamp01(simulation.mixStrength * std::max<Types::Scalar>(wetness, 0.01));
+    const Types::Scalar mix = clamp01(simulation.mixStrength * dab.mixScale * std::max<Types::Scalar>(wetness, 0.01));
     const Types::Scalar baseSize = rasterizer.brushSize > 0.0
             ? rasterizer.brushSize
             : static_cast<Types::Scalar>(std::max<Types::Pixel>(1, rasterizer.radius * 2));
@@ -792,11 +792,36 @@ Types::Pixel wrappedPixel(Types::Scalar value, Types::Pixel size)
     if (size <= 0) {
         return 0;
     }
-    Types::Pixel pixel = static_cast<Types::Pixel>(std::floor(value)) % size;
+    if (!std::isfinite(value)) return 0;
+    Types::Pixel pixel = static_cast<Types::Pixel>(std::fmod(std::floor(value), static_cast<double>(size)));
     if (pixel < 0) {
         pixel += size;
     }
     return pixel;
+}
+
+Types::Scalar adjustedTextureAlpha(const BrushTexture &texture, Types::Scalar alpha)
+{
+    if (texture.brightness != 0 || texture.contrast != 0)
+        alpha = clamp01((alpha - .5) * (1 + texture.contrast) + .5 + texture.brightness);
+    return texture.invert ? 1 - alpha : alpha;
+}
+
+Types::Scalar blendTextureMask(Types::Scalar base, Types::Scalar texture, BrushTextureBlendMode mode)
+{
+    switch (mode) {
+        case BrushTextureBlendMode::Multiply: return base * texture;
+        case BrushTextureBlendMode::Subtract: return std::max(0.0, base - texture);
+        case BrushTextureBlendMode::Darken: return std::min(base, texture);
+        case BrushTextureBlendMode::Lighten: return std::max(base, texture);
+        case BrushTextureBlendMode::ColorDodge: return texture >= 1 ? 1 : clamp01(base / (1 - texture));
+        case BrushTextureBlendMode::ColorBurn: return texture <= 0 ? 0 : clamp01(1 - (1 - base) / texture);
+        case BrushTextureBlendMode::LinearBurn: return std::max(0.0, base + texture - 1);
+        case BrushTextureBlendMode::HardMix: return base + texture >= 1 ? 1 : 0;
+        case BrushTextureBlendMode::Height: return std::min(base, texture);
+        case BrushTextureBlendMode::LinearHeight: return clamp01(base + texture - .5);
+    }
+    return base;
 }
 
 Types::Scalar textureAlphaAtIndex(const BrushTexture &texture, Types::Scalar u, Types::Scalar v)
@@ -811,7 +836,7 @@ Types::Scalar textureAlphaAtIndex(const BrushTexture &texture, Types::Scalar u, 
     const Types::Pixel y = wrappedPixel(v, height);
     const std::size_t index = static_cast<std::size_t>(y) * static_cast<std::size_t>(width)
             + static_cast<std::size_t>(x);
-    return static_cast<Types::Scalar>(textureAlphaBuffer(texture)[index]) / 255.0;
+    return adjustedTextureAlpha(texture, static_cast<Types::Scalar>(textureAlphaBuffer(texture)[index]) / 255.0);
 }
 
 Types::Scalar materialTextureAlpha(const BrushTexture &texture, std::uint32_t sequenceIndex)
@@ -822,7 +847,7 @@ Types::Scalar materialTextureAlpha(const BrushTexture &texture, std::uint32_t se
 
     const std::vector<Types::Byte> &alpha = textureAlphaBuffer(texture);
     const std::size_t index = static_cast<std::size_t>(sequenceIndex) % alpha.size();
-    return static_cast<Types::Scalar>(alpha[index]) / 255.0;
+    return adjustedTextureAlpha(texture, static_cast<Types::Scalar>(alpha[index]) / 255.0);
 }
 
 DocumentPoint documentPointForDevice(DevicePixelPoint position, const ProjectionContext &context)
@@ -853,7 +878,7 @@ Types::Scalar sampledTextureAlpha(const BrushTexture &texture,
     const Types::Scalar sinTheta = std::sin(rotation);
     Types::Scalar u = 0.0;
     Types::Scalar v = 0.0;
-    switch (texture.space) {
+    switch (texture.textureEachTip ? BrushTextureSpace::Tip : texture.space) {
         case BrushTextureSpace::Document:
         case BrushTextureSpace::Paper: {
             const DocumentPoint document = documentPointForDevice(position, context);
@@ -890,11 +915,20 @@ Types::Scalar applyTextureMask(Types::Scalar maskAlpha,
     }
 
     const Types::Scalar textureAlpha = sampledTextureAlpha(texture, dab, position, context);
-    const Types::Scalar strength = clamp01(texture.strength);
-    return maskAlpha * (1.0 - strength * (1.0 - textureAlpha));
+    const auto depth = std::clamp(texture.depth * (texture.textureEachTip ? dab.textureDepthScale : 1),
+                                  texture.minimumDepth, 1.0);
+    const Types::Scalar strength = clamp01(texture.strength * depth);
+    if (texture.blendMode == BrushTextureBlendMode::Multiply)
+        return maskAlpha * (1.0 - strength * (1.0 - textureAlpha));
+    return maskAlpha * (1 - strength) + blendTextureMask(maskAlpha, textureAlpha, texture.blendMode) * strength;
 }
 
-Types::Scalar dualBrushAlphaAt(const DualBrush &dualBrush, const BrushDab &dab, DevicePixelPoint position)
+DocumentPoint scatterPosition(DocumentPoint position, const BrushScatter &scatter,
+                              Types::Scalar scatterScale, Types::Scalar diameter,
+                              Types::Scalar direction, std::uint32_t seed, std::uint32_t index);
+
+Types::Scalar dualBrushAlphaAt(const DualBrush &dualBrush, const BrushDab &dab, DevicePixelPoint position,
+                               const ProjectionContext &context)
 {
     if (!dualBrush.enabled
             || dualBrush.width <= 0
@@ -904,31 +938,45 @@ Types::Scalar dualBrushAlphaAt(const DualBrush &dualBrush, const BrushDab &dab, 
         return 1.0;
     }
 
-    const Types::Scalar scale = std::max<Types::Scalar>(0.01, dualBrush.scale * dab.dualBrushScale);
+    const auto projectionScale = std::max(.01, context.projection.scale);
+    const Types::Scalar scale = std::max<Types::Scalar>(0.01, dualBrush.scale * dab.dualBrushScale) * projectionScale;
     const Types::Scalar rotation = dab.rotationRadians + dualBrush.rotationRadians + dab.dualBrushRotationRadians;
     const Types::Scalar cosTheta = std::cos(rotation);
     const Types::Scalar sinTheta = std::sin(rotation);
-    const Types::Scalar dx = static_cast<Types::Scalar>(position.x) - dab.position.x;
-    const Types::Scalar dy = static_cast<Types::Scalar>(position.y) - dab.position.y;
-    const Types::Scalar u = (dx * cosTheta + dy * sinTheta) / scale + dualBrush.offsetX;
-    const Types::Scalar v = (-dx * sinTheta + dy * cosTheta) / scale + dualBrush.offsetY;
-    const Types::Pixel x = wrappedPixel(u, dualBrush.width);
-    const Types::Pixel y = wrappedPixel(v, dualBrush.height);
-    const std::size_t index = static_cast<std::size_t>(y) * static_cast<std::size_t>(dualBrush.width)
-            + static_cast<std::size_t>(x);
-    return static_cast<Types::Scalar>(dualBrush.alpha[index]) / 255.0;
+    const auto &scatter = dualBrush.scatter;
+    const auto diameter = std::max(dualBrush.width, dualBrush.height) * scale / projectionScale;
+    const auto phase = static_cast<std::uint32_t>(std::fmod(std::floor(std::max(0.0, dab.strokeDistance)
+            / std::max(.001, diameter * dualBrush.spacingRatio)), 4294967296.0));
+    const auto count = scatter.enabled ? static_cast<unsigned>(std::clamp(std::round(scatter.count
+            * (1 - scatter.countJitter * deterministicUnit(dab.randomSeed + 0x4E53U, phase))), 0.0, 256.0)) : 1U;
+    double alpha = 0;
+    for (unsigned i = 0; i < count; ++i) {
+        auto offset = scatterPosition({}, scatter, 1, diameter, rotation, dab.randomSeed + 0x3D47U, phase * 257U + i);
+        const Types::Scalar dx = static_cast<Types::Scalar>(position.x) - dab.position.x - offset.x * projectionScale;
+        const Types::Scalar dy = static_cast<Types::Scalar>(position.y) - dab.position.y - offset.y * projectionScale;
+        auto u = (dx * cosTheta + dy * sinTheta) / scale;
+        auto v = (-dx * sinTheta + dy * cosTheta) / scale;
+        if (dualBrush.flipX) u = -u;
+        if (dualBrush.flipY) v = -v;
+        const auto x = wrappedPixel(u + dualBrush.offsetX, dualBrush.width);
+        const auto y = wrappedPixel(v + dualBrush.offsetY, dualBrush.height);
+        const auto index = static_cast<std::size_t>(y) * dualBrush.width + x;
+        alpha = std::max(alpha, static_cast<double>(dualBrush.alpha[index]) / 255.0);
+    }
+    return alpha;
 }
 
 Types::Scalar applyDualBrushMask(Types::Scalar maskAlpha,
                                  const DualBrush &dualBrush,
                                  const BrushDab &dab,
-                                 DevicePixelPoint position)
+                                 DevicePixelPoint position,
+                                 const ProjectionContext &context)
 {
     if (!dualBrush.enabled) {
         return maskAlpha;
     }
 
-    const Types::Scalar dualAlpha = dualBrushAlphaAt(dualBrush, dab, position) * clamp01(dualBrush.opacity);
+    const Types::Scalar dualAlpha = dualBrushAlphaAt(dualBrush, dab, position, context) * clamp01(dualBrush.opacity);
     switch (dualBrush.compositeMode) {
         case DualBrushCompositeMode::Add:
             return clamp01(maskAlpha + dualAlpha);
@@ -938,6 +986,12 @@ Types::Scalar applyDualBrushMask(Types::Scalar maskAlpha,
             return clamp01(std::abs(maskAlpha - dualAlpha));
         case DualBrushCompositeMode::Multiply:
             return clamp01(maskAlpha * dualAlpha);
+        case DualBrushCompositeMode::Darken: return std::min(maskAlpha, dualAlpha);
+        case DualBrushCompositeMode::Lighten: return std::max(maskAlpha, dualAlpha);
+        case DualBrushCompositeMode::ColorDodge: return blendTextureMask(maskAlpha, dualAlpha, BrushTextureBlendMode::ColorDodge);
+        case DualBrushCompositeMode::ColorBurn: return blendTextureMask(maskAlpha, dualAlpha, BrushTextureBlendMode::ColorBurn);
+        case DualBrushCompositeMode::LinearBurn: return blendTextureMask(maskAlpha, dualAlpha, BrushTextureBlendMode::LinearBurn);
+        case DualBrushCompositeMode::HardMix: return blendTextureMask(maskAlpha, dualAlpha, BrushTextureBlendMode::HardMix);
     }
     return maskAlpha;
 }
@@ -947,14 +1001,28 @@ Types::Scalar materialProjectionMask(Types::Scalar maskAlpha,
                                      DevicePixelPoint position,
                                      const ProjectionContext &context)
 {
-    if (context.material == nullptr) {
-        return maskAlpha;
-    }
-
     Types::Scalar result = maskAlpha;
-    result = applyTextureMask(result, context.material->texture, dab, position, context);
-    result = applyTextureMask(result, context.material->paperGrain, dab, position, context);
-    result = applyDualBrushMask(result, context.material->dualBrush, dab, position);
+    if (context.material != nullptr) {
+        result = applyTextureMask(result, context.material->texture, dab, position, context);
+        result = applyTextureMask(result, context.material->paperGrain, dab, position, context);
+        result = applyDualBrushMask(result, context.material->dualBrush, dab, position, context);
+    }
+    if (dab.wetEdgesStrength > 0) result *= 1 - clamp01(dab.wetEdgesStrength) * maskAlpha;
+    if (dab.noiseStrength > 0 || dab.airbrushGranularity > 0 || dab.airbrushSpatter > 0) {
+        const auto document = documentPointForDevice(position, context);
+        const auto x = static_cast<std::uint32_t>(static_cast<std::int64_t>(std::floor(document.x)));
+        const auto y = static_cast<std::uint32_t>(static_cast<std::int64_t>(std::floor(document.y)));
+        const auto noise = deterministicUnit(dab.randomSeed ^ (x * 0x9E3779B9U) ^ (y * 0x85EBCA6BU), dab.sequenceIndex);
+        result *= 1 - clamp01(dab.noiseStrength) * noise;
+        result *= 1 - clamp01(dab.airbrushGranularity) * deterministicUnit(dab.randomSeed + x + y * 97U, dab.sequenceIndex);
+        if (dab.airbrushSpatter > 0) {
+            const auto cellSize = std::max(.01, dab.airbrushSpatterSize);
+            const auto sx = static_cast<std::uint32_t>(static_cast<std::int64_t>(std::floor(document.x / cellSize)));
+            const auto sy = static_cast<std::uint32_t>(static_cast<std::int64_t>(std::floor(document.y / cellSize)));
+            if (deterministicUnit(dab.randomSeed ^ sx * 0x7FEB352DU ^ sy * 0x846CA68BU, dab.sequenceIndex) < dab.airbrushSpatter)
+                result = 0;
+        }
+    }
     return clamp01(result);
 }
 
@@ -966,7 +1034,7 @@ Types::Scalar materialFlowScale(const BrushMaterial &material,
 {
     Types::Scalar scale = 1.0;
     if (material.texture.enabled) {
-        const Types::Scalar textureDepth = std::clamp(material.texture.grainStrength * textureDepthScale, 0.0, 1.0);
+        const Types::Scalar textureDepth = std::clamp(material.texture.grainStrength * material.texture.depth * textureDepthScale, 0.0, 1.0);
         scale *= 1.0 - textureDepth * (1.0 - textureAlpha);
     }
     if (material.dualBrush.enabled) {
@@ -977,6 +1045,7 @@ Types::Scalar materialFlowScale(const BrushMaterial &material,
         scale *= 1.0 - wetness * 0.25;
         scale *= 1.0 - std::clamp(material.simulation.smudgeStrength, 0.0, 1.0) * 0.15;
         scale *= 1.0 - std::clamp(material.simulation.mixStrength, 0.0, 1.0) * 0.10;
+        scale *= clamp01(material.simulation.load);
     }
     return std::clamp(scale * dryOutScale, 0.0, 1.0);
 }
@@ -1005,7 +1074,8 @@ DocumentPoint scatterPosition(DocumentPoint position, const BrushScatter &scatte
 }
 
 BrushDynamicsInput dynamicsInput(const StrokePoint &point, double direction, double distance,
-                                 double elapsed, std::uint32_t seed, std::uint32_t index)
+                                 double elapsed, std::uint32_t seed, std::uint32_t index,
+                                 double initialDirection = 0)
 {
     BrushDynamicsInput input{point.pressure, point.velocity, point.tiltX, point.tiltY,
                             deterministicSigned(seed, index), deterministicUnit(seed + 0xA511E9B3U, index)};
@@ -1013,6 +1083,7 @@ BrushDynamicsInput dynamicsInput(const StrokePoint &point, double direction, dou
     input.tangentialPressure = point.tangentialPressure; input.distance = distance;
     input.elapsedTime = elapsed; input.strokeRandom = deterministicUnit(seed + 0xC8013EA4U, 0);
     input.custom = point.custom;
+    input.dabIndex = index; input.initialDirectionRadians = initialDirection;
     return input;
 }
 
@@ -1021,8 +1092,10 @@ std::uint32_t expressiveColor(std::uint32_t argb, const BrushColorSettings &sett
                               std::uint32_t seed, std::uint32_t index)
 {
     if (!settings.enabled) return argb;
+    const auto randomIndex = settings.perStroke ? 0U : index;
+    const auto mixNoise = randomEnabled ? settings.mixJitter * deterministicUnit(seed + 0x753BU, randomIndex) : 0;
     auto color = mixColor(unitColorFromArgb(argb), unitColorFromArgb(settings.secondaryArgb),
-                          settings.mix + dynamics.colorMix);
+                          settings.mix + dynamics.colorMix + mixNoise);
     const auto high = std::max({color.red, color.green, color.blue});
     const auto low = std::min({color.red, color.green, color.blue});
     const auto delta = high - low;
@@ -1033,12 +1106,13 @@ std::uint32_t expressiveColor(std::uint32_t argb, const BrushColorSettings &sett
         else hue = 4+(color.red-color.green)/delta;
         hue /= 6;
     }
-    const auto randomIndex = settings.perStroke ? 0U : index;
     const auto noise = [&](std::uint32_t channel) { return randomEnabled ? deterministicSigned(seed + channel, randomIndex) : 0.0; };
     hue += dynamics.hueOffset + settings.hueJitter * noise(0xF13AU);
     hue -= std::floor(hue);
-    const auto saturation = clamp01((high > 0 ? delta/high : 0.0)*dynamics.saturationScale
+    auto saturation = clamp01((high > 0 ? delta/high : 0.0)*dynamics.saturationScale
                                     + settings.saturationJitter*noise(0x922BU));
+    saturation = settings.purity < 0 ? saturation * (1 + settings.purity)
+                                    : saturation + (1 - saturation) * settings.purity;
     const auto value = clamp01(high*dynamics.valueScale + settings.valueJitter*noise(0x138DU));
     const auto chroma = value*saturation;
     const auto x = chroma*(1-std::abs(std::fmod(hue*6,2)-1));
@@ -1146,17 +1220,19 @@ BrushDab makeBrushDab(const StrokePoint &sample,
                       Types::Scalar distanceOnTrajectory,
                       Types::Scalar elapsedTime,
                       std::uint32_t randomSeed,
-                      std::uint32_t sequenceIndex)
+                      std::uint32_t sequenceIndex,
+                      Types::Scalar initialDirection)
 {
-    const Types::Scalar pressure = dynamics.pressureInputEnabled ? clamp01(sample.pressure) : 1.0;
+    const auto input = applyBrushPose(dynamics.pose, dynamicsInput(sample, tangentRadians, distanceOnTrajectory,
+                                    elapsedTime, randomSeed, sequenceIndex, initialDirection));
+    const Types::Scalar pressure = dynamics.pressureInputEnabled ? clamp01(input.pressure) : 1.0;
     const Types::Scalar scale = std::max<Types::Scalar>(
             0.01,
             1.0 + (pressure - 1.0) * rasterizer.pressureScale);
-    const Types::Scalar tiltX = dynamics.tiltInputEnabled ? sample.tiltX : 0.0;
-    const Types::Scalar tiltY = dynamics.tiltInputEnabled ? sample.tiltY : 0.0;
+    const Types::Scalar tiltX = dynamics.tiltInputEnabled ? input.tiltX : 0.0;
+    const Types::Scalar tiltY = dynamics.tiltInputEnabled ? input.tiltY : 0.0;
     const bool hasTilt = tiltX != 0.0 || tiltY != 0.0;
-    const auto dynamicsResult = resolveBrushDynamics(dynamics,
-            dynamicsInput(sample, tangentRadians, distanceOnTrajectory, elapsedTime, randomSeed, sequenceIndex));
+    const auto dynamicsResult = resolveBrushDynamics(dynamics, input);
     const Types::Scalar rasterizerJitter = dynamics.randomInputEnabled
             ? deterministicSigned(randomSeed, sequenceIndex) * rasterizer.rotationJitter
             : 0.0;
@@ -1170,9 +1246,11 @@ BrushDab makeBrushDab(const StrokePoint &sample,
         case BrushAngleMode::Fixed: baseRotation = 0.0; break;
         case BrushAngleMode::StrokeDirection: baseRotation = tangentRadians; break;
         case BrushAngleMode::TiltDirection: baseRotation = hasTilt ? std::atan2(tiltY, tiltX) : 0.0; break;
-        case BrushAngleMode::StylusRotation: baseRotation = sample.rotationRadians; break;
+        case BrushAngleMode::StylusRotation: baseRotation = input.rotationRadians; break;
+        case BrushAngleMode::InitialStrokeDirection: baseRotation = initialDirection; break;
     }
     baseRotation += rasterizer.shape.angleRadians;
+    if (material.bristle.enabled) baseRotation += material.bristle.angleRadians;
     const Types::Scalar textureDirection = dynamicsResult.textureDirectionFromTilt
             ? dynamicsResult.textureDirectionRadians
             : baseRotation;
@@ -1199,9 +1277,23 @@ BrushDab makeBrushDab(const StrokePoint &sample,
     const Types::Scalar flow = rasterizer.flowEnabled ? rasterizer.flow : 1.0;
 
     BrushDab dab;
+    dab.randomSeed = randomSeed;
+    dab.noiseStrength = rasterizer.noiseEnabled ? rasterizer.noiseStrength : 0;
+    dab.wetEdgesStrength = rasterizer.wetEdgesEnabled ? rasterizer.wetEdgesStrength : 0;
+    dab.mixScale = dynamicsResult.mixScale;
+    if (material.erodible.enabled) {
+        dab.tipWear = clamp01(material.erodible.wear + material.erodible.softness
+                * distanceOnTrajectory / (std::max(1.0, rasterizer.brushSize) * 100));
+    }
+    if (material.airbrushTip.enabled) {
+        dab.airbrushGranularity = material.airbrushTip.granularity;
+        dab.airbrushSpatter = material.airbrushTip.spatter;
+        dab.airbrushSpatterSize = material.airbrushTip.spatterSize;
+    }
     dab.position = position;
     dab.scale = scale * dynamicsResult.sizeScale
             * (material.dualBrush.enabled ? std::max<Types::Scalar>(0.01, material.dualBrush.scale) : 1.0);
+    if (material.erodible.enabled) dab.scale *= 1 + dab.tipWear * .5;
     dab.rotationRadians = baseRotation + jitter + dynamicsResult.rotationOffsetRadians;
     dab.alpha = clamp01(flow) * dynamicsResult.flowScale * taperFactor(rasterizer, distanceOnTrajectory)
             * materialFlowScale(material,
@@ -1211,13 +1303,16 @@ BrushDab makeBrushDab(const StrokePoint &sample,
                                 dynamicsResult.dryOutScale);
     dab.opacityCapScale = dynamicsResult.opacityScale;
     dab.hardnessScale = dynamicsResult.hardnessScale;
+    if (material.erodible.enabled) dab.hardnessScale *= 1 - dab.tipWear * .8;
     dab.ellipseScaleX = dynamicsResult.ellipseScaleX
             * bristleEllipseScaleX(material.bristle, dynamicsResult.bristleSpreadScale);
     dab.ellipseScaleY = rasterizer.shape.roundness * std::max(0.01, dynamicsResult.roundnessScale) * dynamicsResult.ellipseScaleY
             * bristleEllipseScaleY(material.bristle, dynamicsResult.bristleSpreadScale);
+    if (material.bristle.enabled) dab.ellipseScaleY *= material.bristle.thickness;
+    if (material.airbrushTip.enabled) dab.ellipseScaleY *= std::max(.05, 1 - material.airbrushTip.distortion * std::min(1.0, std::hypot(tiltX, tiltY)));
     dab.textureDirectionRadians = textureDirection;
     dab.grain = clamp01(dynamicsResult.grain
-                        + material.texture.grainStrength * dynamicsResult.textureDepthScale * (1.0 - textureAlpha));
+                        + material.texture.grainStrength * material.texture.depth * dynamicsResult.textureDepthScale * (1.0 - textureAlpha));
     dab.textureAlpha = textureAlpha;
     dab.textureDepthScale = dynamicsResult.textureDepthScale;
     dab.textureScale = std::max<Types::Scalar>(0.01, 1.0 + textureScaleJitter);
@@ -1253,7 +1348,8 @@ BrushDab makeBrushDab(const StrokePoint &sample,
         const auto diameter = std::clamp(rasterizer.brushSize * dab.scale, 0.0, 4096.0 / extentScale);
         dab.scale = diameter / extent;
     }
-    dab.flipX = rasterizer.shape.flipX; dab.flipY = rasterizer.shape.flipY;
+    dab.flipX = rasterizer.shape.flipX != dynamicsResult.flipX;
+    dab.flipY = rasterizer.shape.flipY != dynamicsResult.flipY;
     return dab;
 }
 
@@ -1261,16 +1357,24 @@ void appendPlacement(std::vector<BrushDab> &dabs, RasterDabStream &stream,
                      const StrokePoint &sample, double direction, double distance, const BrushState &brush)
 {
     const auto input = dynamicsInput(sample, direction, distance, std::max(0.0, sample.time-stream.startTime),
-                                     brush.randomSeed, stream.sequenceIndex);
+                                     brush.randomSeed, stream.sequenceIndex, stream.initialDirection);
     const auto resolved = resolveBrushDynamics(brush.dynamics, input);
     const auto &scatter = brush.material.scatter;
     const auto jitter = brush.dynamics.randomInputEnabled
             ? 1.0 - scatter.countJitter * deterministicUnit(brush.randomSeed + 0x71E3U, stream.placementIndex) : 1.0;
     const auto count = scatter.enabled ? static_cast<unsigned int>(std::clamp(std::round(scatter.count * resolved.scatterCountScale * jitter), 0.0, 256.0)) : 1U;
     if (dabs.size() + count > 65536) throw std::length_error("brush event exceeds 65536 dabs");
-    for (unsigned int i = 0; i < count; ++i)
+    for (unsigned int i = 0; i < count; ++i) {
         dabs.push_back(makeBrushDab(sample, direction, brush.rasterizer, brush.dynamics, brush.material,
-                                    distance, input.elapsedTime, brush.randomSeed, stream.sequenceIndex++));
+                                    distance, input.elapsedTime, brush.randomSeed, stream.sequenceIndex++, stream.initialDirection));
+        if (brush.rasterizer.color.enabled && brush.rasterizer.color.perStroke) {
+            if (!stream.strokeColorSet) {
+                stream.strokeColorArgb = dabs.back().colorArgb; stream.strokeColorSet = true;
+            }
+            dabs.back().colorArgb = stream.strokeColorArgb;
+        }
+        stream.tipWear = dabs.back().tipWear;
+    }
     ++stream.placementIndex;
     stream.lastDabDistance = distance;
 }
@@ -1302,12 +1406,20 @@ std::vector<BrushDab> appendRasterDabs(RasterDabStream &state, const StrokePoint
     } else {
         const auto start = stream.previousPoint;
         if (next.time < start.time) throw std::invalid_argument("brush timestamps must be monotonic seconds");
+        if (brush.rasterizer.smoothingEnabled && brush.rasterizer.smoothing > 0) {
+            const auto weight = 1 - .95 * clamp01(brush.rasterizer.smoothing);
+            next.position.x = start.position.x + (next.position.x - start.position.x) * weight;
+            next.position.y = start.position.y + (next.position.y - start.position.y) * weight;
+        }
         const auto dx = next.position.x-start.position.x, dy = next.position.y-start.position.y;
         const auto length = std::hypot(dx,dy);
         const auto duration = next.time-start.time;
         next.velocity = duration > 0 ? std::min(1e9, length/duration) : 0;
         next.arcLength = stream.traveledDistance+length;
         const auto direction = length > 0 ? std::atan2(dy,dx) : stream.lastDirection;
+        if (length > 0 && !stream.initialDirectionSet) {
+            stream.initialDirection = direction; stream.initialDirectionSet = true;
+        }
         constexpr double epsilon = 1e-6;
         if (brush.rasterizer.airbrushEnabled) {
             if (duration / interval > 65536) throw std::length_error("airbrush event exceeds time budget");
@@ -1326,7 +1438,7 @@ std::vector<BrushDab> appendRasterDabs(RasterDabStream &state, const StrokePoint
                 appendPlacement(dabs,stream,sample,direction,stream.nextDabDistance,brush);
                 stream.nextDabDistance += effectiveSpacing(brush.rasterizer,brush.dynamics,
                         dynamicsInput(sample,direction,stream.nextDabDistance,sample.time-stream.startTime,
-                                       brush.randomSeed,stream.sequenceIndex));
+                                       brush.randomSeed,stream.sequenceIndex,stream.initialDirection));
             }
             if (finishStroke && next.arcLength-stream.lastDabDistance > epsilon)
                 appendPlacement(dabs,stream,next,direction,next.arcLength,brush);

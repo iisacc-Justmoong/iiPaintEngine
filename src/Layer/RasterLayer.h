@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <span>
 
 #include "Core/RasterSample.h"
 #include "Core/Types.h"
@@ -42,6 +43,11 @@ std::uint32_t strokeCompositePixelAt(const StrokeCompositeBuffer &buffer, Device
 void copyStrokeCompositeSamplePixels(RasterLayer &layer,
                                      const StrokeCompositeBuffer &buffer,
                                      const std::vector<RasterSample> &samples);
+
+// Recompute only touched preview pixels from committed pixels plus pending coverage.
+void copyStrokePreviewSamplePixels(RasterLayer &preview, const RasterLayer &committed,
+                                   const StrokeCompositeBuffer &pending, std::span<const RasterSample> samples,
+                                   bool destinationOut);
 
 void compositeStrokeBufferOntoLayer(RasterLayer &layer, const StrokeCompositeBuffer &buffer);
 

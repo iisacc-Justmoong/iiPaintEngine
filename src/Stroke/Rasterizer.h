@@ -44,6 +44,14 @@ struct BrushDab {
     std::uint32_t tipIndex = 0;
     bool flipX = false;
     bool flipY = false;
+    std::uint32_t randomSeed = 0;
+    Types::Scalar noiseStrength = 0.0;
+    Types::Scalar wetEdgesStrength = 0.0;
+    Types::Scalar mixScale = 1.0;
+    Types::Scalar tipWear = 0.0;
+    Types::Scalar airbrushGranularity = 0.0;
+    Types::Scalar airbrushSpatter = 0.0;
+    Types::Scalar airbrushSpatterSize = 1.0;
 };
 
 using DabCommand = BrushDab;
@@ -121,6 +129,11 @@ struct RasterDabStream {
     Types::Scalar startTime = 0.0;
     Types::Scalar nextDabTime = 0.0;
     Types::Scalar lastDirection = 0.0;
+    Types::Scalar initialDirection = 0.0;
+    bool initialDirectionSet = false;
+    Types::Scalar tipWear = 0.0;
+    bool strokeColorSet = false;
+    std::uint32_t strokeColorArgb = 0xFF000000U;
 };
 
 std::vector<BrushDab> appendRasterDabs(RasterDabStream &stream,

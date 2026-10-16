@@ -6,6 +6,7 @@
 
 #include "Core/Types.h"
 #include <array>
+#include <cstdint>
 #include <vector>
 
 enum class BrushDynamicsEasing {
@@ -44,7 +45,33 @@ enum class BrushDynamicsSource {
 enum class BrushDynamicsTarget {
     Size, Flow, Opacity, Hardness, Spacing, Scatter, Rotation, Roundness,
     TextureDepth, Wetness, DryOut, BristleSpread, ScatterCount,
-    Hue, Saturation, Value, ColorMix,
+    Hue, Saturation, Value, ColorMix, Mix,
+};
+
+// These are iiPaintEngine controls, not Photoshop descriptor numeric values.
+enum class BrushDynamicsControl {
+    Off, Fade, PenPressure, PenTilt, StylusWheel, StylusRotation,
+    InitialDirection, Direction,
+};
+
+struct BrushDynamicsVariation {
+    bool enabled = false;
+    BrushDynamicsControl control = BrushDynamicsControl::Off;
+    Types::Scalar jitter = 0.0; // Fraction of the available range, [0,1].
+    Types::Scalar minimum = 0.0; // Floor of a scale control, [0,1].
+    std::uint32_t fadeSteps = 25; // Emitted tip marks, not input events or pixels.
+};
+
+struct BrushPoseSettings {
+    bool enabled = false;
+    bool overridePressure = false;
+    bool overrideTiltX = false;
+    bool overrideTiltY = false;
+    bool overrideRotation = false;
+    Types::Scalar pressure = 1.0;
+    Types::Scalar tiltX = 0.0;
+    Types::Scalar tiltY = 0.0;
+    Types::Scalar rotationRadians = 0.0;
 };
 
 struct BrushDynamicsBinding {
@@ -104,6 +131,21 @@ struct BrushDynamics {
     BrushDynamicsPropertyResponse dryOutResponse;
     BrushDynamicsPropertyResponse bristleSpreadResponse;
     std::vector<BrushDynamicsBinding> bindings; // Applied in order after legacy responses.
+    BrushPoseSettings pose;
+    BrushDynamicsVariation sizeVariation;
+    BrushDynamicsVariation angleVariation;
+    BrushDynamicsVariation roundnessVariation;
+    BrushDynamicsVariation scatterVariation;
+    BrushDynamicsVariation scatterCountVariation;
+    BrushDynamicsVariation textureDepthVariation;
+    BrushDynamicsVariation colorMixVariation;
+    BrushDynamicsVariation opacityVariation;
+    BrushDynamicsVariation flowVariation;
+    BrushDynamicsVariation wetnessVariation;
+    BrushDynamicsVariation mixVariation;
+    bool flipXJitter = false;
+    bool flipYJitter = false;
+    bool projectTip = false;
 };
 
 struct BrushDynamicsInput {
@@ -120,6 +162,8 @@ struct BrushDynamicsInput {
     Types::Scalar elapsedTime = 0.0;
     Types::Scalar strokeRandom = 0.0;
     std::array<Types::Scalar, 8> custom{};
+    std::uint32_t dabIndex = 0;
+    Types::Scalar initialDirectionRadians = 0.0;
 };
 
 struct BrushDynamicsResult {
@@ -148,9 +192,14 @@ struct BrushDynamicsResult {
     Types::Scalar saturationScale = 1.0;
     Types::Scalar valueScale = 1.0;
     Types::Scalar colorMix = 0.0;
+    Types::Scalar mixScale = 1.0;
+    bool flipX = false;
+    bool flipY = false;
 };
 
 Types::Scalar evaluateBrushResponseCurve(const BrushDynamicsResponseCurve &curve, Types::Scalar input);
+
+BrushDynamicsInput applyBrushPose(const BrushPoseSettings &pose, const BrushDynamicsInput &input);
 
 BrushDynamicsResult resolveBrushDynamics(const BrushDynamics &dynamics,
                                          const BrushDynamicsInput &input);

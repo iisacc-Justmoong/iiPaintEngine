@@ -1,5 +1,3 @@
-#include <QObject>
-#include <QQuickItem>
 
 #include <type_traits>
 
@@ -40,10 +38,10 @@
 #include "Layer/LayerMetadata.h"
 #include "Layer/LayerStack.h"
 #include "Layer/RasterLayer.h"
-#include "QtAdapter/DocumentAdapter.h"
-#include "QtAdapter/LayerListModel.h"
-#include "QtAdapter/BitmapFileItem.h"
-#include "QtAdapter/PaintEngineController.h"
+#include "Application/DocumentAdapter.h"
+#include "Application/LayerListModel.h"
+#include "Application/BitmapPaintSession.h"
+#include "Application/PaintEngineController.h"
 #include "Render/Compositor.h"
 #include "Render/CpuRenderer.h"
 #include "Render/DirtyRegion.h"
@@ -63,14 +61,7 @@
 namespace {
 
 template <typename T>
-constexpr bool publiclyInheritsQObject = std::is_convertible_v<T *, QObject *>;
-
-template <typename T>
-constexpr bool publiclyInheritsQuickItem = std::is_convertible_v<T *, QQuickItem *>;
-
-template <typename T>
-constexpr bool blueprintStruct = !publiclyInheritsQObject<T>
-        && std::is_aggregate_v<T>
+constexpr bool blueprintStruct = std::is_aggregate_v<T>
         && std::is_copy_constructible_v<T>;
 
 static_assert(blueprintStruct<EngineConfig>);
@@ -180,8 +171,7 @@ static_assert(blueprintStruct<PaintEngineController>);
 static_assert(blueprintStruct<DocumentAdapter>);
 static_assert(blueprintStruct<LayerListRow>);
 static_assert(blueprintStruct<LayerListModel>);
-static_assert(publiclyInheritsQuickItem<BitmapFileItem>);
-static_assert(publiclyInheritsQObject<BitmapFileItem>);
+
 
 } // namespace
 
@@ -200,15 +190,11 @@ int main()
     SelectionState selection{};
     ToolStateMachine tools{};
 
-    BitmapFileItem bitmapItem;
+    BitmapPaintSession bitmapItem;
     PaintEngineController controller{};
     DocumentAdapter documentAdapter{};
     LayerListModel layerListModel{};
 
-    QObject *bitmapObject = &bitmapItem;
-    if (bitmapObject == nullptr) {
-        return 1;
-    }
 
     (void) document;
     (void) viewport;

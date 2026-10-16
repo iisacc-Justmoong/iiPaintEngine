@@ -1,284 +1,117 @@
 # iiPaintEngine
 
-iiPaintEngine is a pure bitmap file painting engine for C++ / Qt /QML. The target is not an abstract screen surface but `src/BitmapFile` combined with paths and original format. Input paths are not created as vector strokes, saved, or replayed.
+iiPaintEngine 0.4.2 is a C++23 bitmap painting library. Its public API uses the C++ standard library; its only bundled external implementation is the MIT-licensed stb image codec, compiled inside a C++23 translation unit. It has no GUI framework, event loop, image plugin discovery, or external SDK dependency. Source, examples, and tests compile as C++ only.
+
+## Build and install
+
+A C++23 compiler and standard library with `std::expected` and `std::ios::noreplace`, plus CMake 3.31 or later, are required. Build artifacts belong under `build/`.
+
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+cmake --install build
+```
+
+The default top-level install prefix is `~/.local/SDK/iiPaintEngine`. The exported package requires C++23 transitively and uses a single native layout: `include/iiPaintEngine`, `lib`, and `lib/cmake/iiPaintEngine`. It does not select prebuilt Qt platform packages. To consume a package built for the application's platform:
+
+```cmake
+find_package(iiPaintEngine 0.4 CONFIG REQUIRED)
+target_link_libraries(app PRIVATE iiPaintEngine::iiPaintEngine)
+set_target_properties(app PROPERTIES CXX_EXTENSIONS OFF)
+```
+
+The verified local macOS installation also mirrors this native package under `platforms/macos` to retain the earlier package-directory convention. Both paths contain the same C++23 library and standard C++ headers; no GUI runtime is bundled. This mirror represents the current host build only.
+
+0.4 is an API/ABI migration. Rebuild consumers and follow [the C++23 migration guide](docs/CXX23_MIGRATION.md). Upgrading replaces this package's public header tree so deleted APIs do not remain available accidentally.
+
+## Bitmap painting
+
+`BitmapPaintSession` owns an open `BitmapFile`, the selected brush, immediate preview pixels, pending stroke pixels, and dirty-rectangle pixel history. Every delivered pointer event is rasterized synchronously. An application controls its window, display, clock, and input delivery separately.
+
+```cpp
+#include <iiPaintEngine>
+
+int main()
+{
+    BitmapPaintSession paint;
+    if (!paint.createFile("paint.png", 256, 128)) return 1;
+    auto preset = builtInBrushPresets().front();
+    preset.size = 24;
+    preset.dynamics.sizeVariation.enabled = true;
+    preset.dynamics.sizeVariation.control = BrushDynamicsControl::PenPressure;
+    if (!paint.setBrushPreset(preset)) return 2;
+    paint.setBrushColor(0xFF3366CCU);
+
+    PointerEvent event;
+    event.device = PointerDeviceKind::Tablet;
+    event.tool = PointerToolKind::Pen;
+    event.phase = PointerEventPhase::Press;
+    event.button = PointerButton::Primary;
+    event.primaryButtonDown = true;
+    event.documentPosition = {32, 64};
+    event.pressure = 0.7;
+    if (!paint.processPointerEvent(event).accepted) return 3;
+    event.phase = PointerEventPhase::Release;
+    event.primaryButtonDown = false;
+    if (!paint.processPointerEvent(event).committed) return 4;
+    return paint.save() ? 0 : 5;
+}
+```
+
+During a stroke, `previewPixels()` exposes the composed preview while `file().pixels()` remains committed. Release commits exactly those preview pixels. Cancel discards pending pixels. Undo/redo exchange pixel patches, without replaying input. A preset or color selected during a stroke applies to the next stroke; the active brush is a snapshot. Successful erodible-tip commits carry wear to the selected preset unless it changed during the stroke.
+
+Input coordinates are document pixels and time is monotonic seconds. Use the standard C++ viewport transforms when mapping a window's coordinates. For stationary airbrush emission call `advanceTime(seconds)` from the application's clock. The engine does not create timers or coalesce events. Applications must deliver every measured event they need rendered.
+
+## Local correction masks
+
+`MaskPaintSession` creates normalized float pixel masks with diameter, feather, flow, density, stroke opacity, Add/Erase and start-color-guided AutoMask. Preview, commit, cancel, undo and redo use pixel states; no input path is retained. `PixelMask` coverage can be borrowed by a separate image-adjustment library without linking the SDKs. Optional size and opacity pressure switches reuse existing brush dynamics. See [local mask brush behavior and limits](docs/LOCAL_MASK_BRUSH.md) and [recovered localized brush numeric helpers](docs/LOCALIZED_BRUSH_MATH.md).
 
 ## Bitmap-only contract
 
-Drawing input changes to bitmap immediately for each press, move, release event.
-
 ```text
-PointerEvent
-→ current StrokePoint
-→ RasterDabStream(previous point only)
-→ BrushDab bitmap stamp
-→ RasterSample pixels
-→ StrokeCompositeBuffer
-→ RasterLayer
+PointerEvent → current StrokePoint → RasterDabStream (one preceding point)
+→ BrushDab bitmap stamps → RasterSample pixels → StrokeCompositeBuffer → RasterLayer
 ```
 
-`InputStrokeBuilder` does not hold a coordinate list and emits only one point of the current event. `RasterDabStream` holds only the accumulated state of the previous point and interval·visual·direction·randomness. Entire trajectory, curve, original input, and replay command are not created even temporarily. `BrushDab` is a one-time bitmap stamp projected immediately to pixels, not a re-editable shape.
+Neither `InputStrokeBuilder` nor `RasterDabStream` owns a point collection. A dab is projected and discarded in the current call. Pending preview and history retain pixels; they do not retain paths, vector shapes, future coordinates, or replayable drawing commands. External text, SVG, and shapes must be rasterized before crossing the engine boundary. Causal smoothing uses only the current and preceding filtered point.
 
-`configureHighFidelityPointerInput()` disables Qt's high-frequency tablet event coalescing, and macOS also disables AppKit's mouse/drag/tablet coalescing. It is called before `QGuiApplication` generation if possible. `registerIipeQmlTypes()` and `BitmapFileItem` also automatically apply this policy, so intermediate coordinates measured during delay are discarded and only the two endpoints are connected in a straight line. Live preview copies only the sample pixels actually touched by the new dab, and does not scan the entire rectangle enclosing two distant points on each input.
+## Brushes and documents
 
-Live preview is the result of displaying the pending bitmap buffer. At release, that pixel buffer is directly composited into the open `src/BitmapFile` ARGB pixels. Undo/redo uses a raster snapshot or dirty-rect pixel patch. The saved file records only the current pixels and does not store the pointer trajectory.
+`BrushPreset` is an editable value object for tips, shape, spacing, color, dynamics, pose, texture, secondary masks, and bitmap material effects. `resolveBrushPreset()` validates every setting and creates `BrushState`. Six editable built-in presets demonstrate pressure ink, grain pencil, soft airbrush, flat marker, color spray, and wet flat mixing. [Brush API and units](docs/BRUSHES.md) and [extended option behavior](docs/BRUSH_OPTIONS.md) document the contract.
 
-External content such as text, SVG, and shapes must be converted to a bitmap before being placed in iiPaintEngine. The engine owns only the raster paint layer.
+Preset format 3 preserves extended options and reads formats 1/2. Pixel document format 3 stores layer pixels, metadata, masks, brush presets, color metadata, assets, and raster history. It reads compatible format 2 single-surface documents. Unknown or incompatible content is rejected. The Photoshop investigation informed option coverage; renderer formulas remain independent bitmap models and do not establish Adobe pixel parity or ABR compatibility.
 
-## Architecture
+`Application/DocumentAdapter`, `LayerListModel`, and `PaintEngineController` provide standard C++ document/layer editing alongside the file session. Lower modules do not depend on Application; brushes do not depend on stroke execution.
 
-The file editing ownership structure is as follows.
+## File formats
 
-```text
-BitmapFile
-→ file path + detected source format
-→ RasterLayer
-→ ARGB pixels
+Format detection uses file contents, including extensionless files and misleading extensions. `BitmapFile` owns `std::filesystem::path`, a detected format name, editable ARGB32 pixels, and modification state. Its queries return a fixed registry matching the included codecs.
 
-BitmapFileItem
-→ view/input translation only
-→ BitmapFile pixel mutation API
-```
+| Operation | Formats |
+|---|---|
+| Read | BMP, GIF, HDR, JPEG, PIC, PNG, binary PNM (P5/P6), PSD, TGA |
+| Write / save in place | BMP, HDR, JPEG, PNG, binary PNM (P6), TGA |
 
-`src/BitmapFile` owns the file path, format detected from the actual bytes, ARGB32 sRGB pixels, and modification state together. `BitmapFileItem` does not own the file pixels; it only handles input-coordinate conversion and screen display. Changing the item's width/height does not change the file's pixel dimensions. A new operation also creates an actual file target first through `createFile(path, width, height, format)` rather than creating an anonymous surface.
+Binary PNM is decoded with standard C++ code that normalizes Maxval and reads 16-bit samples in big-endian order, following the [Netpbm format specification](https://netpbm.sourceforge.net/doc/ppm.html). GIF reads its first frame. PSD reads the flattened raster composite, not layers. HDR and 16-bit data are converted to the engine's 8-bit channels. EXIF orientation and ICC color transforms are not applied; metadata and embedded profiles are not preserved. Formats previously supplied by optional Qt plugins, including TIFF, WebP, HEIF, ICO/ICNS, and JPEG 2000, are not part of this build. Vector/PDF input is rejected. Read-only formats remain editable and can be saved using `saveAs` in a supported write format.
 
-In the C++ flow where a layer document archive is required, `PaintDocument` directly owns the final synthesized `DrawingSurface` and `LayerStack`. This flow also creates only a pixel-based actual content and does not create a separate screen surface model from the file edit path.
+Maximum dimensions are 16384 per axis, maximum decoded pixels are 64 Mi, and encoded files are limited to 256 MiB. Failed create/open/save operations preserve the current object. Encoding completes in memory before a same-directory exclusive staging file is written. Replacement is atomic where standard filesystem rename supports overwrite; otherwise the old file is retained with a restore-on-failure fallback. This fallback is not an atomic exchange and is not a multi-writer synchronization mechanism.
 
-The main modules are as follows.
+PNG/BMP/TGA preserve alpha. JPEG/PNM/HDR flatten alpha against `BitmapFileWriteOptions::backgroundArgb`. JPEG quality accepts -1 (default 90) or 0–100. `save()` preserves the detected source format; `saveAs()` uses an explicit format or the destination extension.
 
-- `src/Core`: coordinate, rect, UUID, error, raster sample value type
-- `src/Input`: mouse/tablet event normalization and current point release
-- `src/Brush`: preset, dynamics, material, texture, wet/bristle settings
-- `src/Stroke/Rasterizer`: bitmap dab placement from the previous point to the current point and pixel projection
-- `src/Layer`: raster surface, mask, blend, layer stack
-- `src/Render`: CPU / GPU raster layer compositing, tile cache, brush stamp atlas
-- `src/BitmapFile`: runtime bitmap format detection/storage, file path, directly editable ARGB pixels
-- `src/Document`: single bitmap surface, layer stack, and format version 3 serialization and version 2 single surface read compatibility
-- `src/History`: raster patch/snapshot-based undo/redo metadata
-- `src/QtAdapter`: `BitmapFileItem` view/input adapter, document adapter, and layer list facade
-
-Render cache contains only tile cache and brush stamp atlas. There is no stroke replay cache that recalculates input paths.
-
-## Advanced brushes
-
-`BrushPreset` sets multi-mask tips, shape, direction, and inversion, scatter count and distribution, HSV color changes, time injection, and per-input user curves and property connections. `resolveBrushPreset()` validates the settings and converts them to runtime `BrushState`, while `builtInBrushPresets()` provides six kinds of editable examples. The same object is used for actual file painting via `BitmapFileItem::setBrushPreset()` or QML's `setBrushPresetData()`. Preset version 2 and the document's brushSources traverse the entire extended settings. [brush API, units, examples, and compatibility](docs/BRUSHES.md)are referenced.
-
-## C++ integration
-
-Installed consumers can use the public API via a single extensionless umbrella header.
-
-```cpp
-#include <QGuiApplication>
-#include <iiPaintEngine>
-
-int main(int argc, char **argv)
-{
-    configureHighFidelityPointerInput();
-    QGuiApplication app(argc, argv);
-    // register types and load the application...
-    return app.exec();
-}
-```
-
-```cmake
-find_package(iiPaintEngine CONFIG REQUIRED)
-target_link_libraries(app PRIVATE iiPaintEngine::iiPaintEngine)
-```
-
-When drawing to a document layer, already rasterized pixels are passed.
-
-```cpp
-PaintEngineController engine = makePaintEngineController(1024, 768);
-
-std::vector<RasterSample> pixels{
-    RasterSample{{100, 100}, 0xFF202020U},
-    RasterSample{{101, 100}, 0xFF202020U},
-};
-
-commitPaintSamples(engine, pixels, {{100.0, 100.0}, 2.0, 1.0});
-```
-
-`commitPaintSamples` updates the pixels of the active layer and records the raster paint history, leaving no original coordinates or brush trajectory in the document.
-
-## QML API
-
-The application calls `registerIipeQmlTypes()` at startup and then loads the `iipe` module.
-
-```qml
-import QtQuick 2.15
-import QtCore
-import iipe 1.0 as Iipe
-
-Iipe.BitmapFile {
-    id: bitmapFile
-    anchors.fill: parent
-
-    documentX: 0
-    documentY: 0
-    zoom: 1
-    bitmapDevicePixelRatio: 1
-
-    brushColor: "#111111"
-    brushSize: 18
-    brushSpacingRatio: 0.1
-    brushSpacingEnabled: true
-    brushFlow: 1.0
-    brushFlowEnabled: true
-    brushOpacity: 1.0
-    brushOpacityEnabled: true
-    brushHardness: 1.0
-    brushHardnessEnabled: true
-    pressureToOpacityEnabled: true
-    livePreviewEnabled: true
-
-    Component.onCompleted: {
-        const path = StandardPaths.writableLocation(StandardPaths.TempLocation) + "/paint.png"
-        createFile(path, 1024, 768, "png")
-    }
-}
-```
-
-The viewport API provides `documentX`, `documentY`, `zoom`, `bitmapDevicePixelRatio`, `setDocumentViewport`, `resetView`, `panBy`, and `zoomAt`. The brush API provides color, size, spacing, flow, opacity, hardness, pressure curve, and each enabled flag. The state API can read `liveStrokeActive`, `strokeCount`, `inputDevice`, and `inputPressure`.
-
-`BitmapFileItem` provides `createFile`, `openFile`, `save`, `saveAs`, `undo`, `redo`, `toolMode`, `brushConfig`, `viewportConfig`, `runtimeConfig`, and `stateSnapshot` as a single file-centric API. `filePath`, `fileFormat`, `fileOpen`, `modified`, `pixelWritable`, `canSaveInPlace`, `bitmapWidth`, and `bitmapHeight` check the current file status. `supportedOpenFormats` and `supportedSaveFormats` inspect the actual bitmap codec of the current Qt runtime, and `supportedEditableFormats` is the intersection where both reading and writing are possible. Pixel editing is also possible for read-only formats, and if no original format writer exists, the installed write format `saveAs` is selected.
-
-`toolMode: "eraser"` composites the pending bitmap alpha mask with destination-out.
-
-## Bitmap file compatibility
-
-`src/BitmapFile` already includes an image I/O plugin in Qt Gui, so no external dependencies are added. Reading prioritizes detecting the actual byte format over file extension, applies EXIF direction, and normalizes to ARGB32 sRGB pixels of its own `RasterLayer`. Saving uses the detected format preserved in the object, so even files with wrong extensions are rewritten as the original bitmap format. `saveAs` uses explicit format or extension, and opaque formats like JPEG are composited to the background color, and all saving atomically replaces with `QSaveFile`.
-
-PNG, JPEG, BMP, WebP, TIFF, GIF, ICO / ICNS, HEIF, JPEG 2000, etc., are exposed only when the codec is installed at the corresponding Qt runtime. SVG, SVGZ, PDF and similar vector inputs are excluded from the allow list even if the plugin is installed and are not passed to the decoder. Therefore, vector shapes or paths are not created even as temporary representations. The animation container reads only the first bitmap frame.
-
-## Document format
-
-`DocumentArchive::formatVersion` and `DocumentSerializer::formatVersion` are 3. version 3 directly saves the surface and layer stack of `PaintDocument`. The single-surface archive of version 2 is migrated to the same bitmap document structure when reading, and is recorded as version 3 from the next save. Legacy archives with multiple surfaces and higher future versions return `compatible=false` and an error instead of taking some data, thereby preserving the original. The archive round-trips the following data.
-
-- document composite and raster layer pixel surface
-- layer metadata, mask, children, blend/opacity
-- brush source preset
-- color space and ICC profile
-- embedded asset
-- raster command history metadata and pixel patch payload
-
-The archive does not include the entire input point, curve, dab sequence, or replayable stroke.
-
-## Build and example
-
-The build directory is always `build/`.
+## Runnable C++ examples
 
 ```sh
-cmake -S . -B build
-cmake --build build
-ctest --test-dir build --output-on-failure
+build/Example/bin/iiPaintEngineExample build/paint.png
+build/iiPaintEngineBrushGallery build/brush-gallery.png
 ```
 
-The example executable is created in the following build-tree path, not in the source tree.
+Both examples produce bitmap files and require no windowing runtime. The gallery renders all six presets.
 
-```text
-build/Example/bin/iiPaintEngineExample
-```
+## Dependencies and validation
 
-`Example/Main.qml` uses LVRS controls and `Iipe.BitmapFile`, creates a temporary PNG file as the actual working target, and verifies size, flow, opacity, hardness, spacing, pressure curve, live preview, and clear/reset view through the public API. Example slider ranges are 2–72 px for size, 0.05–1.0for flow/opacity/hardness, and 0–1.0 for spacing. `iiPaintEngineExampleDemoContract` verifies this QML contract.
+The bundled stb files are pinned to commit `2c980bb59875b0d32144a71867fbdebb2f77cd20` of [nothings/stb](https://github.com/nothings/stb). [Provenance and SHA-256 hashes](third_party/stb/provenance.json) and the selected [MIT license](third_party/stb/LICENSE) accompany the package. No separate C source, assembly, Objective-C, scripting runtime, or GUI library is compiled. iiPaintEngine itself retains its [AGPL-3.0 license](LICENSE).
 
-## Install
+Contract tests cover source/dependency boundaries, public C++23 headers, codec round trips and failure preservation, immediate preview versus commit, cancel, undo/redo, input normalization, brush options/materials, serialization, document/layer operations, and installing then compiling/running a separate C++ consumer. Sanitizer builds are available with `-DIIPAINTENGINE_SANITIZE=ON`. Host tests do not prove physical pen input or runtime operation on other platforms.
 
-The default install prefix is `~/.local/SDK/iiPaintEngine`. On Unix-like systems, run the following. The default root of the local Qt kit is `/Volumes/Storage/Qt/6.8.3` and can be overridden with `IIPAINTENGINE_QT_ROOT`.
-
-```sh
-./install.sh
-IIPAINTENGINE_INSTALL_PLATFORMS=macos ./install.sh
-```
-
-macOS default full installation automatically detects Homebrew Android SDK /NDK and specifies the detected NDK toolchain to the Qt Android chainload path, avoiding use of old Qt cache paths. iOS · Android · WASM installation passes the current operating system's Qt tool path to `QT_HOST_PATH`. A separate host Qt installation is specified via `IIPAINTENGINE_HOST_QT_PREFIX` or `QT_HOST_PATH`. After mobile installation, the actual iOS / Android library is checked to see if it is iOS ARM64 and Android AArch64 respectively.
-
-```sh
-python3 tests/verify_mobile_packages.py --prefix ~/.local/SDK/iiPaintEngine --ndk "$ANDROID_NDK_ROOT"
-```
-
-At Windows PowerShell, the following is executed.
-
-```powershell
-.\install.ps1
-
-$env:IIPAINTENGINE_INSTALL_PLATFORMS = "windows"
-.\install.ps1
-```
-
-Windows host builds are fixed to use the selected Qt kit matching Qt MinGW 13.1.0 and Ninja combination. Visual Studio generator and MinGW Qt binary are not mixed. The install script specifies matching compiler and Ninja path to CMake.
-
-Host package and platform mirror are installed next.
-
-```text
-~/.local/SDK/iiPaintEngine/
-~/.local/SDK/iiPaintEngine/platforms/macos/
-~/.local/SDK/iiPaintEngine/platforms/linux/
-~/.local/SDK/iiPaintEngine/platforms/windows/
-~/.local/SDK/iiPaintEngine/platforms/ios/
-~/.local/SDK/iiPaintEngine/platforms/android/
-~/.local/SDK/iiPaintEngine/platforms/wasm/
-```
-
-The root CMake package version is architecture independent so one prefix can
-dispatch both 64-bit native consumers and 32-bit WASM consumers. Each
-platform package keeps its generated binary architecture compatibility check.
-
-The installation script places shared library, headers, CMake package config, and license together and runs host tests. Since the single configuration generator is also configured as Release, the installed `iiPaintEngine::iiPaintEngine` target includes `IMPORTED_LOCATION_RELEASE` that consumers can link. Default all-platform installation without optional cross SDK skips the corresponding platform, and fails if the platform is explicitly requested but no toolchain is available. Upgrade installation replaces the tree owned by the package `include/iiPaintEngine` with the current public headers. Therefore, deleted API headers remain in the prefix without colliding with new types, and consumer-only headers must be kept outside the directory owned by this package. macOS package config removes the legacy AGL framework with no binary in the current SDK from the Qt link interface, so consumers linking the installation target can also build from the latest macOS SDK. Additionally, since the installation path exists for the compiler's `LIBRARY_PATH`, the package target directly passes the iiPaintEngine dylib runtime search path even if CMake judges it as an implicit link directory. Apple shared library is built with install RPATH from the start, so repeated installation to the same prefix does not reprocess the already removed build RPATH. Qt WASM uses a static Qt SDK, so WASM packages are installed as `libiiPaintEngine.a` static archives. The native platform holds the shared library and, even when combined with a final executable in a separate installation library with a static archive at WASM, does not include duplicate symbols at Qt. Installed CMake targets also propagate the Emscripten embind link options required by Qt WASM platform plugins to the consumer. At macOS, it also automatically detects Homebrew's `~/Library/Android/sdk` and `/opt/homebrew/share/android-commandlinetools` in addition to `/opt/homebrew/share/android-ndk`.
-
-The layout-contract test executable for Windows uses the name `iiPaintEngineLayoutContractTests`. It is a contract to avoid applying `Install...` installer detection heuristics and elevation false positives to executables starting with Windows.
-
-## Verification contracts
-
-Core validations are as follows.
-
-- `iiPaintEngineBitmapOnlyArchitectureContract` : absence of forbidden path/layer source, absence of retained stroke in document, absence of input point collection, per-event pixel accumulation
-- `iiPaintEngineBitmapFileCompatibilityContract` : ownership of path/format/pixel in file hierarchy, direct pixel mutation, full runtime bitmap codec write round-trip, content sniffing, SVG / PDF block
-- `iiPaintEngineBitmapFileArchitectureContract`: absence of legacy screen surface API, public contract with `src/BitmapFile` and `BitmapFileItem`
-- `iiPaintEngineInstallUpgradeContract` : remove deleted public headers upon reinstallation, current header layout, separate CMake consumer's `find_package` ·link·load using installation package
-- `iiPaintEnginePipelineHeartbeat` : minimum pipeline from pointer event to document raster surface
-- `iiPaintEngineDocumentSerializerContract` : bitmap archive round-trip of format version 3, version 2 single surface transfer, absence of raw trajectory
-- `iiPaintEngineAppDocumentApiContract` : raster sample commit, layer/history, save/open round-trip
-- `iiPaintEnginePointerStrokeFlow` : bitmap dab spacing/flow per mouse event
-- `iiPaintEngineHighFidelityPointerInputContract` : deactivation of Qt · macOS pointer event merging and `BitmapFileItem` automatic application
-- `iiPaintEngineRasterPaintingModel` : bitmap dab reflection of velocity, pressure, tilt, spacing, opacity/flow
-- `iiPaintEngineBitmapFileLivePreviewRealtimeContract` : pending raster preview of open files, direct pixel commit, eraser, undo/redo
-- `iiPaintEngineBrushDynamicsMapping` : dab attribute reflection of pressure/velocity/tilt/random
-- `iiPaintEngineBrushTextureLayerContract` : document/tip/follow/paper bitmap texture and dual brush
-- `iiPaintEngineWetBrushSimulationContract`: source raster sampling, pickup/deposit/mix, bristle footprint
-- `iiPaintEngineRenderCacheBackendContract` : raster tile cache, brush stamp atlas, CPU / GPU plan
-- `iiPaintEnginePublicUmbrellaHeaderContract` : single `#include <iiPaintEngine>` contract for external consumers
-- `iiPaintEnginePublicCxx17HeaderContract`: C++17 public header compatibility
-- `iiPaintEngineInstallLayoutContract`: Unix/ Windows install, package export, example output, license contract
-
-During static verification, the product source is checked together to ensure that no layers other than the full input collection, curve/path model, and replay cache are regenerated.
-
-## License
-
-SPDX-License-Identifier: AGPL-3.0-only
-
-The self-written code and documents of iiPaintEngine are distributed under the GNU Affero General Public License version 3 only ( `AGPL-3.0-only` ). The full terms follow [LICENSE](LICENSE).
-
-External Qt, LVRS, and other third-party code, libraries, tools, and models retain their respective licenses and copyright notices, and this repository's license does not replace them.
-
-### SDK workspace and installation paths
-
-The source checkout is `Workspace/SDK/iiPaintEngine`. Both `./install.sh` and a
-fresh direct CMake configuration default to `~/.local/SDK/iiPaintEngine`.
-An explicit `-DCMAKE_INSTALL_PREFIX` remains authoritative for direct CMake
-configuration. Build outputs stay in the repository's `build/` directory; the
-installer regenerates stale CMake caches after a workspace move.
-
-The default LVRS dependency prefix is `~/.local/SDK/LVRS`;
-`IIPAINTENGINE_LVRS_PREFIX` remains available for an explicit override.
-
-<a id="파일-저장-소유권"></a>
-
-## File storage ownership
-
-BitmapFile delegates file reads and atomic output to iiFileProvider 0.5. Image codecs receive the QIODevice opened by the provider. Raster editing, color conversion, and file-format selection remain in iiPaintEngine. The provider does not reference this SDK.
-
-## Source layout
-
-Implementation files and their headers live together under `src/`. Existing feature and platform subdirectories retain their responsibilities. Build configuration, tests, documentation, resources, and maintenance scripts remain at the project root. Configure and build using the repository-local `build/` directory.
-# Windows 설치 검증
-
-Windows installer detection heuristic에 따라 설치 프로그램으로 오인되지 않도록 레이아웃 검증 실행 파일은 `Install`로 시작하지 않는다. Windows 빌드는 Qt MinGW 13.1.0과 Ninja를 사용하며 모든 출력은 `build/`에 생성한다.
+Layer composition supports 27 pixel-layer blend modes, reproducible Dissolve samples, masked clipping chains and correct alpha weighting over transparent backdrops. See [Layer compositing](docs/LAYER_COMPOSITING.md). Brush stroke blend-mode validation retains its existing supported subset.

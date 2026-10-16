@@ -412,6 +412,13 @@ void writeTexture(std::ostringstream &output, const std::string &prefix, const B
     writeLine(output, prefix + ".offsetY", numberText(texture.offsetY));
     writeLine(output, prefix + ".scaleJitter", numberText(texture.scaleJitter));
     writeLine(output, prefix + ".rotationJitter", numberText(texture.rotationJitter));
+    writeLine(output, prefix + ".invert", boolText(texture.invert));
+    writeLine(output, prefix + ".brightness", numberText(texture.brightness));
+    writeLine(output, prefix + ".contrast", numberText(texture.contrast));
+    writeLine(output, prefix + ".depth", numberText(texture.depth));
+    writeLine(output, prefix + ".minimumDepth", numberText(texture.minimumDepth));
+    writeLine(output, prefix + ".textureEachTip", boolText(texture.textureEachTip));
+    writeLine(output, prefix + ".blendMode", numberText(static_cast<int>(texture.blendMode)));
     writeTextureAssetCache(output, prefix + ".assetCache", texture.assetCache);
 }
 
@@ -447,6 +454,13 @@ BrushTexture readTexture(const std::map<std::string, std::string> &values, const
     texture.scaleJitter = readNumber<Types::Scalar>(values, prefix + ".scaleJitter");
     texture.rotationJitter = readNumber<Types::Scalar>(values, prefix + ".rotationJitter");
     texture.assetCache = readTextureAssetCache(values, prefix + ".assetCache");
+    texture.invert = readBool(values, prefix + ".invert");
+    texture.brightness = readNumber<double>(values, prefix + ".brightness");
+    texture.contrast = readNumber<double>(values, prefix + ".contrast");
+    texture.depth = readNumber<double>(values, prefix + ".depth", texture.depth);
+    texture.minimumDepth = readNumber<double>(values, prefix + ".minimumDepth");
+    texture.textureEachTip = readBool(values, prefix + ".textureEachTip");
+    texture.blendMode = static_cast<BrushTextureBlendMode>(readNumber<int>(values, prefix + ".blendMode"));
     return texture;
 }
 
@@ -482,6 +496,26 @@ void writeMaterial(std::ostringstream &output, const BrushMaterial &material)
     writeLine(output, "material.bristle.count", numberText(material.bristle.count));
     writeLine(output, "material.bristle.length", numberText(material.bristle.length));
     writeLine(output, "material.bristle.stiffness", numberText(material.bristle.stiffness));
+    writeLine(output, "material.dualBrush.flipX", boolText(material.dualBrush.flipX));
+    writeLine(output, "material.dualBrush.flipY", boolText(material.dualBrush.flipY));
+    writeLine(output, "material.dualBrush.scatter.enabled", boolText(material.dualBrush.scatter.enabled));
+    writeLine(output, "material.dualBrush.scatter.radius", numberText(material.dualBrush.scatter.radius));
+    writeLine(output, "material.dualBrush.scatter.count", numberText(material.dualBrush.scatter.count));
+    writeLine(output, "material.dualBrush.scatter.axes", numberText(static_cast<int>(material.dualBrush.scatter.axes)));
+    writeLine(output, "material.dualBrush.scatter.distribution", numberText(static_cast<int>(material.dualBrush.scatter.distribution)));
+    writeLine(output, "material.dualBrush.scatter.countJitter", numberText(material.dualBrush.scatter.countJitter));
+    writeLine(output, "material.dualBrush.scatter.relativeToSize", boolText(material.dualBrush.scatter.relativeToSize));
+    writeLine(output, "material.simulation.load", numberText(material.simulation.load));
+    writeLine(output, "material.bristle.thickness", numberText(material.bristle.thickness));
+    writeLine(output, "material.bristle.angleRadians", numberText(material.bristle.angleRadians));
+    writeLine(output, "material.erodible.enabled", boolText(material.erodible.enabled));
+    writeLine(output, "material.erodible.softness", numberText(material.erodible.softness));
+    writeLine(output, "material.erodible.wear", numberText(material.erodible.wear));
+    writeLine(output, "material.airbrushTip.enabled", boolText(material.airbrushTip.enabled));
+    writeLine(output, "material.airbrushTip.granularity", numberText(material.airbrushTip.granularity));
+    writeLine(output, "material.airbrushTip.spatter", numberText(material.airbrushTip.spatter));
+    writeLine(output, "material.airbrushTip.spatterSize", numberText(material.airbrushTip.spatterSize));
+    writeLine(output, "material.airbrushTip.distortion", numberText(material.airbrushTip.distortion));
 }
 
 BrushMaterial readMaterial(const std::map<std::string, std::string> &values)
@@ -518,7 +552,47 @@ BrushMaterial readMaterial(const std::map<std::string, std::string> &values)
     material.bristle.count = readNumber<std::uint32_t>(values, "material.bristle.count");
     material.bristle.length = readNumber<Types::Scalar>(values, "material.bristle.length");
     material.bristle.stiffness = readNumber<Types::Scalar>(values, "material.bristle.stiffness", 1.0);
+    material.dualBrush.flipX = readBool(values, "material.dualBrush.flipX", material.dualBrush.flipX);
+    material.dualBrush.flipY = readBool(values, "material.dualBrush.flipY", material.dualBrush.flipY);
+    material.dualBrush.scatter.enabled = readBool(values, "material.dualBrush.scatter.enabled", material.dualBrush.scatter.enabled);
+    material.dualBrush.scatter.radius = readNumber<double>(values, "material.dualBrush.scatter.radius", material.dualBrush.scatter.radius);
+    material.dualBrush.scatter.count = readNumber<std::uint32_t>(values, "material.dualBrush.scatter.count", material.dualBrush.scatter.count);
+    material.dualBrush.scatter.axes = static_cast<BrushScatterAxes>(readNumber<int>(values, "material.dualBrush.scatter.axes", static_cast<int>(material.dualBrush.scatter.axes)));
+    material.dualBrush.scatter.distribution = static_cast<BrushScatterDistribution>(readNumber<int>(values, "material.dualBrush.scatter.distribution", static_cast<int>(material.dualBrush.scatter.distribution)));
+    material.dualBrush.scatter.countJitter = readNumber<double>(values, "material.dualBrush.scatter.countJitter", material.dualBrush.scatter.countJitter);
+    material.dualBrush.scatter.relativeToSize = readBool(values, "material.dualBrush.scatter.relativeToSize", material.dualBrush.scatter.relativeToSize);
+    material.simulation.load = readNumber<double>(values, "material.simulation.load", material.simulation.load);
+    material.bristle.thickness = readNumber<double>(values, "material.bristle.thickness", material.bristle.thickness);
+    material.bristle.angleRadians = readNumber<double>(values, "material.bristle.angleRadians", material.bristle.angleRadians);
+    material.erodible.enabled = readBool(values, "material.erodible.enabled", material.erodible.enabled);
+    material.erodible.softness = readNumber<double>(values, "material.erodible.softness", material.erodible.softness);
+    material.erodible.wear = readNumber<double>(values, "material.erodible.wear", material.erodible.wear);
+    material.airbrushTip.enabled = readBool(values, "material.airbrushTip.enabled", material.airbrushTip.enabled);
+    material.airbrushTip.granularity = readNumber<double>(values, "material.airbrushTip.granularity", material.airbrushTip.granularity);
+    material.airbrushTip.spatter = readNumber<double>(values, "material.airbrushTip.spatter", material.airbrushTip.spatter);
+    material.airbrushTip.spatterSize = readNumber<double>(values, "material.airbrushTip.spatterSize", material.airbrushTip.spatterSize);
+    material.airbrushTip.distortion = readNumber<double>(values, "material.airbrushTip.distortion", material.airbrushTip.distortion);
     return material;
+}
+
+void writeVariation(std::ostringstream &output, const std::string &prefix, const BrushDynamicsVariation &v)
+{
+    writeLine(output, prefix + ".enabled", boolText(v.enabled));
+    writeLine(output, prefix + ".control", numberText(static_cast<int>(v.control)));
+    writeLine(output, prefix + ".jitter", numberText(v.jitter));
+    writeLine(output, prefix + ".minimum", numberText(v.minimum));
+    writeLine(output, prefix + ".fadeSteps", numberText(v.fadeSteps));
+}
+
+BrushDynamicsVariation readVariation(const std::map<std::string, std::string> &values, const std::string &prefix)
+{
+    BrushDynamicsVariation v;
+    v.enabled = readBool(values, prefix + ".enabled");
+    v.control = static_cast<BrushDynamicsControl>(readNumber<int>(values, prefix + ".control"));
+    v.jitter = readNumber<double>(values, prefix + ".jitter");
+    v.minimum = readNumber<double>(values, prefix + ".minimum");
+    v.fadeSteps = readNumber<std::uint32_t>(values, prefix + ".fadeSteps", v.fadeSteps);
+    return v;
 }
 
 void writeAdvanced(std::ostringstream &output, const BrushPreset &p)
@@ -549,6 +623,38 @@ void writeAdvanced(std::ostringstream &output, const BrushPreset &p)
     writeLine(output, "color.saturationJitter", numberText(p.color.saturationJitter));
     writeLine(output, "color.valueJitter", numberText(p.color.valueJitter));
     writeLine(output, "color.perStroke", boolText(p.color.perStroke));
+    writeLine(output, "color.mixJitter", numberText(p.color.mixJitter));
+    writeLine(output, "color.purity", numberText(p.color.purity));
+    writeLine(output, "stroke.noiseEnabled", boolText(p.stroke.noiseEnabled));
+    writeLine(output, "stroke.noiseStrength", numberText(p.stroke.noiseStrength));
+    writeLine(output, "stroke.wetEdgesEnabled", boolText(p.stroke.wetEdgesEnabled));
+    writeLine(output, "stroke.wetEdgesStrength", numberText(p.stroke.wetEdgesStrength));
+    writeLine(output, "stroke.smoothingEnabled", boolText(p.stroke.smoothingEnabled));
+    writeLine(output, "stroke.smoothing", numberText(p.stroke.smoothing));
+    writeLine(output, "stroke.protectTexture", boolText(p.stroke.protectTexture));
+    writeLine(output, "dynamics.pose.enabled", boolText(p.dynamics.pose.enabled));
+    writeLine(output, "dynamics.pose.overridePressure", boolText(p.dynamics.pose.overridePressure));
+    writeLine(output, "dynamics.pose.overrideTiltX", boolText(p.dynamics.pose.overrideTiltX));
+    writeLine(output, "dynamics.pose.overrideTiltY", boolText(p.dynamics.pose.overrideTiltY));
+    writeLine(output, "dynamics.pose.overrideRotation", boolText(p.dynamics.pose.overrideRotation));
+    writeLine(output, "dynamics.pose.pressure", numberText(p.dynamics.pose.pressure));
+    writeLine(output, "dynamics.pose.tiltX", numberText(p.dynamics.pose.tiltX));
+    writeLine(output, "dynamics.pose.tiltY", numberText(p.dynamics.pose.tiltY));
+    writeLine(output, "dynamics.pose.rotationRadians", numberText(p.dynamics.pose.rotationRadians));
+    writeLine(output, "dynamics.flipXJitter", boolText(p.dynamics.flipXJitter));
+    writeLine(output, "dynamics.flipYJitter", boolText(p.dynamics.flipYJitter));
+    writeLine(output, "dynamics.projectTip", boolText(p.dynamics.projectTip));
+    writeVariation(output, "dynamics.sizeVariation", p.dynamics.sizeVariation);
+    writeVariation(output, "dynamics.angleVariation", p.dynamics.angleVariation);
+    writeVariation(output, "dynamics.roundnessVariation", p.dynamics.roundnessVariation);
+    writeVariation(output, "dynamics.scatterVariation", p.dynamics.scatterVariation);
+    writeVariation(output, "dynamics.scatterCountVariation", p.dynamics.scatterCountVariation);
+    writeVariation(output, "dynamics.textureDepthVariation", p.dynamics.textureDepthVariation);
+    writeVariation(output, "dynamics.colorMixVariation", p.dynamics.colorMixVariation);
+    writeVariation(output, "dynamics.opacityVariation", p.dynamics.opacityVariation);
+    writeVariation(output, "dynamics.flowVariation", p.dynamics.flowVariation);
+    writeVariation(output, "dynamics.wetnessVariation", p.dynamics.wetnessVariation);
+    writeVariation(output, "dynamics.mixVariation", p.dynamics.mixVariation);
     writeLine(output, "tipSequence.selection", numberText(static_cast<int>(p.tipSequence.selection)));
     writeLine(output, "material.scatter.axes", numberText(static_cast<int>(p.material.scatter.axes)));
     writeLine(output, "material.scatter.distribution", numberText(static_cast<int>(p.material.scatter.distribution)));
@@ -605,6 +711,38 @@ void readAdvanced(const std::map<std::string, std::string> &values, BrushPreset 
     p.color.saturationJitter = readNumber<double>(values, "color.saturationJitter", p.color.saturationJitter);
     p.color.valueJitter = readNumber<double>(values, "color.valueJitter", p.color.valueJitter);
     p.color.perStroke = readBool(values, "color.perStroke", p.color.perStroke);
+    p.color.mixJitter = readNumber<double>(values, "color.mixJitter");
+    p.color.purity = readNumber<double>(values, "color.purity");
+    p.stroke.noiseEnabled = readBool(values, "stroke.noiseEnabled");
+    p.stroke.noiseStrength = readNumber<double>(values, "stroke.noiseStrength", p.stroke.noiseStrength);
+    p.stroke.wetEdgesEnabled = readBool(values, "stroke.wetEdgesEnabled");
+    p.stroke.wetEdgesStrength = readNumber<double>(values, "stroke.wetEdgesStrength", p.stroke.wetEdgesStrength);
+    p.stroke.smoothingEnabled = readBool(values, "stroke.smoothingEnabled");
+    p.stroke.smoothing = readNumber<double>(values, "stroke.smoothing", p.stroke.smoothing);
+    p.stroke.protectTexture = readBool(values, "stroke.protectTexture");
+    p.dynamics.pose.enabled = readBool(values, "dynamics.pose.enabled");
+    p.dynamics.pose.overridePressure = readBool(values, "dynamics.pose.overridePressure");
+    p.dynamics.pose.overrideTiltX = readBool(values, "dynamics.pose.overrideTiltX");
+    p.dynamics.pose.overrideTiltY = readBool(values, "dynamics.pose.overrideTiltY");
+    p.dynamics.pose.overrideRotation = readBool(values, "dynamics.pose.overrideRotation");
+    p.dynamics.pose.pressure = readNumber<double>(values, "dynamics.pose.pressure", p.dynamics.pose.pressure);
+    p.dynamics.pose.tiltX = readNumber<double>(values, "dynamics.pose.tiltX");
+    p.dynamics.pose.tiltY = readNumber<double>(values, "dynamics.pose.tiltY");
+    p.dynamics.pose.rotationRadians = readNumber<double>(values, "dynamics.pose.rotationRadians");
+    p.dynamics.flipXJitter = readBool(values, "dynamics.flipXJitter");
+    p.dynamics.flipYJitter = readBool(values, "dynamics.flipYJitter");
+    p.dynamics.projectTip = readBool(values, "dynamics.projectTip");
+    p.dynamics.sizeVariation = readVariation(values, "dynamics.sizeVariation");
+    p.dynamics.angleVariation = readVariation(values, "dynamics.angleVariation");
+    p.dynamics.roundnessVariation = readVariation(values, "dynamics.roundnessVariation");
+    p.dynamics.scatterVariation = readVariation(values, "dynamics.scatterVariation");
+    p.dynamics.scatterCountVariation = readVariation(values, "dynamics.scatterCountVariation");
+    p.dynamics.textureDepthVariation = readVariation(values, "dynamics.textureDepthVariation");
+    p.dynamics.colorMixVariation = readVariation(values, "dynamics.colorMixVariation");
+    p.dynamics.opacityVariation = readVariation(values, "dynamics.opacityVariation");
+    p.dynamics.flowVariation = readVariation(values, "dynamics.flowVariation");
+    p.dynamics.wetnessVariation = readVariation(values, "dynamics.wetnessVariation");
+    p.dynamics.mixVariation = readVariation(values, "dynamics.mixVariation");
     p.tipSequence.selection = static_cast<BrushTipSelection>(readNumber<int>(values, "tipSequence.selection", static_cast<int>(p.tipSequence.selection)));
     p.material.scatter.axes = static_cast<BrushScatterAxes>(readNumber<int>(values, "material.scatter.axes", static_cast<int>(p.material.scatter.axes)));
     p.material.scatter.distribution = static_cast<BrushScatterDistribution>(readNumber<int>(values, "material.scatter.distribution", static_cast<int>(p.material.scatter.distribution)));
@@ -642,7 +780,7 @@ std::string serializeBrushPreset(const BrushPreset &preset)
     if (!errors.empty()) throw std::invalid_argument(errors.front());
     std::ostringstream output;
     writeLine(output, "formatMagic", stringText("iiPaintBrushPreset"));
-    writeLine(output, "formatVersion", numberText(2));
+    writeLine(output, "formatVersion", numberText(3));
     writeLine(output, "brushId", uuidText(preset.brushId));
     writeLine(output, "name", stringText(preset.name));
     writeLine(output, "tip.width", numberText(preset.tip.width));
@@ -663,7 +801,7 @@ BrushPreset deserializeBrushPreset(const std::string &payload)
 {
     const std::map<std::string, std::string> values = parsePayload(payload);
     const auto version = readNumber<unsigned int>(values, "formatVersion");
-    if (readString(values, "formatMagic") != "iiPaintBrushPreset" || version < 1 || version > 2)
+    if (readString(values, "formatMagic") != "iiPaintBrushPreset" || version < 1 || version > 3)
         throw std::invalid_argument("unsupported brush preset format or version");
     BrushPreset preset;
     preset.brushId = readUuid(values, "brushId");
