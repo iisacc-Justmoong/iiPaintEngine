@@ -116,6 +116,14 @@ std::vector<std::string> validateBrushPreset(const BrushPreset &p)
     v.range("noiseStrength", s.noiseStrength, 0, 1);
     v.range("wetEdgesStrength", s.wetEdgesStrength, 0, 1);
     v.range("smoothing", s.smoothing, 0, 1);
+    v.enumeration("smoothingMode", s.smoothingMode, BrushSmoothingMode::PulledString);
+    v.range("smoothingRadius", s.smoothingRadius, 0, 4096);
+    v.range("smoothingCatchUpRate", s.smoothingCatchUpRate, .01, 1000);
+    v.enumeration("symmetry.mode", s.symmetry.mode, BrushSymmetryMode::Mandala);
+    v.range("symmetry.center.x", s.symmetry.center.x, -1e9, 1e9);
+    v.range("symmetry.center.y", s.symmetry.center.y, -1e9, 1e9);
+    v.range("symmetry.angleRadians", s.symmetry.angleRadians, -1024, 1024);
+    v.range("symmetry.segments", s.symmetry.segments, 2, 64);
     const auto &d = p.dynamics;
     for (auto value : {d.pressureToSize, d.pressureToOpacity, d.pressureToFlow, d.velocityToSpacing,
                       d.velocityToOpacity, d.velocityToDryOut, d.tiltToEllipse, d.rotationJitter, d.grainJitter})
@@ -203,6 +211,9 @@ BrushResolve resolveBrushPreset(const BrushPreset &p, std::uint32_t colorArgb, s
     r.noiseEnabled = p.stroke.noiseEnabled; r.noiseStrength = p.stroke.noiseStrength;
     r.wetEdgesEnabled = p.stroke.wetEdgesEnabled; r.wetEdgesStrength = p.stroke.wetEdgesStrength;
     r.smoothingEnabled = p.stroke.smoothingEnabled; r.smoothing = p.stroke.smoothing;
+    r.smoothingMode = p.stroke.smoothingMode; r.smoothingRadius = p.stroke.smoothingRadius;
+    r.smoothingCatchUp = p.stroke.smoothingCatchUp; r.smoothingCatchUpRate = p.stroke.smoothingCatchUpRate;
+    r.smoothingCatchUpOnEnd = p.stroke.smoothingCatchUpOnEnd; r.symmetry = p.stroke.symmetry;
     result.brush = std::move(brush);
     return result;
 }

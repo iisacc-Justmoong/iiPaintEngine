@@ -281,7 +281,7 @@ int main()
     p.material.texture.textureEachTip = true; p.material.texture.depth = .6; p.material.texture.minimumDepth = .1;
     p.material.texture.blendMode = BrushTextureBlendMode::LinearHeight;
     const auto payload = serializeBrushPreset(p);
-    CHECK(payload.find("formatVersion\t3\n") != std::string::npos);
+    CHECK(payload.find("formatVersion\t4\n") != std::string::npos);
     CHECK(serializeBrushPreset(deserializeBrushPreset(payload)) == payload);
     CHECK(serializeBrushPreset(restoreBrushPreset(snapshotBrushPreset(p))) == payload);
     DocumentArchive archive;

@@ -3,6 +3,7 @@
 #include "library.h"
 
 #include "Brush/BrushDynamics.h"
+#include "Brush/AbrBrushImporter.h"
 #include "Brush/BrushLibrary.h"
 #include "Brush/BrushMaterial.h"
 #include "Brush/BrushPreset.h"
@@ -59,6 +60,7 @@
 #include "Render/Renderer.h"
 #include "Selection/Selection.h"
 #include "Stroke/Rasterizer.h"
+#include "Stroke/BrushSymmetry.h"
 #include "Stroke/StrokePoint.h"
 #include "Tool/RasterEditTool.h"
 #include "Tool/ToolStateMachine.h"

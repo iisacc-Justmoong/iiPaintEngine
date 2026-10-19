@@ -47,6 +47,12 @@ struct Rasterizer {
     Types::Scalar wetEdgesStrength = 0.5;
     bool smoothingEnabled = false;
     Types::Scalar smoothing = 0.5;
+    BrushSmoothingMode smoothingMode = BrushSmoothingMode::Exponential;
+    Types::Scalar smoothingRadius = 10.0;
+    bool smoothingCatchUp = false;
+    Types::Scalar smoothingCatchUpRate = 12.0;
+    bool smoothingCatchUpOnEnd = false;
+    BrushSymmetrySettings symmetry;
 };
 
 struct BrushState {

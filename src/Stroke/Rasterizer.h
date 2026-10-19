@@ -52,6 +52,8 @@ struct BrushDab {
     Types::Scalar airbrushGranularity = 0.0;
     Types::Scalar airbrushSpatter = 0.0;
     Types::Scalar airbrushSpatterSize = 1.0;
+    bool symmetryReflected = false; // Reflect tip-local material coordinates with the tip.
+    Types::Scalar symmetryRotationRadians = 0.0; // World transform R(angle) * reflected-X.
 };
 
 using DabCommand = BrushDab;
@@ -121,6 +123,7 @@ struct RasterSourceSampler {
 struct RasterDabStream {
     bool active = false;
     StrokePoint previousPoint{};
+    DocumentPoint smoothingTarget{}; // Current raw pointer target, never a retained trajectory.
     Types::Scalar traveledDistance = 0.0;
     Types::Scalar nextDabDistance = 0.0;
     Types::Scalar lastDabDistance = -1.0;

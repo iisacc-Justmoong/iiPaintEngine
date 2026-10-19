@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.31)
-project(iiPaintEngine VERSION 0.4.2 LANGUAGES CXX)
+project(iiPaintEngine VERSION 0.5.1 LANGUAGES CXX)
 # File creation is owned by iiFileProvider.
 find_package(iiFileProviderNative 0.6 CONFIG REQUIRED HINTS "$ENV{IIFILEPROVIDER_PREFIX}" "$ENV{HOME}/.local/SDK/iiFileProvider")
 link_libraries(iiFileProvider::Native)
@@ -66,6 +66,8 @@ install(FILES src/iiPaintEngine src/library.h DESTINATION ${CMAKE_INSTALL_INCLUD
 install(DIRECTORY src/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine FILES_MATCHING PATTERN "*.h")
 install(FILES README.md docs/BRUSHES.md docs/BRUSH_OPTIONS.md docs/CXX23_MIGRATION.md docs/LAYER_COMPOSITING.md docs/LOCAL_MASK_BRUSH.md docs/LOCALIZED_BRUSH_MATH.md docs/localized-brush-math-provenance.json docs/localized-brush-vectors.json
     DESTINATION ${CMAKE_INSTALL_DATADIR}/iiPaintEngine)
+install(FILES docs/BRUSH_EXPANSION.md docs/BRUSH_EXPANSION_VALIDATION.md docs/brush-expansion-provenance.json
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/iiPaintEngine)
 install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/iiPaintEngine)
 install(FILES third_party/stb/LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/iiPaintEngine/stb)
 install(FILES third_party/stb/provenance.json DESTINATION ${CMAKE_INSTALL_DATADIR}/iiPaintEngine)
@@ -86,6 +88,8 @@ if(IIPAINTENGINE_BUILD_EXAMPLES)
     set_target_properties(iiPaintEngineExample PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Example/bin")
     add_executable(iiPaintEngineBrushGallery Example/BrushGallery.cpp)
     target_link_libraries(iiPaintEngineBrushGallery PRIVATE iiPaintEngine)
+    add_executable(iiPaintEngineBrushExpansionGallery Example/BrushExpansionGallery.cpp)
+    target_link_libraries(iiPaintEngineBrushExpansionGallery PRIVATE iiPaintEngine)
 endif()
 if(BUILD_TESTING)
     file(GLOB IIPAINTENGINE_TEST_SOURCES CONFIGURE_DEPENDS "tests/*Test.cpp")
@@ -106,6 +110,7 @@ if(BUILD_TESTING)
         "-DIIPAINTENGINE_INSTALL_CONFIG=$<CONFIG>"
         "-DIIPAINTENGINE_GENERATOR=${CMAKE_GENERATOR}"
         "-DIIPAINTENGINE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+        "-DIIPAINTENGINE_PACKAGE_VERSION=${PROJECT_VERSION}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/InstallUpgradeContractTest.cmake")
     if(APPLE)
         get_property(names DIRECTORY PROPERTY TESTS)

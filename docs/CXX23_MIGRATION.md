@@ -17,7 +17,7 @@ The library and public headers now require C++23. Applications must rebuild agai
 | Item airbrush timer | Caller clock invoking `advanceTime(monotonicSeconds)` |
 | Qt/QML registration and event policy hooks | Removed; window/input policy belongs to the application |
 
-The exported target adds `cxx_std_23` to consumers. Its configuration does not find any additional package. CMake's build language is CXX only. The native installation replaces package-owned headers, including retired adapter headers.
+The exported target adds `cxx_std_23` to consumers. Its configuration finds the existing Qt-free iiFileProviderNative >=0.6 package for file ownership. CMake's build language is CXX only. The native installation replaces package-owned headers, including retired adapter headers.
 
 ## Session behavior
 
@@ -45,4 +45,8 @@ Use `cmake -S . -B build`, build and run CTest, then install. Additional verific
 
 The pre-migration source/dirty-state snapshot and old installed package are retained in this checkout's `build/` directory. These historical backups are excluded from active sources and the new installation. Do not reintroduce them as library dependencies.
 
-The local macOS package retains a native `platforms/macos` mirror for existing directory references. Its library, headers, and dependency-free configuration match the flat native package. Other platform binaries are not implied by this host installation. `BitmapFile` depends only on Core/Layer/Render pixel interfaces; stroke execution is composed in Application rather than imported by file I/O.
+The local macOS package retains a native `platforms/macos` mirror for existing directory references. Its library, headers, and native configuration match the flat native package. Other platform binaries are not implied by this host installation. `BitmapFile` depends only on Core/Layer/Render pixel interfaces; stroke execution is composed in Application rather than imported by file I/O.
+
+## 0.5 brush extension
+
+Public brush and stream layouts gained symmetry and pulled-string/catch-up settings; rebuild consumers against iiPaintEngine 0.5. Preset format 4 preserves them and reads formats 1/2/3 with neutral defaults. The document archive stays at format 3. See [Brush expansion](BRUSH_EXPANSION.md) for the bounded ABR reader, model semantics and current compatibility limits.

@@ -632,6 +632,16 @@ void writeAdvanced(std::ostringstream &output, const BrushPreset &p)
     writeLine(output, "stroke.smoothingEnabled", boolText(p.stroke.smoothingEnabled));
     writeLine(output, "stroke.smoothing", numberText(p.stroke.smoothing));
     writeLine(output, "stroke.protectTexture", boolText(p.stroke.protectTexture));
+    writeLine(output, "stroke.smoothingMode", numberText(static_cast<int>(p.stroke.smoothingMode)));
+    writeLine(output, "stroke.smoothingRadius", numberText(p.stroke.smoothingRadius));
+    writeLine(output, "stroke.smoothingCatchUp", boolText(p.stroke.smoothingCatchUp));
+    writeLine(output, "stroke.smoothingCatchUpRate", numberText(p.stroke.smoothingCatchUpRate));
+    writeLine(output, "stroke.smoothingCatchUpOnEnd", boolText(p.stroke.smoothingCatchUpOnEnd));
+    writeLine(output, "stroke.symmetry.mode", numberText(static_cast<int>(p.stroke.symmetry.mode)));
+    writeLine(output, "stroke.symmetry.center.x", numberText(p.stroke.symmetry.center.x));
+    writeLine(output, "stroke.symmetry.center.y", numberText(p.stroke.symmetry.center.y));
+    writeLine(output, "stroke.symmetry.angleRadians", numberText(p.stroke.symmetry.angleRadians));
+    writeLine(output, "stroke.symmetry.segments", numberText(p.stroke.symmetry.segments));
     writeLine(output, "dynamics.pose.enabled", boolText(p.dynamics.pose.enabled));
     writeLine(output, "dynamics.pose.overridePressure", boolText(p.dynamics.pose.overridePressure));
     writeLine(output, "dynamics.pose.overrideTiltX", boolText(p.dynamics.pose.overrideTiltX));
@@ -720,6 +730,16 @@ void readAdvanced(const std::map<std::string, std::string> &values, BrushPreset 
     p.stroke.smoothingEnabled = readBool(values, "stroke.smoothingEnabled");
     p.stroke.smoothing = readNumber<double>(values, "stroke.smoothing", p.stroke.smoothing);
     p.stroke.protectTexture = readBool(values, "stroke.protectTexture");
+    p.stroke.smoothingMode = static_cast<BrushSmoothingMode>(readNumber<int>(values, "stroke.smoothingMode", 0));
+    p.stroke.smoothingRadius = readNumber<double>(values, "stroke.smoothingRadius", p.stroke.smoothingRadius);
+    p.stroke.smoothingCatchUp = readBool(values, "stroke.smoothingCatchUp", p.stroke.smoothingCatchUp);
+    p.stroke.smoothingCatchUpRate = readNumber<double>(values, "stroke.smoothingCatchUpRate", p.stroke.smoothingCatchUpRate);
+    p.stroke.smoothingCatchUpOnEnd = readBool(values, "stroke.smoothingCatchUpOnEnd", p.stroke.smoothingCatchUpOnEnd);
+    p.stroke.symmetry.mode = static_cast<BrushSymmetryMode>(readNumber<int>(values, "stroke.symmetry.mode", 0));
+    p.stroke.symmetry.center.x = readNumber<double>(values, "stroke.symmetry.center.x", 0);
+    p.stroke.symmetry.center.y = readNumber<double>(values, "stroke.symmetry.center.y", 0);
+    p.stroke.symmetry.angleRadians = readNumber<double>(values, "stroke.symmetry.angleRadians", 0);
+    p.stroke.symmetry.segments = readNumber<std::uint32_t>(values, "stroke.symmetry.segments", p.stroke.symmetry.segments);
     p.dynamics.pose.enabled = readBool(values, "dynamics.pose.enabled");
     p.dynamics.pose.overridePressure = readBool(values, "dynamics.pose.overridePressure");
     p.dynamics.pose.overrideTiltX = readBool(values, "dynamics.pose.overrideTiltX");
@@ -780,7 +800,7 @@ std::string serializeBrushPreset(const BrushPreset &preset)
     if (!errors.empty()) throw std::invalid_argument(errors.front());
     std::ostringstream output;
     writeLine(output, "formatMagic", stringText("iiPaintBrushPreset"));
-    writeLine(output, "formatVersion", numberText(3));
+    writeLine(output, "formatVersion", numberText(4));
     writeLine(output, "brushId", uuidText(preset.brushId));
     writeLine(output, "name", stringText(preset.name));
     writeLine(output, "tip.width", numberText(preset.tip.width));
@@ -801,7 +821,7 @@ BrushPreset deserializeBrushPreset(const std::string &payload)
 {
     const std::map<std::string, std::string> values = parsePayload(payload);
     const auto version = readNumber<unsigned int>(values, "formatVersion");
-    if (readString(values, "formatMagic") != "iiPaintBrushPreset" || version < 1 || version > 3)
+    if (readString(values, "formatMagic") != "iiPaintBrushPreset" || version < 1 || version > 4)
         throw std::invalid_argument("unsupported brush preset format or version");
     BrushPreset preset;
     preset.brushId = readUuid(values, "brushId");

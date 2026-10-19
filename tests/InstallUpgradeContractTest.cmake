@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.31)
 if(NOT DEFINED IIPAINTENGINE_BINARY_DIR)
     message(FATAL_ERROR "IIPAINTENGINE_BINARY_DIR is required")
 endif()
+if(NOT DEFINED IIPAINTENGINE_PACKAGE_VERSION)
+    message(FATAL_ERROR "IIPAINTENGINE_PACKAGE_VERSION is required")
+endif()
 set(test_root "${IIPAINTENGINE_BINARY_DIR}/install-upgrade-contract")
 set(test_prefix "${test_root}/prefix")
 file(REMOVE_RECURSE "${test_root}")
@@ -29,6 +32,16 @@ endif()
 if(NOT EXISTS "${test_prefix}/include/iiPaintEngine/Application/BitmapPaintSession.h")
     message(FATAL_ERROR "Upgrade did not install the C++ painting session")
 endif()
+foreach(relative_path IN ITEMS
+        include/iiPaintEngine/Brush/AbrBrushImporter.h
+        include/iiPaintEngine/Stroke/BrushSymmetry.h
+        share/iiPaintEngine/BRUSH_EXPANSION.md
+        share/iiPaintEngine/BRUSH_EXPANSION_VALIDATION.md
+        share/iiPaintEngine/brush-expansion-provenance.json)
+    if(NOT EXISTS "${test_prefix}/${relative_path}")
+        message(FATAL_ERROR "Upgrade did not install brush expansion artifact: ${relative_path}")
+    endif()
+endforeach()
 if(NOT EXISTS "${test_prefix}/include/iiPaintEngine/Application/MaskPaintSession.h"
         OR NOT EXISTS "${test_prefix}/include/iiPaintEngine/Core/PixelMask.h"
         OR NOT EXISTS "${test_prefix}/include/iiPaintEngine/Brush/LocalMaskBrush.h"
@@ -45,7 +58,7 @@ file(MAKE_DIRECTORY "${consumer_source_dir}")
 file(WRITE "${consumer_source_dir}/CMakeLists.txt" [=[
 cmake_minimum_required(VERSION 3.31)
 project(iiPaintEngineInstalledConsumer LANGUAGES CXX)
-find_package(iiPaintEngine 0.4.2 EXACT CONFIG REQUIRED)
+find_package(iiPaintEngine @IIPAINTENGINE_PACKAGE_VERSION@ EXACT CONFIG REQUIRED)
 add_executable(iiPaintEngineInstalledConsumer main.cpp)
 target_link_libraries(iiPaintEngineInstalledConsumer PRIVATE iiPaintEngine::iiPaintEngine)
 set_target_properties(iiPaintEngineInstalledConsumer PROPERTIES CXX_EXTENSIONS OFF)
@@ -62,6 +75,9 @@ add_custom_target(runInstalledConsumer ALL
         "$<TARGET_FILE:iiPaintEngineInstalledConsumer>" "${CMAKE_CURRENT_BINARY_DIR}/paint.png"
     DEPENDS iiPaintEngineInstalledConsumer VERBATIM)
 ]=])
+file(READ "${consumer_source_dir}/CMakeLists.txt" consumer_cmake_template)
+string(CONFIGURE "${consumer_cmake_template}" consumer_cmake @ONLY)
+file(WRITE "${consumer_source_dir}/CMakeLists.txt" "${consumer_cmake}")
 file(WRITE "${consumer_source_dir}/main.cpp" [=[
 #include <iiPaintEngine>
 #include <iostream>
@@ -75,6 +91,12 @@ int main(int argc, char **argv)
     preset.size = 8;
     preset.dynamics.sizeVariation.enabled = true;
     preset.dynamics.sizeVariation.control = BrushDynamicsControl::PenPressure;
+    preset.stroke.symmetry.mode = BrushSymmetryMode::Vertical;
+    preset.stroke.symmetry.center = {16,16};
+    preset.stroke.smoothingEnabled = true;
+    preset.stroke.smoothingMode = BrushSmoothingMode::PulledString;
+    preset.stroke.smoothingCatchUpOnEnd = true;
+    if(importAbrBrushes({})) return 13;
     if(!session.setBrushPresetData(serializeBrushPreset(preset))) return 3;
     PointerEvent point;
     point.phase = PointerEventPhase::Press;

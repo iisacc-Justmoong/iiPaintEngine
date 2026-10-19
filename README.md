@@ -1,10 +1,15 @@
 # iiPaintEngine
 
-iiPaintEngine 0.4.2 is a C++23 bitmap painting library. Its public API uses the C++ standard library; its only bundled external implementation is the MIT-licensed stb image codec, compiled inside a C++23 translation unit. It has no GUI framework, event loop, image plugin discovery, or external SDK dependency. Source, examples, and tests compile as C++ only.
+Package release: **0.5.1** (2026-10-19). This release includes the current
+native brush work, including ABR import, stabilization and symmetry. Build, test
+and installed-consumer results are recorded in the SDK patch-release report.
+
+
+iiPaintEngine 0.5.1 is a C++23 bitmap painting library. Its public API uses the C++ standard library; its bundled image codec is MIT-licensed stb, compiled inside a C++23 translation unit. File creation uses the existing Qt-free iiFileProviderNative SDK. It has no GUI framework, event loop or image plugin discovery. Source, examples, and tests in this library compile as C++ only.
 
 ## Build and install
 
-A C++23 compiler and standard library with `std::expected` and `std::ios::noreplace`, plus CMake 3.31 or later, are required. Build artifacts belong under `build/`.
+A C++23 compiler and standard library with `std::expected` and `std::ios::noreplace`, CMake 3.31 or later, and iiFileProviderNative >=0.6 are required. Use CMAKE_PREFIX_PATH or iiFileProviderNative_DIR for a non-default dependency prefix. Build artifacts belong under `build/`.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -16,14 +21,14 @@ cmake --install build
 The default top-level install prefix is `~/.local/SDK/iiPaintEngine`. The exported package requires C++23 transitively and uses a single native layout: `include/iiPaintEngine`, `lib`, and `lib/cmake/iiPaintEngine`. It does not select prebuilt Qt platform packages. To consume a package built for the application's platform:
 
 ```cmake
-find_package(iiPaintEngine 0.4 CONFIG REQUIRED)
+find_package(iiPaintEngine 0.5 CONFIG REQUIRED)
 target_link_libraries(app PRIVATE iiPaintEngine::iiPaintEngine)
 set_target_properties(app PROPERTIES CXX_EXTENSIONS OFF)
 ```
 
 The verified local macOS installation also mirrors this native package under `platforms/macos` to retain the earlier package-directory convention. Both paths contain the same C++23 library and standard C++ headers; no GUI runtime is bundled. This mirror represents the current host build only.
 
-0.4 is an API/ABI migration. Rebuild consumers and follow [the C++23 migration guide](docs/CXX23_MIGRATION.md). Upgrading replaces this package's public header tree so deleted APIs do not remain available accidentally.
+0.4 introduced the C++23 API/ABI migration; 0.5 extends public brush layouts and requires another consumer rebuild. Follow [the C++23 migration guide](docs/CXX23_MIGRATION.md). Upgrading replaces this package's public header tree so deleted APIs do not remain available accidentally.
 
 ## Bitmap painting
 
@@ -61,7 +66,7 @@ int main()
 
 During a stroke, `previewPixels()` exposes the composed preview while `file().pixels()` remains committed. Release commits exactly those preview pixels. Cancel discards pending pixels. Undo/redo exchange pixel patches, without replaying input. A preset or color selected during a stroke applies to the next stroke; the active brush is a snapshot. Successful erodible-tip commits carry wear to the selected preset unless it changed during the stroke.
 
-Input coordinates are document pixels and time is monotonic seconds. Use the standard C++ viewport transforms when mapping a window's coordinates. For stationary airbrush emission call `advanceTime(seconds)` from the application's clock. The engine does not create timers or coalesce events. Applications must deliver every measured event they need rendered.
+Input coordinates are document pixels and time is monotonic seconds. Use the standard C++ viewport transforms when mapping a window's coordinates. For stationary airbrush emission or enabled pulled-string catch-up call `advanceTime(seconds)` from the application's clock. The engine does not create timers or coalesce events. Applications must deliver every measured event they need rendered.
 
 ## Local correction masks
 
@@ -74,13 +79,21 @@ PointerEvent → current StrokePoint → RasterDabStream (one preceding point)
 → BrushDab bitmap stamps → RasterSample pixels → StrokeCompositeBuffer → RasterLayer
 ```
 
-Neither `InputStrokeBuilder` nor `RasterDabStream` owns a point collection. A dab is projected and discarded in the current call. Pending preview and history retain pixels; they do not retain paths, vector shapes, future coordinates, or replayable drawing commands. External text, SVG, and shapes must be rasterized before crossing the engine boundary. Causal smoothing uses only the current and preceding filtered point.
+Neither `InputStrokeBuilder` nor `RasterDabStream` owns a point collection. A dab is projected and discarded in the current call. Pending preview and history retain pixels; they do not retain paths, vector shapes, future coordinates, or replayable drawing commands. External text, SVG, and shapes must be rasterized before crossing the engine boundary. Causal smoothing uses one preceding filtered point and one current raw pointer target.
 
 ## Brushes and documents
 
 `BrushPreset` is an editable value object for tips, shape, spacing, color, dynamics, pose, texture, secondary masks, and bitmap material effects. `resolveBrushPreset()` validates every setting and creates `BrushState`. Six editable built-in presets demonstrate pressure ink, grain pencil, soft airbrush, flat marker, color spray, and wet flat mixing. [Brush API and units](docs/BRUSHES.md) and [extended option behavior](docs/BRUSH_OPTIONS.md) document the contract.
 
-Preset format 3 preserves extended options and reads formats 1/2. Pixel document format 3 stores layer pixels, metadata, masks, brush presets, color metadata, assets, and raster history. It reads compatible format 2 single-surface documents. Unknown or incompatible content is rejected. The Photoshop investigation informed option coverage; renderer formulas remain independent bitmap models and do not establish Adobe pixel parity or ABR compatibility.
+Preset format 4 preserves extended options and reads formats 1/2/3. Pixel document format 3 stores layer pixels, metadata, masks, brush presets, color metadata, assets, and raster history. It reads compatible format 2 single-surface documents. Unknown or incompatible content is rejected. The Photoshop investigation informed option coverage; renderer formulas remain independent bitmap models and do not establish Adobe pixel parity.
+
+0.5 adds [bounded ABR tip import, symmetry and stabilization](docs/BRUSH_EXPANSION.md).
+ABR v1/v2 geometry and v6/v7/v9/v10 sampled tips can become editable presets;
+modern descriptor/tool/texture settings remain explicitly unsupported. Symmetry
+includes 64-segment radial and mandala modes, with reflected bitmap tips and
+per-event resource bounds. Pulled-string stabilization offers clock-driven
+catch-up and optional endpoint flushing. All use the existing preview, commit,
+cancel and raster history paths.
 
 `Application/DocumentAdapter`, `LayerListModel`, and `PaintEngineController` provide standard C++ document/layer editing alongside the file session. Lower modules do not depend on Application; brushes do not depend on stroke execution.
 
@@ -104,9 +117,10 @@ PNG/BMP/TGA preserve alpha. JPEG/PNM/HDR flatten alpha against `BitmapFileWriteO
 ```sh
 build/Example/bin/iiPaintEngineExample build/paint.png
 build/iiPaintEngineBrushGallery build/brush-gallery.png
+build/iiPaintEngineBrushExpansionGallery build/brush-expansion-gallery.png
 ```
 
-Both examples produce bitmap files and require no windowing runtime. The gallery renders all six presets.
+All examples produce bitmap files and require no windowing runtime. The preset gallery renders all six presets; the expansion gallery demonstrates radial, mandala and stabilized strokes.
 
 ## Dependencies and validation
 

@@ -38,6 +38,13 @@ auto pixels = projectBrushDabs(dabs, resolved.brush->rasterizer, {}, resolved.br
 | 색상 | 전경/보조색 혼합, HSV 변화, 스탬프마다 또는 획마다 고정되는 색상 난수 |
 | 재질 | 기존 팁·진행 방향·문서·종이 좌표 텍스처, 이중 마스크, WetPaint/Smudge/Mixer, bristle 설정 |
 | 에어브러시 | 정지 상태에서도 초당 지정 횟수로 분사; 시간 기반 배치가 거리 기반 배치를 대체 |
+| 대칭 | 수직·수평·두 축, 최대 64구간 방사형·만다라; 동적 상태를 유지한 현재 자국 복제 |
+| 안정화 | 기존 지수 필터와 당김줄 방식, 정지 시간 기반 따라잡기, 선택적 획 끝점 완결 |
+| ABR 입력 | v1/v2 팁·간격 및 v6/v7/v9/v10 샘플 팁, 8/16비트 Raw·PackBits; 현대식 전체 설정은 미복원 경고 |
+
+0.5의 단위·자원 제한·호환성 경계와 사용 예는
+[BRUSH_EXPANSION.md](BRUSH_EXPANSION.md)에 정리되어 있다. 새 프리셋은 형식 4이며
+기존 형식 1/2/3을 읽는다. 공개 구조체가 확장되었으므로 소비자는 다시 빌드해야 한다.
 
 좌표·크기·거리·속도는 문서 픽셀, 초, 문서 픽셀/초 단위이다. 각도는 라디안, 압력은 `[0,1]`, 기울기 X/Y와 tangential pressure는 `[-1,1]`이다. `BrushStrokeSettings::spacing > 0`이면 절대 간격이 `spacingRatio`보다 우선한다. 크기 상한은 4096이다. `shape.roundness`는 `[0.01,1]`이다.
 

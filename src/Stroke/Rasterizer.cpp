@@ -3,6 +3,7 @@
 //
 
 #include "Rasterizer.h"
+#include "Stroke/BrushSymmetry.h"
 
 #include "Brush/BrushDynamics.h"
 #include "Brush/BrushMaterial.h"
@@ -873,7 +874,8 @@ Types::Scalar sampledTextureAlpha(const BrushTexture &texture,
     }
 
     const Types::Scalar textureScale = std::max<Types::Scalar>(0.01, texture.scale * dab.textureScale);
-    const Types::Scalar rotation = dab.rotationRadians + texture.rotationRadians + dab.textureRotationRadians;
+    const Types::Scalar reflection = dab.symmetryReflected ? -1.0 : 1.0;
+    const Types::Scalar rotation = dab.rotationRadians + reflection*(texture.rotationRadians + dab.textureRotationRadians);
     const Types::Scalar cosTheta = std::cos(rotation);
     const Types::Scalar sinTheta = std::sin(rotation);
     Types::Scalar u = 0.0;
@@ -889,14 +891,14 @@ Types::Scalar sampledTextureAlpha(const BrushTexture &texture,
         case BrushTextureSpace::StrokeFollow: {
             const Types::Scalar dx = static_cast<Types::Scalar>(position.x) - dab.position.x;
             const Types::Scalar dy = static_cast<Types::Scalar>(position.y) - dab.position.y;
-            u = (dab.strokeDistance + dx * cosTheta + dy * sinTheta) / textureScale;
+            u = (dab.strokeDistance + reflection*(dx * cosTheta + dy * sinTheta)) / textureScale;
             v = (-dx * sinTheta + dy * cosTheta) / textureScale;
             break;
         }
         case BrushTextureSpace::Tip: {
             const Types::Scalar dx = static_cast<Types::Scalar>(position.x) - dab.position.x;
             const Types::Scalar dy = static_cast<Types::Scalar>(position.y) - dab.position.y;
-            u = (dx * cosTheta + dy * sinTheta) / textureScale;
+            u = reflection*(dx * cosTheta + dy * sinTheta) / textureScale;
             v = (-dx * sinTheta + dy * cosTheta) / textureScale;
             break;
         }
@@ -940,7 +942,8 @@ Types::Scalar dualBrushAlphaAt(const DualBrush &dualBrush, const BrushDab &dab, 
 
     const auto projectionScale = std::max(.01, context.projection.scale);
     const Types::Scalar scale = std::max<Types::Scalar>(0.01, dualBrush.scale * dab.dualBrushScale) * projectionScale;
-    const Types::Scalar rotation = dab.rotationRadians + dualBrush.rotationRadians + dab.dualBrushRotationRadians;
+    const Types::Scalar reflection = dab.symmetryReflected ? -1.0 : 1.0;
+    const Types::Scalar rotation = dab.rotationRadians + reflection*(dualBrush.rotationRadians + dab.dualBrushRotationRadians);
     const Types::Scalar cosTheta = std::cos(rotation);
     const Types::Scalar sinTheta = std::sin(rotation);
     const auto &scatter = dualBrush.scatter;
@@ -950,11 +953,21 @@ Types::Scalar dualBrushAlphaAt(const DualBrush &dualBrush, const BrushDab &dab, 
     const auto count = scatter.enabled ? static_cast<unsigned>(std::clamp(std::round(scatter.count
             * (1 - scatter.countJitter * deterministicUnit(dab.randomSeed + 0x4E53U, phase))), 0.0, 256.0)) : 1U;
     double alpha = 0;
+    const auto originalRotation = (dab.symmetryReflected
+            ? dab.symmetryRotationRadians-dab.rotationRadians
+            : dab.rotationRadians-dab.symmetryRotationRadians)
+            + dualBrush.rotationRadians + dab.dualBrushRotationRadians;
+    const bool rotateScatter = dab.symmetryRotationRadians != 0;
+    const auto scatterCos = rotateScatter ? std::cos(dab.symmetryRotationRadians) : 1.0;
+    const auto scatterSin = rotateScatter ? std::sin(dab.symmetryRotationRadians) : 0.0;
     for (unsigned i = 0; i < count; ++i) {
-        auto offset = scatterPosition({}, scatter, 1, diameter, rotation, dab.randomSeed + 0x3D47U, phase * 257U + i);
+        auto offset = scatterPosition({}, scatter, 1, diameter, originalRotation, dab.randomSeed + 0x3D47U, phase * 257U + i);
+        if (dab.symmetryReflected) offset.x = -offset.x;
+        if (rotateScatter)
+            offset = {scatterCos*offset.x-scatterSin*offset.y,scatterSin*offset.x+scatterCos*offset.y};
         const Types::Scalar dx = static_cast<Types::Scalar>(position.x) - dab.position.x - offset.x * projectionScale;
         const Types::Scalar dy = static_cast<Types::Scalar>(position.y) - dab.position.y - offset.y * projectionScale;
-        auto u = (dx * cosTheta + dy * sinTheta) / scale;
+        auto u = reflection*(dx * cosTheta + dy * sinTheta) / scale;
         auto v = (-dx * sinTheta + dy * cosTheta) / scale;
         if (dualBrush.flipX) u = -u;
         if (dualBrush.flipY) v = -v;
@@ -1399,6 +1412,7 @@ std::vector<BrushDab> appendRasterDabs(RasterDabStream &state, const StrokePoint
         stream = {};
         next.velocity = 0; next.arcLength = 0;
         stream.active = true; stream.startTime = next.time;
+        stream.smoothingTarget = point.position;
         stream.previousPoint = next; stream.nextDabTime = next.time + interval;
         appendPlacement(dabs, stream, next, 0, 0, brush);
         stream.nextDabDistance = effectiveSpacing(brush.rasterizer, brush.dynamics,
@@ -1407,7 +1421,18 @@ std::vector<BrushDab> appendRasterDabs(RasterDabStream &state, const StrokePoint
         const auto start = stream.previousPoint;
         if (next.time < start.time) throw std::invalid_argument("brush timestamps must be monotonic seconds");
         if (brush.rasterizer.smoothingEnabled && brush.rasterizer.smoothing > 0) {
-            const auto weight = 1 - .95 * clamp01(brush.rasterizer.smoothing);
+            const auto &r = brush.rasterizer;
+            auto weight = 1 - .95 * clamp01(r.smoothing);
+            if (r.smoothingMode == BrushSmoothingMode::PulledString) {
+                const auto distance = std::hypot(point.position.x-start.position.x,point.position.y-start.position.y);
+                const bool stationary = std::hypot(point.position.x-stream.smoothingTarget.x,
+                                                   point.position.y-stream.smoothingTarget.y)<1e-9;
+                if (r.smoothingCatchUp && stationary)
+                    weight = -std::expm1(-(next.time-start.time)*r.smoothingCatchUpRate);
+                else
+                    weight = distance>0 ? std::max(0.0,1-r.smoothingRadius*clamp01(r.smoothing)/distance) : 0;
+            }
+            if (finishStroke && r.smoothingCatchUpOnEnd) weight = 1;
             next.position.x = start.position.x + (next.position.x - start.position.x) * weight;
             next.position.y = start.position.y + (next.position.y - start.position.y) * weight;
         }
@@ -1444,8 +1469,11 @@ std::vector<BrushDab> appendRasterDabs(RasterDabStream &state, const StrokePoint
                 appendPlacement(dabs,stream,next,direction,next.arcLength,brush);
         }
         stream.traveledDistance = next.arcLength; stream.previousPoint = next; stream.lastDirection = direction;
+        stream.smoothingTarget = point.position;
     }
     if (finishStroke) stream.active = false;
+    if (brush.rasterizer.symmetry.mode != BrushSymmetryMode::None)
+        dabs = applyBrushSymmetry(BrushDabSpan{dabs},brush.rasterizer.symmetry);
     state = stream;
     return dabs;
 }

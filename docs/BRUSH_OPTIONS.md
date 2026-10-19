@@ -1,4 +1,8 @@
-# Brush options contract (0.4.0)
+# Brush options contract (0.5.0)
+
+The 0.4 option model below remains supported. The 0.5 ABR, symmetry and
+stabilization additions, current preset format and verification boundaries are
+documented in [BRUSH_EXPANSION.md](BRUSH_EXPANSION.md).
 
 `BrushPreset` remains the editable brush object. Its `dynamics`, `material`,
 `shape`, `stroke`, and `color` members carry these additions through validation,
@@ -9,8 +13,11 @@ dependency.
 
 ## Evidence and interpretation
 
-This change follows the recovered Photoshop **27.10.0** snapshot in
-`Engineering/Projects/PhotoshopReverse`. The interface investigation rechecked
+The original 0.4 change followed the recovered Photoshop **27.10.0** snapshot in
+`Engineering/Projects/PhotoshopReverse`. That historical source/evidence tree was
+retired by the later Adobe source replacement; the hashes below describe the earlier
+investigation, not currently available source files. The current 0.5 provenance is
+linked above. The historical interface investigation rechecked
 2,414 original file hashes and inventoried 61 relevant files, 718 control
 declarations, 157 main/group/tool/preset observations and 51 related-tool
 observations. The JavaScript investigation searched all 11,300 recovered files
@@ -58,7 +65,8 @@ foreground-color metadata. Native `applyBrushFile` and `save` handle ABR files;
 the recovered scripts contain no full ABR codec. `PHXS/js/push.js:78–89` carries
 all metadata keys without providing a parameter schema. The scripts' truthy
 flow/opacity checks skip zero; the SDK continues to accept a valid explicit
-zero. This change does not introduce an ABR importer.
+zero. The historical 0.4 change did not introduce an ABR importer; the bounded
+tip decoder added in 0.5 is documented in BRUSH_EXPANSION.md.
 
 ## Named variations
 
@@ -215,16 +223,17 @@ would otherwise be replaced by protection.
 
 ## Storage, validation and test boundaries
 
-New output is preset format **3**. Versions 1 and 2 remain readable and acquire
-neutral defaults for missing options. Validation rejects invalid enum values,
+The 0.4 extension introduced preset format **3**; current output is format **4**.
+Versions 1, 2 and 3 remain readable and acquire neutral defaults for missing options.
+Validation rejects invalid enum values,
 nonfinite/out-of-range numbers and zero/excessive Fade steps, including disabled
 settings. Snapshot/restore copy all nested settings.
 
 Document format remains 3. The historically named `presetV2` field embeds the
-versioned payload and now carries preset format 3. Its key remains stable;
+versioned payload and now carries preset format 4. Its key remains stable;
 the embedded `formatVersion` is authoritative. Older engines reject the new
 preset version instead of silently dropping these options. Public structs have
-changed layout, so SDK consumers must be rebuilt for package 0.4.0.
+changed layout in 0.4 and again in 0.5, so SDK consumers must be rebuilt for 0.5.
 
 `BrushOptionsContractTest` checks controls, pose, initial direction, color,
 texture/depth/modes, secondary reflection/count/zoom, noise/wet-edge coverage,
@@ -236,9 +245,11 @@ and protected/unprotected selection. The existing architecture tests continue
 to prohibit retained trajectories and enforce dependency direction.
 
 Observed UI controls not implemented as shared brush options here include
-per-panel preset locks/capture policies, symmetry, Photoshop's pulled-string
-and catch-up modes, multi-layer sampling/clean-after-stroke tool policy,
+per-panel preset locks/capture policies, multi-layer sampling/clean-after-stroke tool policy,
 healing/clone/selection/remove algorithms, and native menu enum mappings.
 They are retained in the investigation ledger rather than stored as ineffective
 renderer toggles. Native physical formulas, ABR codec compatibility, complete
 Photoshop brush-source recovery and Adobe pixel parity remain unverified.
+Symmetry and independent pulled-string/catch-up models are now implemented in
+0.5. ABR tip extraction is bounded as described in BRUSH_EXPANSION.md and does not
+restore modern full brush settings.

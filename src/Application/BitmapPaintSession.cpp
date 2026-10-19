@@ -156,13 +156,17 @@ BitmapPaintUpdate BitmapPaintSession::processPointerEvent(const PointerEvent &ev
 }
 BitmapPaintUpdate BitmapPaintSession::advanceTime(double seconds)
 {
-    if (!m_stream.active || !m_activeBrush.rasterizer.airbrushEnabled) {
-        m_error = "No active time-based brush."; return {false,false,m_stream.active,{},m_error};
+    const auto &r=m_activeBrush.rasterizer;
+    const bool catchUp=r.smoothingEnabled && r.smoothing>0
+            && r.smoothingMode==BrushSmoothingMode::PulledString && r.smoothingCatchUp;
+    if (!m_stream.active || (!r.airbrushEnabled && !catchUp)) {
+        m_error = "No active time-based brush or smoothing catch-up."; return {false,false,m_stream.active,{},m_error};
     }
     try {
         if (!std::isfinite(seconds) || std::abs(seconds) > 1e12)
             throw std::invalid_argument("Time is nonfinite or outside the supported range.");
         auto point = m_stream.previousPoint; point.time = seconds;
+        if (catchUp) point.position = m_stream.smoothingTarget;
         return appendPoint(point,false);
     } catch (const std::exception &e) { m_error = e.what(); return {false,false,m_stream.active,{},m_error}; }
 }
