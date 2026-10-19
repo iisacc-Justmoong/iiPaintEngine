@@ -1,5 +1,7 @@
 # iiPaintEngine
 
+[Windows 빌드 및 실행](docs/WindowsBuildAndRun.md)
+
 Package release: **0.5.1** (2026-10-19). This release includes the current
 native brush work, including ABR import, stabilization and symmetry. Build, test
 and installed-consumer results are recorded in the SDK patch-release report.
