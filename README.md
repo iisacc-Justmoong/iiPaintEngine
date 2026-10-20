@@ -126,8 +126,16 @@ All examples produce bitmap files and require no windowing runtime. The preset g
 
 ## Dependencies and validation
 
-The bundled stb files are pinned to commit `2c980bb59875b0d32144a71867fbdebb2f77cd20` of [nothings/stb](https://github.com/nothings/stb). [Provenance and SHA-256 hashes](third_party/stb/provenance.json) and the selected [MIT license](third_party/stb/LICENSE) accompany the package. No separate C source, assembly, Objective-C, scripting runtime, or GUI library is compiled. iiPaintEngine itself retains its [AGPL-3.0 license](LICENSE).
+The bundled stb files are pinned to commit `2c980bb59875b0d32144a71867fbdebb2f77cd20` of [nothings/stb](https://github.com/nothings/stb). [Provenance and SHA-256 hashes](third_party/stb/provenance.json) and the selected [MIT license](third_party/stb/LICENSE) accompany the package. No separate C source, assembly, Objective-C, scripting runtime, or GUI library is compiled. iiPaintEngine itself retains its [MIT license](LICENSE).
 
 Contract tests cover source/dependency boundaries, public C++23 headers, codec round trips and failure preservation, immediate preview versus commit, cancel, undo/redo, input normalization, brush options/materials, serialization, document/layer operations, and installing then compiling/running a separate C++ consumer. Sanitizer builds are available with `-DIIPAINTENGINE_SANITIZE=ON`. Host tests do not prove physical pen input or runtime operation on other platforms.
 
 Layer composition supports 27 pixel-layer blend modes, reproducible Dissolve samples, masked clipping chains and correct alpha weighting over transparent backdrops. See [Layer compositing](docs/LAYER_COMPOSITING.md). Brush stroke blend-mode validation retains its existing supported subset.
+
+## License
+
+SPDX-License-Identifier: MIT
+
+The original code and documentation in this repository are licensed under the
+[MIT License](LICENSE). Third-party code, libraries, fonts, tools, and model
+weights retain their respective licenses.
