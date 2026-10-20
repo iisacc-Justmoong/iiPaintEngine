@@ -12,6 +12,6 @@ int main()
     if(config.find("find_dependency(iiFileProviderNative 0.6 CONFIG")==std::string::npos
         || config.find("find_dependency(Qt")!=std::string::npos) return 2;
     if(!std::filesystem::exists(root/"third_party/stb/LICENSE")) return 3;
-    if(read(root/"LICENSE").find("GNU AFFERO GENERAL PUBLIC LICENSE")==std::string::npos) return 4;
+    if(read(root/"LICENSE").find("MIT License")==std::string::npos) return 4;
     return 0;
 }
