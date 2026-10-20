@@ -68,6 +68,7 @@ install(FILES README.md docs/BRUSHES.md docs/BRUSH_OPTIONS.md docs/CXX23_MIGRATI
     DESTINATION ${CMAKE_INSTALL_DATADIR}/iiPaintEngine)
 install(FILES docs/BRUSH_EXPANSION.md docs/BRUSH_EXPANSION_VALIDATION.md docs/brush-expansion-provenance.json
     DESTINATION ${CMAKE_INSTALL_DATADIR}/iiPaintEngine)
+install(FILES docs/PERFORMANCE.md DESTINATION ${CMAKE_INSTALL_DATADIR}/iiPaintEngine)
 install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/iiPaintEngine)
 install(FILES third_party/stb/LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/iiPaintEngine/stb)
 install(FILES third_party/stb/provenance.json DESTINATION ${CMAKE_INSTALL_DATADIR}/iiPaintEngine)

@@ -5,6 +5,7 @@
 #include "FilterPipeline.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <vector>
@@ -15,11 +16,6 @@ std::size_t surfaceIndex(const DrawingSurface &surface, DevicePixelPoint point)
 {
     return static_cast<std::size_t>(point.y) * static_cast<std::size_t>(surface.width)
             + static_cast<std::size_t>(point.x);
-}
-
-bool contains(const DrawingSurface &surface, DevicePixelPoint point)
-{
-    return point.x >= 0 && point.y >= 0 && point.x < surface.width && point.y < surface.height;
 }
 
 std::uint8_t channel(std::uint32_t argb, unsigned shift)
@@ -55,38 +51,50 @@ std::uint32_t mixArgb(std::uint32_t lhs, std::uint32_t rhs, Types::Scalar t)
 
 void applyBlur(DrawingSurface &surface, const SelectionState &selection, Types::Scalar radius)
 {
+    if (surface.width <= 0 || surface.height <= 0) return;
     const std::vector<std::uint32_t> source = surface.pixels;
-    const int integerRadius = std::max(1, static_cast<int>(std::lround(radius)));
-    for (Types::Pixel y = 0; y < surface.height; ++y) {
+    // A larger window covers the whole image. Clamp before integer conversion.
+    const auto integerRadius = static_cast<std::int64_t>(std::min(
+            static_cast<double>(std::max(surface.width, surface.height)),
+            std::max(1.0, std::round(radius))));
+    using Sum = std::array<std::uint64_t, 4>;
+    std::vector<Sum> columns(static_cast<std::size_t>(surface.width));
+    auto updateRow = [&](Types::Pixel row, bool add) {
+        const auto start = static_cast<std::size_t>(row) * static_cast<std::size_t>(surface.width);
         for (Types::Pixel x = 0; x < surface.width; ++x) {
-            const DevicePixelPoint point{x, y};
-            if (selectionAlphaAt(selection, point) <= 0.0) {
-                continue;
-            }
-
-            int count = 0;
-            int alpha = 0;
-            int red = 0;
-            int green = 0;
-            int blue = 0;
-            for (int offsetY = -integerRadius; offsetY <= integerRadius; ++offsetY) {
-                for (int offsetX = -integerRadius; offsetX <= integerRadius; ++offsetX) {
-                    const DevicePixelPoint samplePoint{x + offsetX, y + offsetY};
-                    if (!contains(surface, samplePoint)) {
-                        continue;
-                    }
-                    const std::uint32_t sample = source[surfaceIndex(surface, samplePoint)];
-                    alpha += channel(sample, 24U);
-                    red += channel(sample, 16U);
-                    green += channel(sample, 8U);
-                    blue += channel(sample, 0U);
-                    ++count;
-                }
-            }
-            if (count > 0) {
-                surface.pixels[surfaceIndex(surface, point)] = packArgb(alpha / count, red / count, green / count, blue / count);
+            const auto pixel = source[start + static_cast<std::size_t>(x)];
+            for (unsigned c = 0; c < 4; ++c) {
+                const auto value = channel(pixel, c * 8);
+                if (add) columns[x][c] += value;
+                else columns[x][c] -= value;
             }
         }
+    };
+    for (Types::Pixel y = 0; y <= std::min<std::int64_t>(integerRadius, surface.height - 1); ++y)
+        updateRow(y, true);
+    for (Types::Pixel y = 0; y < surface.height; ++y) {
+        Sum sum{};
+        for (Types::Pixel x = 0; x <= std::min<std::int64_t>(integerRadius, surface.width - 1); ++x)
+            for (unsigned c = 0; c < 4; ++c) sum[c] += columns[x][c];
+        const auto rows = std::min<std::int64_t>(surface.height - 1, y + integerRadius)
+                - std::max<std::int64_t>(0, y - integerRadius) + 1;
+        for (Types::Pixel x = 0; x < surface.width; ++x) {
+            const DevicePixelPoint point{x, y};
+            if (!selection.active || selectionAlphaAt(selection, point) > 0.0) {
+                const auto count = static_cast<std::uint64_t>(rows)
+                        * static_cast<std::uint64_t>(std::min<std::int64_t>(surface.width - 1, x + integerRadius)
+                                                    - std::max<std::int64_t>(0, x - integerRadius) + 1);
+                surface.pixels[surfaceIndex(surface, point)] = packArgb(
+                        static_cast<int>(sum[3] / count), static_cast<int>(sum[2] / count),
+                        static_cast<int>(sum[1] / count), static_cast<int>(sum[0] / count));
+            }
+            if (x + integerRadius + 1 < surface.width)
+                for (unsigned c = 0; c < 4; ++c) sum[c] += columns[x + integerRadius + 1][c];
+            if (x >= integerRadius)
+                for (unsigned c = 0; c < 4; ++c) sum[c] -= columns[x - integerRadius][c];
+        }
+        if (y + integerRadius + 1 < surface.height) updateRow(static_cast<Types::Pixel>(y + integerRadius + 1), true);
+        if (y >= integerRadius) updateRow(static_cast<Types::Pixel>(y - integerRadius), false);
     }
 }
 
