@@ -90,8 +90,10 @@ core 호출자는 단조 증가하는 초 단위 time을 전달한다. 정지 �
 
 ## 실행 가능한 견본
 
-`Example/BrushGallery.cpp`는 각 입력점을 즉시 픽셀화하며 여섯 프리셋을 한 PNG로 출력한다. 소스 패키지 0.4.0은 라이브러리·공개 헤더·소비자·예제·테스트 모두 C++23을 요구한다. 구조체에 필드가 추가되었으므로 SDK를 교체할 때 소비자도 재빌드해야 한다.
+`Example/FileProvider/App/BrushGallery.cpp`는 각 입력점을 즉시 픽셀화하며 여섯 프리셋을 한 PNG로 출력한다. 파일 제공자와 엔진을 별도 소비자로 구성해야 한다. 라이브러리·공개 헤더·소비자·예제·테스트 모두 C++23을 요구한다. 공개 타입이 바뀌었으므로 SDK를 교체할 때 소비자도 재빌드해야 한다.
 
 ```sh
-build/iiPaintEngineBrushGallery build/brush-gallery.png
+cmake -S Example/FileProvider -B build/file-provider-app -DCMAKE_PREFIX_PATH="/path/to/iiPaintEngine;/path/to/iiFileProvider"
+cmake --build build/file-provider-app --parallel
+build/file-provider-app/iiPaintEngineBrushGallery Example/FileProvider/resources/brush-gallery.png
 ```

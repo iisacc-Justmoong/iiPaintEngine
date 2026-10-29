@@ -17,7 +17,7 @@ PointerEvent event(PointerEventPhase phase, double x, double y, double time)
 int main()
 {
     TestDirectory dir{"bitmap-session"};
-    BitmapPaintSession session;
+    BitmapPaintSession session(dir.io);
     CHECK(session.createFile(dir.path / "paint.png",64,64));
     BrushPreset brush; brush.size = 12; brush.flow = .3F;
     brush.stroke.noiseEnabled = true; brush.material.erodible.enabled = true;
@@ -36,7 +36,7 @@ int main()
     CHECK(session.undo() && session.file().pixels().pixels == original);
     CHECK(session.redo() && session.file().pixels().pixels == preview);
     CHECK(session.save());
-    BitmapFile loaded; CHECK(loaded.open(dir.path / "paint.png") && loaded.pixels().pixels == preview);
+    BitmapFile loaded(dir.io); CHECK(loaded.open(dir.path / "paint.png") && loaded.pixels().pixels == preview);
     CHECK(session.processPointerEvent(event(PointerEventPhase::Press,16,16,2)).accepted);
     const auto wear = session.brushPreset().material.erodible.wear;
     CHECK(session.processPointerEvent(event(PointerEventPhase::Cancel,16,16,2)).accepted);

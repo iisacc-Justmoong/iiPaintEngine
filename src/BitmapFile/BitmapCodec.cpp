@@ -1,11 +1,7 @@
-#include <iiFileProviderStorage.h>
 #include "BitmapCodec.hpp"
 #include <algorithm>
-#include <atomic>
-#include <chrono>
 #include <charconv>
 #include <cmath>
-#include <fstream>
 #include <memory>
 #include <span>
 
@@ -16,7 +12,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 // Upstream gates its HDR memory writer on stdio support. Only callback-based
-// writers are used here; filesystem paths are handled by C++ streams above.
+// writers are used here; the application supplies file I/O separately.
 #define STB_IMAGE_WRITE_STATIC
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
@@ -97,19 +93,6 @@ std::string detectFormat(std::span<const unsigned char> b)
             && (b[16] == 8 || b[16] == 15 || b[16] == 16 || b[16] == 24 || b[16] == 32)) return "tga";
     return {};
 }
-std::expected<Bytes,std::string> readBytes(const std::filesystem::path &path)
-{
-    std::ifstream input(path,std::ios::binary | std::ios::ate);
-    if (!input) return std::unexpected("Cannot open the bitmap file.");
-    const auto size = input.tellg();
-    if (size <= 0 || static_cast<std::uint64_t>(size) > maxBitmapEncodedBytes)
-        return std::unexpected("Encoded bitmap size is outside the supported range.");
-    Bytes bytes(static_cast<std::size_t>(size));
-    input.seekg(0);
-    if (!input.read(reinterpret_cast<char *>(bytes.data()),static_cast<std::streamsize>(bytes.size())))
-        return std::unexpected("Cannot read all bitmap bytes.");
-    return bytes;
-}
 struct Output { Bytes bytes; bool failed = false; };
 void appendBytes(void *context,void *data,int size)
 {
@@ -122,52 +105,6 @@ void appendBytes(void *context,void *data,int size)
         auto begin = static_cast<const unsigned char *>(data);
         output.bytes.insert(output.bytes.end(),begin,begin + size);
     } catch (...) { output.failed = true; }
-}
-std::filesystem::path uniqueSibling(const std::filesystem::path &path,std::string_view role)
-{
-    static std::atomic<std::uint64_t> sequence{};
-    const auto stamp = std::chrono::steady_clock::now().time_since_epoch().count();
-    auto result = path;
-    result += ".iipaint-" + std::string(role) + "-" + std::to_string(stamp) + "-"
-            + std::to_string(sequence.fetch_add(1,std::memory_order_relaxed));
-    return result;
-}
-std::expected<void,std::string> writeBytes(const std::filesystem::path &path,const Bytes &bytes)
-{
-    const auto temporary = uniqueSibling(path,"write");
-    struct Cleanup {
-        std::filesystem::path path;
-        bool owned = false;
-        ~Cleanup() { if (owned) { std::error_code ec; std::filesystem::remove(path,ec); } }
-    } cleanup{temporary,false};
-    {
-        iiFileProvider::native::OutputFile output(temporary,std::ios::binary | std::ios::out | std::ios::noreplace);
-        if (!output) return std::unexpected("Cannot create bitmap output beside the destination.");
-        cleanup.owned = true;
-        output.write(reinterpret_cast<const char *>(bytes.data()),static_cast<std::streamsize>(bytes.size()));
-        output.flush();
-        if (!output) return std::unexpected("Cannot write all bitmap output bytes.");
-        output.close();
-        if (!output) return std::unexpected("Cannot close bitmap output.");
-    }
-    std::error_code error;
-    iiFileProvider::native::renameFile(temporary,path,error);
-    if (!error) return {};
-    // Some standard-library implementations cannot replace an existing file.
-    // Retain the old bytes until replacement succeeds and restore on failure.
-    if (!std::filesystem::is_regular_file(path)) return std::unexpected("Cannot replace the bitmap destination: " + error.message());
-    const auto backup = uniqueSibling(path,"backup");
-    iiFileProvider::native::renameFile(path,backup,error);
-    if (error) return std::unexpected("Cannot preserve the previous bitmap: " + error.message());
-    iiFileProvider::native::renameFile(temporary,path,error);
-    if (error) {
-        std::error_code restoreError;
-        iiFileProvider::native::renameFile(backup,path,restoreError);
-        if (restoreError) return std::unexpected("Bitmap replacement failed; previous bytes remain at " + backup.string());
-        return std::unexpected("Cannot replace the bitmap: " + error.message());
-    }
-    std::error_code ignored; std::filesystem::remove(backup,ignored);
-    return {};
 }
 }
 
@@ -189,24 +126,24 @@ bool validDimensions(int width,int height)
     return width > 0 && height > 0 && width <= maxBitmapDimension && height <= maxBitmapDimension
             && static_cast<std::uint64_t>(width) * height <= maxBitmapPixelCount;
 }
-std::expected<DecodedBitmap,std::string> read(const std::filesystem::path &path)
+std::expected<DecodedBitmap,std::string> read(std::span<const unsigned char> bytes)
 {
     try {
-        auto bytes = readBytes(path);
-        if (!bytes) return std::unexpected(bytes.error());
-        const auto format = detectFormat(*bytes);
+        if (bytes.empty() || bytes.size() > maxBitmapEncodedBytes)
+            return std::unexpected("Encoded bitmap size is outside the supported range.");
+        const auto format = detectFormat(bytes);
         if (format.empty()) return std::unexpected("The content is not a supported bitmap format.");
         if (format == "pnm") {
-            auto pixels = readPnm(*bytes);
+            auto pixels = readPnm(bytes);
             if (!pixels) return std::unexpected(pixels.error());
             return DecodedBitmap{std::move(*pixels),format};
         }
         int width = 0,height = 0,channels = 0;
-        const auto size = static_cast<int>(bytes->size());
-        if (!stbi_info_from_memory(bytes->data(),size,&width,&height,&channels) || !validDimensions(width,height))
+        const auto size = static_cast<int>(bytes.size());
+        if (!stbi_info_from_memory(bytes.data(),size,&width,&height,&channels) || !validDimensions(width,height))
             return std::unexpected("Bitmap dimensions or header are invalid or exceed the configured limits.");
         const std::unique_ptr<stbi_uc,decltype(&stbi_image_free)> image{
-                stbi_load_from_memory(bytes->data(),size,&width,&height,&channels,4),stbi_image_free};
+                stbi_load_from_memory(bytes.data(),size,&width,&height,&channels,4),stbi_image_free};
         if (!image) return std::unexpected("The bitmap decoder returned no pixels.");
         if (!validDimensions(width,height)) return std::unexpected("Decoded dimensions exceed the configured limits.");
         auto pixels = makeRasterLayer(width,height);
@@ -218,8 +155,8 @@ std::expected<DecodedBitmap,std::string> read(const std::filesystem::path &path)
         return DecodedBitmap{std::move(pixels),format};
     } catch (const std::exception &e) { return std::unexpected(std::string(e.what())); }
 }
-std::expected<void,std::string> write(const std::filesystem::path &path,std::string_view requested,
-                                     const RasterLayer &pixels,const BitmapFileWriteOptions &options)
+std::expected<BitmapFileIO::Bytes,std::string> write(std::string_view requested,const RasterLayer &pixels,
+                                                     const BitmapFileWriteOptions &options)
 {
     try {
         const auto format = normalizeFormat(requested);
@@ -258,7 +195,7 @@ std::expected<void,std::string> write(const std::filesystem::path &path,std::str
             output.bytes.insert(output.bytes.end(),bytes.begin(),bytes.end()); ok = 1;
         }
         if (!ok || output.failed || output.bytes.empty()) return std::unexpected("Bitmap encoding failed.");
-        return writeBytes(path,output.bytes);
+        return std::move(output.bytes);
     } catch (const std::exception &e) { return std::unexpected(std::string(e.what())); }
 }
 }

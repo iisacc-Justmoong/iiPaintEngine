@@ -10,7 +10,15 @@ BitmapPaintSession은 BitmapFile, 선택 브러시, pending/preview 픽셀, dirt
 
 앱은 화면, 입력 수집, 좌표 변환, 시계와 이벤트 정책을 담당한다. 시간 분사는 앱이 advanceTime에 단조 증가하는 초를 전달하여 처리한다. 엔진은 타이머나 입력 좌표 queue를 소유하지 않는다. 파일 교체·clear·undo/redo·취소는 미완성 입력을 정리한다. BitmapFile은 실제 파일 경로, 감지 형식, ARGB32 픽셀, 수정 상태를 소유한다.
 
+파일 읽기·게시는 호출자가 제공한 `BitmapFileIO` 계약을 사용한다. 엔진은 다른 SDK를
+찾거나 링크하지 않으며, 파일 제공자의 원자적 저장·프리뷰 조합은 별도의
+`Example/FileProvider` 소비자가 담당한다. 제공자가 없거나 실패하면 이전 편집 상태를 보존한다.
+
 ## 모듈과 의존성
+
+`iiPaintEngine::BrushTools`는 전체 획 작성의 선택 구성요소이다. 일시적인 입력 표본을
+상위 작성 계층에서 다루며, 기본 스트리밍 엔진·문서가 경로를 보관하거나 구성요소를
+참조하지 않는다. 이전 `iiBrushTools` CMake 이름은 설치 호환 별칭으로 유지한다.
 
 Application은 BitmapFile/Input/Document/Layer/Brush/Stroke/Render/History 및 기타 작업 모듈을 조합한다. 하위 모듈은 Application을 참조하지 않는다. Core는 표준 타입만 사용한다. Brush는 Stroke를 참조하지 않는다. Input은 현재 StrokePoint 하나를 방출한다. Document의 내용은 Layer/DrawingSurface 픽셀이다. Render cache는 픽셀 tile과 stamp atlas만 가진다. 순환 의존성과 상향 참조를 금한다.
 
@@ -23,3 +31,21 @@ Application은 BitmapFile/Input/Document/Layer/Brush/Stroke/Render/History 및 �
 NativeDependencyContract와 DependencyBoundary는 언어·프레임워크·계층 경계를 고정한다. NativeBitmapContract는 형식 탐지·왕복·실패 보존을, BitmapPaintSessionContract와 PreviewPixelContract는 즉시 미리보기·확정·취소·이력·시간 분사를 검증한다. 기존 brush/input/document/layer 계약을 유지하고, InstallUpgradeContract는 삭제된 헤더를 제거한 설치본을 별도 C++23 소비자가 링크하여 실행하는지 검증한다.
 
 공개 API나 구조체 배치 변경 시 소비자를 재빌드한다. 소스 빌드·설치·실행 증거를 구별하고 실제 펜 및 다른 플랫폼 검증 여부를 명시한다. 기존 작업과 사용자 데이터를 보존한다.
+
+<!-- workspace-docs:agent:start -->
+## 문서 구조와 에이전트 탐색
+
+- 프로젝트 루트의 `README.md`는 사람용 영문 진입 문서이며 `AGENT.md`는 에이전트 진입점이다.
+- 하위 인간용 Markdown과 구조화된 agent JSON을 함께 유지한다. Markdown이 원본이며 JSON은 원문 해시와 줄 범위를 가진 파생 문서이다.
+- 먼저 [docs/agent-index.json](docs/agent-index.json)에서 관련 문서와 JSON 투영을 찾는다. 원문 SHA-256이 다르면 현재 Markdown을 읽고 투영을 갱신한다.
+- JSON의 규칙 후보는 검색용 어휘 일치 결과이다. 과거 기록·예제·실패 상태를 현재 지시나 검증 완료로 자동 해석하지 않는다.
+- 기존 프로젝트별 규칙, 동결된 증거, 라이선스, 외부 원본, 사용자 데이터와 다른 작업의 변경을 보존한다.
+- 이 문서 재편 지침은 과거 작업의 기능 구현·배포를 자동 재개하라는 요청이 아니다. 현재 사용자의 작업 범위를 우선한다.
+- 문서를 수정하면 JSON 쌍·색인을 함께 갱신하고 검증한다. 기존 소스 변경에 대한 빌드·테스트 규칙은 계속 따른다.
+
+Workspace에서 이 프로젝트의 문서를 갱신하는 명령은 다음과 같다.
+
+```sh
+python3 ../../Engineering/WorkspaceDocumentation/App/workspace_docs.py --workspace ../.. sync --project SDK/iiPaintEngine
+```
+<!-- workspace-docs:agent:end -->

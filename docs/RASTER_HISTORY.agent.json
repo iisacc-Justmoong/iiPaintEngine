@@ -1,0 +1,361 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:a87a71d0b438e4649dc168ece10fbb0fae2b86d814814b8876ea178624e7c962",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiPaintEngine",
+    "name": "iiPaintEngine",
+    "root": "SDK/iiPaintEngine",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/RASTER_HISTORY.md",
+    "sha256": "cc7b70476a446693dae57e8df28d8ed9646339273acaad545ce0188db3693b31",
+    "bytes": 4890,
+    "line_count": 31,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "영역 편집 이력",
+    "role": "history",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# 영역 편집 이력\n",
+      "level": 1,
+      "title": "영역 편집 이력"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "iiPaintEngine 0.5.4의 `RasterEditHistory`는 픽셀·마스크 영역의 원자적 명령과 실행 취소를 담당한다. 문서·파일·GUI를 소유하지 않는다. 불투명한 plane ID와 1..16바이트 표본을 처리하므로 ARGB32 픽셀과 부동소수 마스크를 같은 명령으로 묶을 수 있다. 입력 포인터 궤적이나 replay 명령은 저장하지 않는다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "heading",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "## 적용 계약\n",
+      "level": 2,
+      "title": "적용 계약"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "`RasterHistoryPatch`는 행 우선 표본의 빌린 뷰이다. 같은 plane의 사각형은 겹치지 않아야 하고 표본 크기가 같아야 한다. 서로 다른 plane은 동일한 좌표를 사용할 수 있다. 빈 배치는 성공한 무변경이다. 잘못된 좌표·크기·표본 수·중복 영역은 쓰기 전에 거부한다.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "Reader는 현재 소스의 연속한 한 행을 채우며 Writer 호출 전까지 같은 소스를 반환해야 한다. Writer는 여러 변경 영역을 **하나의 원자적 작업**으로 적용한다. false 또는 예외를 반환할 때 소스를 보존하는 책임은 Writer의 트랜잭션에 있다. 파일 소비자는 저장소의 트랜잭션을 사용해야 한다. 이 함수 포트를 연결하지 않은 상태를 파일 연계 완료로 간주하지 않는다.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "이력은 먼저 현재 값과 후보를 비교하고 변경한 연속 행 구간만 수집한다. 건드리지 않은 픽셀과 문서 전체를 복제하지 않는다. 변경 전·후 표본, plane 이름, 명령 라벨과 이력 항목의 준비는 모두 Writer보다 먼저 끝낸다. Writer가 성공하면 할당 없이 준비한 이력 상태로 교체한다. 읽기 실패·쓰기 거부 시 기존 Undo·Redo와 커서를 보존한다. 무변경 작업은 Writer를 호출하거나 Redo를 지우지 않는다.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "heading",
+      "start_line": 13,
+      "end_line": 13,
+      "raw": "## 한도와 노출 정책\n",
+      "level": 2,
+      "title": "한도와 노출 정책"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 14,
+      "end_line": 14,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "기본 한도는 확정 이력 64 MiB·32개, 입력 패치 65,536개·1 GiB이다. 기본 `Reject` 정책은 한도를 초과하는 변경을 적용 전에 거부한다. `EvictOldest`를 명시한 호출자는 가장 오래된 Undo를 제거할 수 있으며 결과의 `evictedEntries`로 정확한 개수를 받는다. 새 변경 자체가 한도보다 크면 이 정책에서도 거부한다. 성공한 분기는 `discardedRedoEntries`로 폐기한 Redo 수를 보고한다.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "`retainedBytes`는 표본 바이트와 명령·plane·행 구간의 논리적인 소유 비용이다. 고정 인스턴스, 할당자 헤더·여분 용량, 계획과 콜백의 임시 메모리는 별도이다. 복사한 이력은 불변 항목을 공유하며 커서 상태만 분기한다. 준비 중에는 이전 항목과 새 후보가 함께 존재할 수 있다. 이 수치를 전체 프로세스 RSS 또는 문서 메모리 사용량으로 해석하지 않는다.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 18,
+      "end_line": 18,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 19,
+      "end_line": 19,
+      "raw": "Undo·Redo는 적용 전에 대상 영역이 예상한 값과 같은지 검사한다. 충돌하면 현재 픽셀을 덮어쓰거나 커서를 소비하지 않는다. 호출자는 한 소스에 순차적으로 접근해야 하며 이 클래스는 스레드 동기화 수단이 아니다. 콜백에서 같은 이력을 다시 편집하거나 clear하는 작업은 거부한다. active 콜백 중 이력 객체의 대입은 예외로 거부한다.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 20,
+      "end_line": 20,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "plane ID와 문서·파일 바인딩 세대의 수명은 소비자가 관리한다. 새로운 문서나 소스로 재바인딩할 때는 이력을 명시적으로 비우거나 다른 인스턴스를 사용한다. 영역의 픽셀 일치 검사는 파일 리비전·문서 ID 검사를 대체하지 않는다.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 23,
+      "end_line": 23,
+      "raw": "코드·변경 여부·필요 바이트의 하한·제거된 이력 개수를 반환하므로 소비자는 거부와 제거를 사용자에게 표시할 수 있다. 시스템 메모리 고갈의 무실패는 보장하지 않는다. 표본의 색 공간·유한성·범위 등 도메인 검증은 plane을 소유한 상위 모듈의 책임이다.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "heading",
+      "start_line": 25,
+      "end_line": 25,
+      "raw": "## 검증과 남은 연계\n",
+      "level": 2,
+      "title": "검증과 남은 연계"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "계약 검사는 여러 plane의 한 명령, 중복·무효 입력, 무변경 Redo 보존, 읽기·쓰기 실패, 바이트·개수 한도, 명시적인 제거, 충돌·재시도·중첩 호출과 copy-on-write 커서를 검사한다.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 29,
+      "end_line": 29,
+      "raw": "별도의 8192×8192 검사는 고엔트로피 ARGB32 두 plane과 float64 마스크 한 plane의 총 1 GiB 소스에서 48개 영역 편집·Undo·Redo를 수행한다. 확정 이력 크기와 적용·거부·Undo 시간을 출력한다. 큰 필터 후보의 예산 거부를 검증하며 실제 필터 실행기나 브러시 미리보기 취소의 지연을 대신하지 않는다.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 30,
+      "end_line": 30,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 31,
+      "end_line": 31,
+      "raw": "이 단계는 D28의 공통 영역 이력 기반이다. iiSharedCanvas 편집기의 전체 자산 스냅샷, DocumentFile의 전체 임시 문서 복제, 구조 명령 delta, 앱의 직렬화 이력과 사용자 표시 정책은 후속 채택 대상이다. 기존 편집기가 이 클래스를 사용하기 전까지 그 복제 비용이 해결되었다고 주장하지 않는다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "영역 편집 이력",
+      "anchor": "영역-편집-이력",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000005",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "적용 계약",
+      "anchor": "적용-계약",
+      "start_line": 5
+    },
+    {
+      "block_id": "b000013",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "한도와 노출 정책",
+      "anchor": "한도와-노출-정책",
+      "start_line": 13
+    },
+    {
+      "block_id": "b000025",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "검증과 남은 연계",
+      "anchor": "검증과-남은-연계",
+      "start_line": 25
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000003",
+        "line": 3,
+        "text": "iiPaintEngine 0.5.4의 `RasterEditHistory`는 픽셀·마스크 영역의 원자적 명령과 실행 취소를 담당한다. 문서·파일·GUI를 소유하지 않는다. 불투명한 plane ID와 1..16바이트 표본을 처리하므로 ARGB32 픽셀과 부동소수 마스크를 같은 명령으로 묶을 수 있다. 입력 포인터 궤적이나 replay 명령은 저장하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000009",
+        "line": 9,
+        "text": "Reader는 현재 소스의 연속한 한 행을 채우며 Writer 호출 전까지 같은 소스를 반환해야 한다. Writer는 여러 변경 영역을 **하나의 원자적 작업**으로 적용한다. false 또는 예외를 반환할 때 소스를 보존하는 책임은 Writer의 트랜잭션에 있다. 파일 소비자는 저장소의 트랜잭션을 사용해야 한다. 이 함수 포트를 연결하지 않은 상태를 파일 연계 완료로 간주하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000011",
+        "line": 11,
+        "text": "이력은 먼저 현재 값과 후보를 비교하고 변경한 연속 행 구간만 수집한다. 건드리지 않은 픽셀과 문서 전체를 복제하지 않는다. 변경 전·후 표본, plane 이름, 명령 라벨과 이력 항목의 준비는 모두 Writer보다 먼저 끝낸다. Writer가 성공하면 할당 없이 준비한 이력 상태로 교체한다. 읽기 실패·쓰기 거부 시 기존 Undo·Redo와 커서를 보존한다. 무변경 작업은 Writer를 호출하거나 Redo를 지우지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000017",
+        "line": 17,
+        "text": "`retainedBytes`는 표본 바이트와 명령·plane·행 구간의 논리적인 소유 비용이다. 고정 인스턴스, 할당자 헤더·여분 용량, 계획과 콜백의 임시 메모리는 별도이다. 복사한 이력은 불변 항목을 공유하며 커서 상태만 분기한다. 준비 중에는 이전 항목과 새 후보가 함께 존재할 수 있다. 이 수치를 전체 프로세스 RSS 또는 문서 메모리 사용량으로 해석하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000019",
+        "line": 19,
+        "text": "Undo·Redo는 적용 전에 대상 영역이 예상한 값과 같은지 검사한다. 충돌하면 현재 픽셀을 덮어쓰거나 커서를 소비하지 않는다. 호출자는 한 소스에 순차적으로 접근해야 하며 이 클래스는 스레드 동기화 수단이 아니다. 콜백에서 같은 이력을 다시 편집하거나 clear하는 작업은 거부한다. active 콜백 중 이력 객체의 대입은 예외로 거부한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000021",
+        "line": 21,
+        "text": "plane ID와 문서·파일 바인딩 세대의 수명은 소비자가 관리한다. 새로운 문서나 소스로 재바인딩할 때는 이력을 명시적으로 비우거나 다른 인스턴스를 사용한다. 영역의 픽셀 일치 검사는 파일 리비전·문서 ID 검사를 대체하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000023",
+        "line": 23,
+        "text": "코드·변경 여부·필요 바이트의 하한·제거된 이력 개수를 반환하므로 소비자는 거부와 제거를 사용자에게 표시할 수 있다. 시스템 메모리 고갈의 무실패는 보장하지 않는다. 표본의 색 공간·유한성·범위 등 도메인 검증은 plane을 소유한 상위 모듈의 책임이다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000029",
+        "line": 29,
+        "text": "별도의 8192×8192 검사는 고엔트로피 ARGB32 두 plane과 float64 마스크 한 plane의 총 1 GiB 소스에서 48개 영역 편집·Undo·Redo를 수행한다. 확정 이력 크기와 적용·거부·Undo 시간을 출력한다. 큰 필터 후보의 예산 거부를 검증하며 실제 필터 실행기나 브러시 미리보기 취소의 지연을 대신하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000031",
+        "line": 31,
+        "text": "이 단계는 D28의 공통 영역 이력 기반이다. iiSharedCanvas 편집기의 전체 자산 스냅샷, DocumentFile의 전체 임시 문서 복제, 구조 명령 delta, 앱의 직렬화 이력과 사용자 표시 정책은 후속 채택 대상이다. 기존 편집기가 이 클래스를 사용하기 전까지 그 복제 비용이 해결되었다고 주장하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

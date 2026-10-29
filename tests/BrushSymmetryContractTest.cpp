@@ -106,7 +106,7 @@ int main()
 
     // Real application preview, cancel and pixel history cover every reflected area.
     TestDirectory dir("symmetry");
-    BitmapPaintSession session;
+    BitmapPaintSession session(dir.io);
     CHECK(session.createFile(dir.path/"paint.png",49,49));
     preset={}; preset.size=3; preset.stroke.symmetry.mode=BrushSymmetryMode::DualAxis;
     preset.stroke.symmetry.center={24,24};

@@ -16,6 +16,7 @@ struct BitmapPaintUpdate {
 // The session owns pixels and scalar input state. It retains no input path or replay log.
 class BitmapPaintSession final {
 public:
+    explicit BitmapPaintSession(std::shared_ptr<BitmapFileIO> io = {}) noexcept : m_file(std::move(io)) {}
     bool createFile(const std::filesystem::path &path, int width, int height,
                     std::string_view format = "png", std::uint32_t clearArgb = 0);
     bool openFile(const std::filesystem::path &path);

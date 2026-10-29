@@ -3,11 +3,13 @@
 #include <iostream>
 #include <numbers>
 #include "iiPaintEngine"
+#include "FileProviderBitmapIO.h"
 
 int main(int argc,char **argv)
 {
-    const auto path=argc>1 ? std::filesystem::path(argv[1]) : std::filesystem::path("build/brush-expansion.png");
-    BitmapPaintSession session;
+    if(argc!=2) { std::cerr<<"Usage: iiPaintEngineBrushExpansionGallery output.png\n"; return 1; }
+    const auto path=std::filesystem::path(argv[1]);
+    BitmapPaintSession session(std::make_shared<paint_file::FileProviderBitmapIO>());
     if(!session.createFile(path,960,320,"png",0xFF101B29U)) return 1;
     for(int panel=0;panel<3;++panel) {
         BrushPreset preset;

@@ -32,12 +32,16 @@ struct SelectionState {
     SelectionShape shape = SelectionShape::None;
     DocumentRect bounds{};
     SelectionMask mask;
+    // Zero-padded square box feather: ceil(radius) lattice pixels on each side.
+    // Non-finite/non-positive values disable feathering; inversion is applied last.
     Types::Scalar featherRadius = 0.0;
     bool inverted = false;
 };
 
 SelectionState makeRectangularSelection(DocumentRect bounds);
 
+// Rectangles without feather use continuous half-open bounds. Masks/feathered
+// selections test nonzero coverage in the containing integer pixel.
 bool selectionContains(const SelectionState &selection, DocumentPoint point);
 
 Types::Scalar selectionAlphaAt(const SelectionState &selection, DevicePixelPoint point);

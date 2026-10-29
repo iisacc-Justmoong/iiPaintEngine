@@ -40,6 +40,7 @@
 #include "History/Command.h"
 #include "History/HistorySnapshot.h"
 #include "History/HistoryStack.h"
+#include "History/RasterEditHistory.h"
 #include "History/UndoRedoController.h"
 #include "Input/InputNormalizer.h"
 #include "Input/InputStrokeBuilder.h"

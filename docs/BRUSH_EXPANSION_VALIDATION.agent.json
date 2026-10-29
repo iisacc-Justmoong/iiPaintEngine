@@ -1,0 +1,515 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:d4efa7a8e26d34d67b8779a76740d41e3be4861cd78d932ccfd4404bc84a1298",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiPaintEngine",
+    "name": "iiPaintEngine",
+    "root": "SDK/iiPaintEngine",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/BRUSH_EXPANSION_VALIDATION.md",
+    "sha256": "e1434779f5416e24410c948ba39494d984a8a7bebcf4bf20321cd76a55e9dd97",
+    "bytes": 6043,
+    "line_count": 109,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Brush expansion validation — 2026-10-19",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Brush expansion validation — 2026-10-19\n",
+      "level": 1,
+      "title": "Brush expansion validation — 2026-10-19"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "heading",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "## Result and scope\n",
+      "level": 2,
+      "title": "Result and scope"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 9,
+      "raw": "The C++23 brush extensions passed the Release and sanitizer suites on macOS arm64.\nCurrent package version is 0.5.1 (ABI feature line 0.5); the independent concurrent\nSDK patch-release version edit was preserved. This record covers source, host\nbuilds, generated bitmap output and isolated installed consumers. It does not\ncertify a complete Photoshop superset, original Adobe pixel parity or a deployment.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "table",
+      "start_line": 11,
+      "end_line": 21,
+      "raw": "| Check | Result |\n| --- | --- |\n| Before-change suite | 45/45 passed |\n| Final Release suite | 48/48 passed |\n| Address/undefined/float-cast-overflow sanitizer suite | 48/48 passed |\n| Separate consumer built from a staged installed package | Passed in both builds |\n| Source/install library identity | Matching SHA-256 in both builds |\n| C++23 translation units | Release 115/115; sanitizer 112/112 |\n| Qt in direct dependencies of engine and its Native provider | None found |\n| Generated expansion gallery | Exit 0; inspected 960 x 320 PNG |\n| Whitespace/error check | git diff --check passed |\n",
+      "columns": [
+        "Check",
+        "Result"
+      ],
+      "rows": [
+        [
+          "Before-change suite",
+          "45/45 passed"
+        ],
+        [
+          "Final Release suite",
+          "48/48 passed"
+        ],
+        [
+          "Address/undefined/float-cast-overflow sanitizer suite",
+          "48/48 passed"
+        ],
+        [
+          "Separate consumer built from a staged installed package",
+          "Passed in both builds"
+        ],
+        [
+          "Source/install library identity",
+          "Matching SHA-256 in both builds"
+        ],
+        [
+          "C++23 translation units",
+          "Release 115/115; sanitizer 112/112"
+        ],
+        [
+          "Qt in direct dependencies of engine and its Native provider",
+          "None found"
+        ],
+        [
+          "Generated expansion gallery",
+          "Exit 0; inspected 960 x 320 PNG"
+        ],
+        [
+          "Whitespace/error check",
+          "git diff --check passed"
+        ]
+      ]
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 23,
+      "end_line": 26,
+      "raw": "Machine-readable results, source hashes, library hashes and log hashes are in the\nsource checkout's build/brush-expansion-validation.json. Logs are\nbuild/brush-baseline-tests.log, build/brush-final-tests.log and\nbuild/brush-sanitizer-tests.log. Build artifacts remain under build/.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "heading",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "## Tested behavior\n",
+      "level": 2,
+      "title": "Tested behavior"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 29,
+      "end_line": 29,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "list",
+      "start_line": 30,
+      "end_line": 48,
+      "raw": "- AbrBrushImportContract: legacy v1/v2 geometry and UTF-16 names (including surrogate\n  pairs); sectioned versions 6/7/9/10 with both sample subversions; raw and PackBits\n  8/16-bit coverage; literal, repeat and no-op packets; rounded 16-bit coverage;\n  source IDs and stable local IDs; rendering a decoded tip; truncation, corrupted\n  rows, count/decoded/encoded limits and byte mutations. Partial modern settings\n  are reported instead of being represented as restored presets.\n- BrushSymmetryContract: vertical, radial and mandala placement; primary index/\n  random/color preservation; exact asymmetric-tip pixel reflection; reflected\n  secondary-mask scattering; coincident-center deduplication; maximum 64-sector\n  physical-tip/airbrush behavior; transactional event-budget failure; invalid\n  settings; preset/snapshot/document persistence; real preview, cancellation and\n  pixel undo/redo.\n- BrushStabilizationContract: no movement inside the pulled-string radius;\n  straight-line subdivision behavior; optional end-position flush; time-split\n  stationary catch-up; monotonic-time rejection; invalid radius/rate; neutral\n  defaults for older preset formats; real session clock, preview and history.\n- Existing contracts: dependency direction, absence of retained trajectories,\n  codecs, input normalization, compositing, layers, material options, archives,\n  native headers, file operations and installed-package upgrade behavior.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "AbrBrushImportContract: legacy v1/v2 geometry and UTF-16 names (including surrogate",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "BrushSymmetryContract: vertical, radial and mandala placement; primary index/",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "BrushStabilizationContract: no movement inside the pulled-string radius;",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Existing contracts: dependency direction, absence of retained trajectories,",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 49,
+      "end_line": 49,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 50,
+      "end_line": 54,
+      "raw": "The new contracts were introduced before implementation; the initial missing-API\nbuild failure was recorded in build/brush-extension-red.log. An additional\nasymmetric dual-mask/scatter pixel case exposed an incomplete reflection; the\nsecondary scatter's original frame and complete symmetry transform were then\ncarried through projection. The final regression remains in the suite.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 55,
+      "end_line": 55,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "heading",
+      "start_line": 56,
+      "end_line": 56,
+      "raw": "## Installation and dependencies\n",
+      "level": 2,
+      "title": "Installation and dependencies"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 58,
+      "end_line": 62,
+      "raw": "The default host provider installation was too old for the repository's existing\niiFileProviderNative >=0.6 requirement. The already-staged Native 0.8.0 package at\nSDK/iiFileProvider/build/native-p0/install was used via its package directory and\nCMAKE_PREFIX_PATH. No provider implementation change or host-package replacement\nwas performed by this brush task.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 63,
+      "end_line": 63,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 64,
+      "end_line": 69,
+      "raw": "The installed-consumer contract stages only under\nbuild/install-upgrade-contract/prefix and\nbuild/sanitizer/build/install-upgrade-contract/prefix. It checks exact configured\npackage version, new public headers, documentation, C++23 compilation, new API\nlinkage and bitmap/mask operations. Package-version checks use PROJECT_VERSION so\nconcurrent patch releases do not leave a stale literal in the test.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 70,
+      "end_line": 70,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 71,
+      "end_line": 74,
+      "raw": "The library's direct dependencies are its existing Native provider, libc++ and\nsystem libraries. Native provider direct dependencies were inspected separately;\nthis is a Qt boundary check, not a complete transitive license audit. The new\nimplementation adds no external dependency or non-C++ source.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 75,
+      "end_line": 75,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "heading",
+      "start_line": 76,
+      "end_line": 76,
+      "raw": "## Reproduction\n",
+      "level": 2,
+      "title": "Reproduction"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 77,
+      "end_line": 77,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 78,
+      "end_line": 79,
+      "raw": "The following commands record the earlier pre-separation source snapshot. For\nthe current independent file-provider example, see [the bitmap I/O contract](bitmap-io.md).\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 80,
+      "end_line": 80,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 81,
+      "end_line": 82,
+      "raw": "Provide a compatible iiFileProviderNative package with CMAKE_PREFIX_PATH, or use\niiFileProviderNative_DIR explicitly. This machine used:\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 83,
+      "end_line": 83,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "fenced_code",
+      "start_line": 84,
+      "end_line": 93,
+      "raw": "```sh\nexport CMAKE_PREFIX_PATH=/Volumes/Storage/Workspace/SDK/iiFileProvider/build/native-p0/install\ncmake -S . -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build --parallel 4\nctest --test-dir build --output-on-failure --parallel 4\ncmake -S . -B build/sanitizer/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DIIPAINTENGINE_SANITIZE=ON -DIIPAINTENGINE_BUILD_EXAMPLES=OFF\ncmake --build build/sanitizer/build --parallel 4\nctest --test-dir build/sanitizer/build --output-on-failure --parallel 4\nbuild/iiPaintEngineBrushExpansionGallery build/brush-expansion-gallery.png\n```\n",
+      "language": "sh",
+      "code": "export CMAKE_PREFIX_PATH=/Volumes/Storage/Workspace/SDK/iiFileProvider/build/native-p0/install\ncmake -S . -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build --parallel 4\nctest --test-dir build --output-on-failure --parallel 4\ncmake -S . -B build/sanitizer/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DIIPAINTENGINE_SANITIZE=ON -DIIPAINTENGINE_BUILD_EXAMPLES=OFF\ncmake --build build/sanitizer/build --parallel 4\nctest --test-dir build/sanitizer/build --output-on-failure --parallel 4\nbuild/iiPaintEngineBrushExpansionGallery build/brush-expansion-gallery.png\n",
+      "closed": true
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 94,
+      "end_line": 94,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 95,
+      "end_line": 97,
+      "raw": "The gallery is generated from original procedural inputs: 16-fold radial at left,\n12-sector mandala in the center and stabilized dual-axis strokes at right. It is\na workflow example, not an Adobe oracle or a latency benchmark.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 98,
+      "end_line": 98,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "heading",
+      "start_line": 99,
+      "end_line": 99,
+      "raw": "## Explicit remaining limits\n",
+      "level": 2,
+      "title": "Explicit remaining limits"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 100,
+      "end_line": 100,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 101,
+      "end_line": 106,
+      "raw": "Modern ABR descriptors, preset/sample associations, patterns, groups, tool capture\nand ABR export are not implemented. Sixteen-bit tip data is quantized to 8-bit\ncoverage; the painting surface remains ARGB32. Physical-tip and mixing models\nretain their documented bitmap approximations. Zoom policy, GUI integration,\nWindows/Linux/mobile execution, physical tablet input, large-brush latency,\nGPU behavior and original-application parity remain outside the verified result.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 107,
+      "end_line": 107,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 108,
+      "end_line": 109,
+      "raw": "API contracts, provenance and the remaining implementation order are in\n[BRUSH_EXPANSION.md](BRUSH_EXPANSION.md).\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Brush expansion validation — 2026-10-19",
+      "anchor": "brush-expansion-validation--2026-10-19",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000003",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Result and scope",
+      "anchor": "result-and-scope",
+      "start_line": 3
+    },
+    {
+      "block_id": "b000011",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Tested behavior",
+      "anchor": "tested-behavior",
+      "start_line": 28
+    },
+    {
+      "block_id": "b000017",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Installation and dependencies",
+      "anchor": "installation-and-dependencies",
+      "start_line": 56
+    },
+    {
+      "block_id": "b000025",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Reproduction",
+      "anchor": "reproduction",
+      "start_line": 76
+    },
+    {
+      "block_id": "b000035",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Explicit remaining limits",
+      "anchor": "explicit-remaining-limits",
+      "start_line": 99
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000021",
+        "line": 69,
+        "text": "concurrent patch releases do not leave a stale literal in the test.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [
+      {
+        "block_id": "b000031",
+        "language": "sh",
+        "code": "export CMAKE_PREFIX_PATH=/Volumes/Storage/Workspace/SDK/iiFileProvider/build/native-p0/install\ncmake -S . -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build --parallel 4\nctest --test-dir build --output-on-failure --parallel 4\ncmake -S . -B build/sanitizer/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DIIPAINTENGINE_SANITIZE=ON -DIIPAINTENGINE_BUILD_EXAMPLES=OFF\ncmake --build build/sanitizer/build --parallel 4\nctest --test-dir build/sanitizer/build --output-on-failure --parallel 4\nbuild/iiPaintEngineBrushExpansionGallery build/brush-expansion-gallery.png\n"
+      }
+    ],
+    "links": [
+      {
+        "block_id": "b000027",
+        "label": "the bitmap I/O contract",
+        "target": "bitmap-io.md",
+        "kind": "relative",
+        "line": 79
+      },
+      {
+        "block_id": "b000039",
+        "label": "BRUSH_EXPANSION.md",
+        "target": "BRUSH_EXPANSION.md",
+        "kind": "relative",
+        "line": 109
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000007",
+        "columns": [
+          "Check",
+          "Result"
+        ],
+        "rows": [
+          [
+            "Before-change suite",
+            "45/45 passed"
+          ],
+          [
+            "Final Release suite",
+            "48/48 passed"
+          ],
+          [
+            "Address/undefined/float-cast-overflow sanitizer suite",
+            "48/48 passed"
+          ],
+          [
+            "Separate consumer built from a staged installed package",
+            "Passed in both builds"
+          ],
+          [
+            "Source/install library identity",
+            "Matching SHA-256 in both builds"
+          ],
+          [
+            "C++23 translation units",
+            "Release 115/115; sanitizer 112/112"
+          ],
+          [
+            "Qt in direct dependencies of engine and its Native provider",
+            "None found"
+          ],
+          [
+            "Generated expansion gallery",
+            "Exit 0; inspected 960 x 320 PNG"
+          ],
+          [
+            "Whitespace/error check",
+            "git diff --check passed"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

@@ -1,0 +1,1138 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:f69301d14f06921c3457ef5bbbe123ee2efb3617d009c4aa379f78902af1e9e7",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiPaintEngine",
+    "name": "iiPaintEngine",
+    "root": "SDK/iiPaintEngine",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "README.md",
+    "sha256": "08ab3eb1074032efe4b13a45a5ec363a53211290cef4ff46dc7bcd6d4b5067de",
+    "bytes": 12716,
+    "line_count": 178,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "iiPaintEngine",
+    "role": "overview",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# iiPaintEngine\n",
+      "level": 1,
+      "title": "iiPaintEngine"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "[Windows build and execution](docs/WindowsBuildAndRun.md)\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 11,
+      "raw": "Package release: **0.5.4** (2026-10-27). Atomic raster region history adds bounded,\nsparse multi-plane undo with explicit rejection, eviction and conflict results.\nSee [the raster history contract](docs/RASTER_HISTORY.md).\nThe 0.5.3 source sampling uses overflow-safe\ncoordinates. Unloaded smudge transfers source color and alpha without adding\nforeground pigment or hidden-RGB fringes. See [wet brush sampling](docs/WET_BRUSH_SAMPLING.md).\nThe 0.5.2 [selection and raster-edit corrections](docs/SELECTION_RASTER_EDIT.md) remain included.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 12,
+      "end_line": 13,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 14,
+      "end_line": 14,
+      "raw": "iiPaintEngine is a C++23 bitmap painting library. Its public API uses the C++ standard library; its bundled image codec is MIT-licensed stb, compiled inside a C++23 translation unit. File access is supplied through `BitmapFileIO`; applications may connect the separate iiFileProvider adapter. The engine has no peer SDK, GUI framework, event loop or image plugin dependency.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 16,
+      "end_line": 20,
+      "raw": "Brush authoring is also available as the optional `iiPaintEngine::BrushTools`\ncomponent, integrated from iiBrushTools. It provides whole-gesture taper,\ncorrection and tile generation while the base streaming engine retains no\ninput path. Existing `iiBrushTools::iiBrushTools` consumers may use the\ninstalled compatibility package. See [the authoring contract](docs/BrushTools.md).\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "fenced_code",
+      "start_line": 22,
+      "end_line": 25,
+      "raw": "```cmake\nfind_package(iiPaintEngine 0.5 CONFIG REQUIRED COMPONENTS BrushTools)\ntarget_link_libraries(my_app PRIVATE iiPaintEngine::BrushTools)\n```\n",
+      "language": "cmake",
+      "code": "find_package(iiPaintEngine 0.5 CONFIG REQUIRED COMPONENTS BrushTools)\ntarget_link_libraries(my_app PRIVATE iiPaintEngine::BrushTools)\n",
+      "closed": true
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "Set `IIPAINTENGINE_BUILD_BRUSH_TOOLS=OFF` to build only the base engine.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "heading",
+      "start_line": 29,
+      "end_line": 29,
+      "raw": "## Build and install\n",
+      "level": 2,
+      "title": "Build and install"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 30,
+      "end_line": 30,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 31,
+      "end_line": 31,
+      "raw": "A C++23 compiler and standard library with `std::expected`, and CMake 3.31 or later are required. The engine builds without other SDK packages. Build artifacts belong under `build/`.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "fenced_code",
+      "start_line": 33,
+      "end_line": 38,
+      "raw": "```sh\ncmake -S . -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build --parallel\nctest --test-dir build --output-on-failure\ncmake --install build\n```\n",
+      "language": "sh",
+      "code": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build --parallel\nctest --test-dir build --output-on-failure\ncmake --install build\n",
+      "closed": true
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 39,
+      "end_line": 39,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 40,
+      "end_line": 40,
+      "raw": "The default top-level install prefix is `~/.local/SDK/iiPaintEngine`. The exported package requires C++23 transitively and uses a single native layout: `include/iiPaintEngine`, `lib`, and `lib/cmake/iiPaintEngine`. It does not select prebuilt Qt platform packages. To consume a package built for the application's platform:\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 41,
+      "end_line": 41,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "fenced_code",
+      "start_line": 42,
+      "end_line": 46,
+      "raw": "```cmake\nfind_package(iiPaintEngine 0.5 CONFIG REQUIRED)\ntarget_link_libraries(app PRIVATE iiPaintEngine::iiPaintEngine)\nset_target_properties(app PROPERTIES CXX_EXTENSIONS OFF)\n```\n",
+      "language": "cmake",
+      "code": "find_package(iiPaintEngine 0.5 CONFIG REQUIRED)\ntarget_link_libraries(app PRIVATE iiPaintEngine::iiPaintEngine)\nset_target_properties(app PROPERTIES CXX_EXTENSIONS OFF)\n",
+      "closed": true
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 47,
+      "end_line": 47,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 48,
+      "end_line": 48,
+      "raw": "An earlier macOS installation mirrored the native package under `platforms/macos`; that historical installation is not evidence that this source change has been installed.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 49,
+      "end_line": 49,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 50,
+      "end_line": 50,
+      "raw": "0.4 introduced the C++23 API/ABI migration; 0.5 extends public brush layouts and requires another consumer rebuild. Follow [the C++23 migration guide](docs/CXX23_MIGRATION.md). Upgrading replaces this package's public header tree so deleted APIs do not remain available accidentally.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "heading",
+      "start_line": 52,
+      "end_line": 52,
+      "raw": "## Bitmap painting\n",
+      "level": 2,
+      "title": "Bitmap painting"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 53,
+      "end_line": 53,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 54,
+      "end_line": 54,
+      "raw": "`BitmapPaintSession` owns an open `BitmapFile`, the selected brush, immediate preview pixels, pending stroke pixels, and dirty-rectangle pixel history. Every delivered pointer event is rasterized synchronously. An application controls its window, display, clock, and input delivery separately.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 55,
+      "end_line": 55,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 56,
+      "end_line": 60,
+      "raw": "An application provides a `BitmapFileIO` implementation. The separately built\n[file-provider adapter](Example/FileProvider/) supplies atomic publication and\nqueues previews. File operations without a provider fail safely. Existing callers\nmust inject a provider and rebuild after the public API/ABI change; see\n[the bitmap I/O contract](docs/bitmap-io.md).\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 61,
+      "end_line": 61,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "fenced_code",
+      "start_line": 62,
+      "end_line": 92,
+      "raw": "```cpp\n#include <iiPaintEngine>\n#include \"FileProviderBitmapIO.h\"\n#include <memory>\n\nint main()\n{\n    BitmapPaintSession paint(std::make_shared<paint_file::FileProviderBitmapIO>());\n    if (!paint.createFile(\"paint.png\", 256, 128)) return 1;\n    auto preset = builtInBrushPresets().front();\n    preset.size = 24;\n    preset.dynamics.sizeVariation.enabled = true;\n    preset.dynamics.sizeVariation.control = BrushDynamicsControl::PenPressure;\n    if (!paint.setBrushPreset(preset)) return 2;\n    paint.setBrushColor(0xFF3366CCU);\n\n    PointerEvent event;\n    event.device = PointerDeviceKind::Tablet;\n    event.tool = PointerToolKind::Pen;\n    event.phase = PointerEventPhase::Press;\n    event.button = PointerButton::Primary;\n    event.primaryButtonDown = true;\n    event.documentPosition = {32, 64};\n    event.pressure = 0.7;\n    if (!paint.processPointerEvent(event).accepted) return 3;\n    event.phase = PointerEventPhase::Release;\n    event.primaryButtonDown = false;\n    if (!paint.processPointerEvent(event).committed) return 4;\n    return paint.save() ? 0 : 5;\n}\n```\n",
+      "language": "cpp",
+      "code": "#include <iiPaintEngine>\n#include \"FileProviderBitmapIO.h\"\n#include <memory>\n\nint main()\n{\n    BitmapPaintSession paint(std::make_shared<paint_file::FileProviderBitmapIO>());\n    if (!paint.createFile(\"paint.png\", 256, 128)) return 1;\n    auto preset = builtInBrushPresets().front();\n    preset.size = 24;\n    preset.dynamics.sizeVariation.enabled = true;\n    preset.dynamics.sizeVariation.control = BrushDynamicsControl::PenPressure;\n    if (!paint.setBrushPreset(preset)) return 2;\n    paint.setBrushColor(0xFF3366CCU);\n\n    PointerEvent event;\n    event.device = PointerDeviceKind::Tablet;\n    event.tool = PointerToolKind::Pen;\n    event.phase = PointerEventPhase::Press;\n    event.button = PointerButton::Primary;\n    event.primaryButtonDown = true;\n    event.documentPosition = {32, 64};\n    event.pressure = 0.7;\n    if (!paint.processPointerEvent(event).accepted) return 3;\n    event.phase = PointerEventPhase::Release;\n    event.primaryButtonDown = false;\n    if (!paint.processPointerEvent(event).committed) return 4;\n    return paint.save() ? 0 : 5;\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 93,
+      "end_line": 93,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 94,
+      "end_line": 94,
+      "raw": "During a stroke, `previewPixels()` exposes the composed preview while `file().pixels()` remains committed. Release commits exactly those preview pixels. Cancel discards pending pixels. Undo/redo exchange pixel patches, without replaying input. A preset or color selected during a stroke applies to the next stroke; the active brush is a snapshot. Successful erodible-tip commits carry wear to the selected preset unless it changed during the stroke.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 95,
+      "end_line": 95,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 96,
+      "end_line": 96,
+      "raw": "Input coordinates are document pixels and time is monotonic seconds. Use the standard C++ viewport transforms when mapping a window's coordinates. For stationary airbrush emission or enabled pulled-string catch-up call `advanceTime(seconds)` from the application's clock. The engine does not create timers or coalesce events. Applications must deliver every measured event they need rendered.\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 97,
+      "end_line": 97,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "heading",
+      "start_line": 98,
+      "end_line": 98,
+      "raw": "## Local correction masks\n",
+      "level": 2,
+      "title": "Local correction masks"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 99,
+      "end_line": 99,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 100,
+      "end_line": 100,
+      "raw": "`MaskPaintSession` creates normalized float pixel masks with diameter, feather, flow, density, stroke opacity, Add/Erase and start-color-guided AutoMask. Preview, commit, cancel, undo and redo use pixel states; no input path is retained. `PixelMask` coverage can be borrowed by a separate image-adjustment library without linking the SDKs. Optional size and opacity pressure switches reuse existing brush dynamics. See [local mask brush behavior and limits](docs/LOCAL_MASK_BRUSH.md) and [recovered localized brush numeric helpers](docs/LOCALIZED_BRUSH_MATH.md).\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 101,
+      "end_line": 101,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "heading",
+      "start_line": 102,
+      "end_line": 102,
+      "raw": "## Bitmap-only contract\n",
+      "level": 2,
+      "title": "Bitmap-only contract"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 103,
+      "end_line": 103,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "fenced_code",
+      "start_line": 104,
+      "end_line": 107,
+      "raw": "```text\nPointerEvent → current StrokePoint → RasterDabStream (one preceding point)\n→ BrushDab bitmap stamps → RasterSample pixels → StrokeCompositeBuffer → RasterLayer\n```\n",
+      "language": "text",
+      "code": "PointerEvent → current StrokePoint → RasterDabStream (one preceding point)\n→ BrushDab bitmap stamps → RasterSample pixels → StrokeCompositeBuffer → RasterLayer\n",
+      "closed": true
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 108,
+      "end_line": 108,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 109,
+      "end_line": 109,
+      "raw": "Neither `InputStrokeBuilder` nor `RasterDabStream` owns a point collection. A dab is projected and discarded in the current call. Pending preview and history retain pixels; they do not retain paths, vector shapes, future coordinates, or replayable drawing commands. External text, SVG, and shapes must be rasterized before crossing the engine boundary. Causal smoothing uses one preceding filtered point and one current raw pointer target.\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 110,
+      "end_line": 110,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "heading",
+      "start_line": 111,
+      "end_line": 111,
+      "raw": "## Brushes and documents\n",
+      "level": 2,
+      "title": "Brushes and documents"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 112,
+      "end_line": 112,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "paragraph",
+      "start_line": 113,
+      "end_line": 113,
+      "raw": "`BrushPreset` is an editable value object for tips, shape, spacing, color, dynamics, pose, texture, secondary masks, and bitmap material effects. `resolveBrushPreset()` validates every setting and creates `BrushState`. Six editable built-in presets demonstrate pressure ink, grain pencil, soft airbrush, flat marker, color spray, and wet flat mixing. [Brush API and units](docs/BRUSHES.md) and [extended option behavior](docs/BRUSH_OPTIONS.md) document the contract.\n"
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 114,
+      "end_line": 114,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "paragraph",
+      "start_line": 115,
+      "end_line": 115,
+      "raw": "Preset format 4 preserves extended options and reads formats 1/2/3. Pixel document format 3 stores layer pixels, metadata, masks, brush presets, color metadata, assets, and raster history. It reads compatible format 2 single-surface documents. Unknown or incompatible content is rejected. The Photoshop investigation informed option coverage; renderer formulas remain independent bitmap models and do not establish Adobe pixel parity.\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 116,
+      "end_line": 116,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "paragraph",
+      "start_line": 117,
+      "end_line": 123,
+      "raw": "0.5 adds [bounded ABR tip import, symmetry and stabilization](docs/BRUSH_EXPANSION.md).\nABR v1/v2 geometry and v6/v7/v9/v10 sampled tips can become editable presets;\nmodern descriptor/tool/texture settings remain explicitly unsupported. Symmetry\nincludes 64-segment radial and mandala modes, with reflected bitmap tips and\nper-event resource bounds. Pulled-string stabilization offers clock-driven\ncatch-up and optional endpoint flushing. All use the existing preview, commit,\ncancel and raster history paths.\n"
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 124,
+      "end_line": 124,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
+      "kind": "paragraph",
+      "start_line": 125,
+      "end_line": 125,
+      "raw": "`Application/DocumentAdapter`, `LayerListModel`, and `PaintEngineController` provide standard C++ document/layer editing alongside the file session. Lower modules do not depend on Application; brushes do not depend on stroke execution.\n"
+    },
+    {
+      "id": "b000060",
+      "kind": "blank",
+      "start_line": 126,
+      "end_line": 126,
+      "raw": "\n"
+    },
+    {
+      "id": "b000061",
+      "kind": "heading",
+      "start_line": 127,
+      "end_line": 127,
+      "raw": "## File formats\n",
+      "level": 2,
+      "title": "File formats"
+    },
+    {
+      "id": "b000062",
+      "kind": "blank",
+      "start_line": 128,
+      "end_line": 128,
+      "raw": "\n"
+    },
+    {
+      "id": "b000063",
+      "kind": "paragraph",
+      "start_line": 129,
+      "end_line": 129,
+      "raw": "Format detection uses file contents, including extensionless files and misleading extensions. `BitmapFile` owns `std::filesystem::path`, a detected format name, editable ARGB32 pixels, and modification state. Its queries return a fixed registry matching the included codecs.\n"
+    },
+    {
+      "id": "b000064",
+      "kind": "blank",
+      "start_line": 130,
+      "end_line": 130,
+      "raw": "\n"
+    },
+    {
+      "id": "b000065",
+      "kind": "table",
+      "start_line": 131,
+      "end_line": 134,
+      "raw": "| Operation | Formats |\n|---|---|\n| Read | BMP, GIF, HDR, JPEG, PIC, PNG, binary PNM (P5/P6), PSD, TGA |\n| Write / save in place | BMP, HDR, JPEG, PNG, binary PNM (P6), TGA |\n",
+      "columns": [
+        "Operation",
+        "Formats"
+      ],
+      "rows": [
+        [
+          "Read",
+          "BMP, GIF, HDR, JPEG, PIC, PNG, binary PNM (P5/P6), PSD, TGA"
+        ],
+        [
+          "Write / save in place",
+          "BMP, HDR, JPEG, PNG, binary PNM (P6), TGA"
+        ]
+      ]
+    },
+    {
+      "id": "b000066",
+      "kind": "blank",
+      "start_line": 135,
+      "end_line": 135,
+      "raw": "\n"
+    },
+    {
+      "id": "b000067",
+      "kind": "paragraph",
+      "start_line": 136,
+      "end_line": 136,
+      "raw": "Binary PNM is decoded with standard C++ code that normalizes Maxval and reads 16-bit samples in big-endian order, following the [Netpbm format specification](https://netpbm.sourceforge.net/doc/ppm.html). GIF reads its first frame. PSD reads the flattened raster composite, not layers. HDR and 16-bit data are converted to the engine's 8-bit channels. EXIF orientation and ICC color transforms are not applied; metadata and embedded profiles are not preserved. Formats previously supplied by optional Qt plugins, including TIFF, WebP, HEIF, ICO/ICNS, and JPEG 2000, are not part of this build. Vector/PDF input is rejected. Read-only formats remain editable and can be saved using `saveAs` in a supported write format.\n"
+    },
+    {
+      "id": "b000068",
+      "kind": "blank",
+      "start_line": 137,
+      "end_line": 137,
+      "raw": "\n"
+    },
+    {
+      "id": "b000069",
+      "kind": "paragraph",
+      "start_line": 138,
+      "end_line": 138,
+      "raw": "Maximum dimensions are 16384 per axis, maximum decoded pixels are 64 Mi, and encoded files are limited to 256 MiB. Failed create/open/save operations preserve the current object. Encoding completes in memory before the supplied file provider publishes it; the provider must preserve an existing file when publication fails.\n"
+    },
+    {
+      "id": "b000070",
+      "kind": "blank",
+      "start_line": 139,
+      "end_line": 139,
+      "raw": "\n"
+    },
+    {
+      "id": "b000071",
+      "kind": "paragraph",
+      "start_line": 140,
+      "end_line": 140,
+      "raw": "PNG/BMP/TGA preserve alpha. JPEG/PNM/HDR flatten alpha against `BitmapFileWriteOptions::backgroundArgb`. JPEG quality accepts -1 (default 90) or 0–100. `save()` preserves the detected source format; `saveAs()` uses an explicit format or the destination extension.\n"
+    },
+    {
+      "id": "b000072",
+      "kind": "blank",
+      "start_line": 141,
+      "end_line": 141,
+      "raw": "\n"
+    },
+    {
+      "id": "b000073",
+      "kind": "heading",
+      "start_line": 142,
+      "end_line": 142,
+      "raw": "## Runnable C++ examples\n",
+      "level": 2,
+      "title": "Runnable C++ examples"
+    },
+    {
+      "id": "b000074",
+      "kind": "blank",
+      "start_line": 143,
+      "end_line": 143,
+      "raw": "\n"
+    },
+    {
+      "id": "b000075",
+      "kind": "fenced_code",
+      "start_line": 144,
+      "end_line": 151,
+      "raw": "```sh\ncmake -S Example/FileProvider -B build/file-provider-app \\\n  -DCMAKE_PREFIX_PATH=\"/path/to/iiPaintEngine;/path/to/iiFileProvider\"\ncmake --build build/file-provider-app --parallel\nbuild/file-provider-app/iiPaintEngineExample Example/FileProvider/resources/paint.png\nbuild/file-provider-app/iiPaintEngineBrushGallery Example/FileProvider/resources/brush-gallery.png\nbuild/file-provider-app/iiPaintEngineBrushExpansionGallery Example/FileProvider/resources/brush-expansion-gallery.png\n```\n",
+      "language": "sh",
+      "code": "cmake -S Example/FileProvider -B build/file-provider-app \\\n  -DCMAKE_PREFIX_PATH=\"/path/to/iiPaintEngine;/path/to/iiFileProvider\"\ncmake --build build/file-provider-app --parallel\nbuild/file-provider-app/iiPaintEngineExample Example/FileProvider/resources/paint.png\nbuild/file-provider-app/iiPaintEngineBrushGallery Example/FileProvider/resources/brush-gallery.png\nbuild/file-provider-app/iiPaintEngineBrushExpansionGallery Example/FileProvider/resources/brush-expansion-gallery.png\n",
+      "closed": true
+    },
+    {
+      "id": "b000076",
+      "kind": "blank",
+      "start_line": 152,
+      "end_line": 152,
+      "raw": "\n"
+    },
+    {
+      "id": "b000077",
+      "kind": "paragraph",
+      "start_line": 153,
+      "end_line": 153,
+      "raw": "All examples produce bitmap files and require no windowing runtime. The preset gallery renders all six presets; the expansion gallery demonstrates radial, mandala and stabilized strokes.\n"
+    },
+    {
+      "id": "b000078",
+      "kind": "blank",
+      "start_line": 154,
+      "end_line": 154,
+      "raw": "\n"
+    },
+    {
+      "id": "b000079",
+      "kind": "heading",
+      "start_line": 155,
+      "end_line": 155,
+      "raw": "## Dependencies and validation\n",
+      "level": 2,
+      "title": "Dependencies and validation"
+    },
+    {
+      "id": "b000080",
+      "kind": "blank",
+      "start_line": 156,
+      "end_line": 156,
+      "raw": "\n"
+    },
+    {
+      "id": "b000081",
+      "kind": "paragraph",
+      "start_line": 157,
+      "end_line": 157,
+      "raw": "The bundled stb files are pinned to commit `2c980bb59875b0d32144a71867fbdebb2f77cd20` of [nothings/stb](https://github.com/nothings/stb). [Provenance and SHA-256 hashes](third_party/stb/provenance.json) and the selected [MIT license](third_party/stb/LICENSE) accompany the package. No separate C source, assembly, Objective-C, scripting runtime, or GUI library is compiled. iiPaintEngine itself retains its [MIT license](LICENSE).\n"
+    },
+    {
+      "id": "b000082",
+      "kind": "blank",
+      "start_line": 158,
+      "end_line": 158,
+      "raw": "\n"
+    },
+    {
+      "id": "b000083",
+      "kind": "paragraph",
+      "start_line": 159,
+      "end_line": 159,
+      "raw": "Contract tests cover source/dependency boundaries, public C++23 headers, codec round trips and failure preservation, immediate preview versus commit, cancel, undo/redo, input normalization, brush options/materials, serialization, document/layer operations, and installing then compiling/running a separate C++ consumer. Sanitizer builds are available with `-DIIPAINTENGINE_SANITIZE=ON`. Host tests do not prove physical pen input or runtime operation on other platforms.\n"
+    },
+    {
+      "id": "b000084",
+      "kind": "blank",
+      "start_line": 160,
+      "end_line": 160,
+      "raw": "\n"
+    },
+    {
+      "id": "b000085",
+      "kind": "paragraph",
+      "start_line": 161,
+      "end_line": 161,
+      "raw": "Layer composition supports 27 pixel-layer blend modes, reproducible Dissolve samples, masked clipping chains and correct alpha weighting over transparent backdrops. See [Layer compositing](docs/LAYER_COMPOSITING.md). Brush stroke blend-mode validation retains its existing supported subset.\n"
+    },
+    {
+      "id": "b000086",
+      "kind": "blank",
+      "start_line": 162,
+      "end_line": 162,
+      "raw": "\n"
+    },
+    {
+      "id": "b000087",
+      "kind": "heading",
+      "start_line": 163,
+      "end_line": 163,
+      "raw": "## License\n",
+      "level": 2,
+      "title": "License"
+    },
+    {
+      "id": "b000088",
+      "kind": "blank",
+      "start_line": 164,
+      "end_line": 164,
+      "raw": "\n"
+    },
+    {
+      "id": "b000089",
+      "kind": "paragraph",
+      "start_line": 165,
+      "end_line": 165,
+      "raw": "SPDX-License-Identifier: MIT\n"
+    },
+    {
+      "id": "b000090",
+      "kind": "blank",
+      "start_line": 166,
+      "end_line": 166,
+      "raw": "\n"
+    },
+    {
+      "id": "b000091",
+      "kind": "paragraph",
+      "start_line": 167,
+      "end_line": 169,
+      "raw": "The original code and documentation in this repository are licensed under the\n[MIT License](LICENSE). Third-party code, libraries, fonts, tools, and model\nweights retain their respective licenses.\n"
+    },
+    {
+      "id": "b000092",
+      "kind": "blank",
+      "start_line": 170,
+      "end_line": 170,
+      "raw": "\n"
+    },
+    {
+      "id": "b000093",
+      "kind": "html",
+      "start_line": 171,
+      "end_line": 171,
+      "raw": "<!-- workspace-docs:readme:start -->\n"
+    },
+    {
+      "id": "b000094",
+      "kind": "heading",
+      "start_line": 172,
+      "end_line": 172,
+      "raw": "## Documentation entry points\n",
+      "level": 2,
+      "title": "Documentation entry points"
+    },
+    {
+      "id": "b000095",
+      "kind": "blank",
+      "start_line": 173,
+      "end_line": 173,
+      "raw": "\n"
+    },
+    {
+      "id": "b000096",
+      "kind": "list",
+      "start_line": 174,
+      "end_line": 177,
+      "raw": "- Human overview: this English `README.md`.\n- Agent instructions: [AGENT.md](AGENT.md).\n- Human documentation: [documentation index](docs/README.md).\n- Structured agent documentation: [agent index](docs/agent-index.json).\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "Human overview: this English `README.md`.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Agent instructions: [AGENT.md](AGENT.md).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Human documentation: [documentation index](docs/README.md).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Structured agent documentation: [agent index](docs/agent-index.json).",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000097",
+      "kind": "html",
+      "start_line": 178,
+      "end_line": 178,
+      "raw": "<!-- workspace-docs:readme:end -->\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "iiPaintEngine",
+      "anchor": "iipaintengine",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000015",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Build and install",
+      "anchor": "build-and-install",
+      "start_line": 29
+    },
+    {
+      "block_id": "b000029",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Bitmap painting",
+      "anchor": "bitmap-painting",
+      "start_line": 52
+    },
+    {
+      "block_id": "b000041",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Local correction masks",
+      "anchor": "local-correction-masks",
+      "start_line": 98
+    },
+    {
+      "block_id": "b000045",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Bitmap-only contract",
+      "anchor": "bitmap-only-contract",
+      "start_line": 102
+    },
+    {
+      "block_id": "b000051",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Brushes and documents",
+      "anchor": "brushes-and-documents",
+      "start_line": 111
+    },
+    {
+      "block_id": "b000061",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "File formats",
+      "anchor": "file-formats",
+      "start_line": 127
+    },
+    {
+      "block_id": "b000073",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Runnable C++ examples",
+      "anchor": "runnable-c-examples",
+      "start_line": 142
+    },
+    {
+      "block_id": "b000079",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Dependencies and validation",
+      "anchor": "dependencies-and-validation",
+      "start_line": 155
+    },
+    {
+      "block_id": "b000087",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "License",
+      "anchor": "license",
+      "start_line": 163
+    },
+    {
+      "block_id": "b000094",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Documentation entry points",
+      "anchor": "documentation-entry-points",
+      "start_line": 172
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000017",
+        "line": 31,
+        "text": "A C++23 compiler and standard library with `std::expected`, and CMake 3.31 or later are required. The engine builds without other SDK packages. Build artifacts belong under `build/`.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000027",
+        "line": 50,
+        "text": "0.4 introduced the C++23 API/ABI migration; 0.5 extends public brush layouts and requires another consumer rebuild. Follow [the C++23 migration guide](docs/CXX23_MIGRATION.md). Upgrading replaces this package's public header tree so deleted APIs do not remain available accidentally.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000033",
+        "line": 59,
+        "text": "must inject a provider and rebuild after the public API/ABI change; see",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000039",
+        "line": 96,
+        "text": "Input coordinates are document pixels and time is monotonic seconds. Use the standard C++ viewport transforms when mapping a window's coordinates. For stationary airbrush emission or enabled pulled-string catch-up call `advanceTime(seconds)` from the application's clock. The engine does not create timers or coalesce events. Applications must deliver every measured event they need rendered.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000049",
+        "line": 109,
+        "text": "Neither `InputStrokeBuilder` nor `RasterDabStream` owns a point collection. A dab is projected and discarded in the current call. Pending preview and history retain pixels; they do not retain paths, vector shapes, future coordinates, or replayable drawing commands. External text, SVG, and shapes must be rasterized before crossing the engine boundary. Causal smoothing uses one preceding filtered point and one current raw pointer target.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000055",
+        "line": 115,
+        "text": "Preset format 4 preserves extended options and reads formats 1/2/3. Pixel document format 3 stores layer pixels, metadata, masks, brush presets, color metadata, assets, and raster history. It reads compatible format 2 single-surface documents. Unknown or incompatible content is rejected. The Photoshop investigation informed option coverage; renderer formulas remain independent bitmap models and do not establish Adobe pixel parity.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000059",
+        "line": 125,
+        "text": "`Application/DocumentAdapter`, `LayerListModel`, and `PaintEngineController` provide standard C++ document/layer editing alongside the file session. Lower modules do not depend on Application; brushes do not depend on stroke execution.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000069",
+        "line": 138,
+        "text": "Maximum dimensions are 16384 per axis, maximum decoded pixels are 64 Mi, and encoded files are limited to 256 MiB. Failed create/open/save operations preserve the current object. Encoding completes in memory before the supplied file provider publishes it; the provider must preserve an existing file when publication fails.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000083",
+        "line": 159,
+        "text": "Contract tests cover source/dependency boundaries, public C++23 headers, codec round trips and failure preservation, immediate preview versus commit, cancel, undo/redo, input normalization, brush options/materials, serialization, document/layer operations, and installing then compiling/running a separate C++ consumer. Sanitizer builds are available with `-DIIPAINTENGINE_SANITIZE=ON`. Host tests do not prove physical pen input or runtime operation on other platforms.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [
+      {
+        "block_id": "b000019",
+        "language": "sh",
+        "code": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build --parallel\nctest --test-dir build --output-on-failure\ncmake --install build\n"
+      },
+      {
+        "block_id": "b000075",
+        "language": "sh",
+        "code": "cmake -S Example/FileProvider -B build/file-provider-app \\\n  -DCMAKE_PREFIX_PATH=\"/path/to/iiPaintEngine;/path/to/iiFileProvider\"\ncmake --build build/file-provider-app --parallel\nbuild/file-provider-app/iiPaintEngineExample Example/FileProvider/resources/paint.png\nbuild/file-provider-app/iiPaintEngineBrushGallery Example/FileProvider/resources/brush-gallery.png\nbuild/file-provider-app/iiPaintEngineBrushExpansionGallery Example/FileProvider/resources/brush-expansion-gallery.png\n"
+      }
+    ],
+    "links": [
+      {
+        "block_id": "b000003",
+        "label": "Windows build and execution",
+        "target": "docs/WindowsBuildAndRun.md",
+        "kind": "relative",
+        "line": 3
+      },
+      {
+        "block_id": "b000005",
+        "label": "the raster history contract",
+        "target": "docs/RASTER_HISTORY.md",
+        "kind": "relative",
+        "line": 7
+      },
+      {
+        "block_id": "b000005",
+        "label": "wet brush sampling",
+        "target": "docs/WET_BRUSH_SAMPLING.md",
+        "kind": "relative",
+        "line": 10
+      },
+      {
+        "block_id": "b000005",
+        "label": "selection and raster-edit corrections",
+        "target": "docs/SELECTION_RASTER_EDIT.md",
+        "kind": "relative",
+        "line": 11
+      },
+      {
+        "block_id": "b000009",
+        "label": "the authoring contract",
+        "target": "docs/BrushTools.md",
+        "kind": "relative",
+        "line": 20
+      },
+      {
+        "block_id": "b000027",
+        "label": "the C++23 migration guide",
+        "target": "docs/CXX23_MIGRATION.md",
+        "kind": "relative",
+        "line": 50
+      },
+      {
+        "block_id": "b000033",
+        "label": "file-provider adapter",
+        "target": "Example/FileProvider/",
+        "kind": "relative",
+        "line": 57
+      },
+      {
+        "block_id": "b000033",
+        "label": "the bitmap I/O contract",
+        "target": "docs/bitmap-io.md",
+        "kind": "relative",
+        "line": 60
+      },
+      {
+        "block_id": "b000043",
+        "label": "local mask brush behavior and limits",
+        "target": "docs/LOCAL_MASK_BRUSH.md",
+        "kind": "relative",
+        "line": 100
+      },
+      {
+        "block_id": "b000043",
+        "label": "recovered localized brush numeric helpers",
+        "target": "docs/LOCALIZED_BRUSH_MATH.md",
+        "kind": "relative",
+        "line": 100
+      },
+      {
+        "block_id": "b000053",
+        "label": "Brush API and units",
+        "target": "docs/BRUSHES.md",
+        "kind": "relative",
+        "line": 113
+      },
+      {
+        "block_id": "b000053",
+        "label": "extended option behavior",
+        "target": "docs/BRUSH_OPTIONS.md",
+        "kind": "relative",
+        "line": 113
+      },
+      {
+        "block_id": "b000057",
+        "label": "bounded ABR tip import, symmetry and stabilization",
+        "target": "docs/BRUSH_EXPANSION.md",
+        "kind": "relative",
+        "line": 117
+      },
+      {
+        "block_id": "b000067",
+        "label": "Netpbm format specification",
+        "target": "https://netpbm.sourceforge.net/doc/ppm.html",
+        "kind": "external",
+        "line": 136
+      },
+      {
+        "block_id": "b000081",
+        "label": "nothings/stb",
+        "target": "https://github.com/nothings/stb",
+        "kind": "external",
+        "line": 157
+      },
+      {
+        "block_id": "b000081",
+        "label": "Provenance and SHA-256 hashes",
+        "target": "third_party/stb/provenance.json",
+        "kind": "relative",
+        "line": 157
+      },
+      {
+        "block_id": "b000081",
+        "label": "MIT license",
+        "target": "third_party/stb/LICENSE",
+        "kind": "relative",
+        "line": 157
+      },
+      {
+        "block_id": "b000081",
+        "label": "MIT license",
+        "target": "LICENSE",
+        "kind": "relative",
+        "line": 157
+      },
+      {
+        "block_id": "b000085",
+        "label": "Layer compositing",
+        "target": "docs/LAYER_COMPOSITING.md",
+        "kind": "relative",
+        "line": 161
+      },
+      {
+        "block_id": "b000091",
+        "label": "MIT License",
+        "target": "LICENSE",
+        "kind": "relative",
+        "line": 168
+      },
+      {
+        "block_id": "b000096",
+        "label": "AGENT.md",
+        "target": "AGENT.md",
+        "kind": "relative",
+        "line": 175
+      },
+      {
+        "block_id": "b000096",
+        "label": "documentation index",
+        "target": "docs/README.md",
+        "kind": "relative",
+        "line": 176
+      },
+      {
+        "block_id": "b000096",
+        "label": "agent index",
+        "target": "docs/agent-index.json",
+        "kind": "relative",
+        "line": 177
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000065",
+        "columns": [
+          "Operation",
+          "Formats"
+        ],
+        "rows": [
+          [
+            "Read",
+            "BMP, GIF, HDR, JPEG, PIC, PNG, binary PNM (P5/P6), PSD, TGA"
+          ],
+          [
+            "Write / save in place",
+            "BMP, HDR, JPEG, PNG, binary PNM (P6), TGA"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

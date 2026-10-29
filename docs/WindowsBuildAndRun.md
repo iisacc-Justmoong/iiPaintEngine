@@ -6,15 +6,11 @@ bitmap 문서, brush, ABR import와 codec을 제공하는 Qt 비의존 C++23 SDK
 
 ## 현재 검증 상태
 
-Release 빌드·실행 검사·설치를 완료하였다. 등록 검사 48개 중 48개 통과, 0개 실패, 0개 skip이다.
+아래 48/48 기록은 2026-10-20 소스의 결과다. 비트맵 파일 I/O 분리 이후 Windows 재검증 결과는 아니다.
 
 ## 이 프로젝트의 의존성과 실행 범위
 
-선행 workspace SDK는 다음과 같다. 각각의 Windows 지침에 따라 실행 검증과 설치를 완료한 뒤 진행한다.
-
-- [iiFileProvider](../../../SDK/iiFileProvider/docs/WindowsBuildAndRun.md)
-
-- iiFileProvider Native 0.6 이상이 필요하다. 이미지 codec은 프로젝트의 stb 구현을 사용한다.
+엔진 본체를 빌드하는 데 선행 workspace SDK는 없다. 이미지 codec은 프로젝트의 stb 구현을 사용한다. 실제 파일 입출력은 앱에서 포트를 제공하며, 파일 제공자 조합 예제는 별도 프로젝트로 구성한다.
 
 프로젝트별 Windows 조건은 다음과 같다.
 

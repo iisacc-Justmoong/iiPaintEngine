@@ -16,7 +16,7 @@ bool BitmapPaintSession::createFile(const std::filesystem::path &path,int width,
                 || static_cast<std::uint64_t>(width) * height > maxBitmapPixelCount) {
             m_error = "Invalid bitmap dimensions."; return false;
         }
-        BitmapPaintSession candidate;
+        BitmapPaintSession candidate(m_file.fileIO());
         candidate.m_pending = makeStrokeCompositeBuffer(width,height);
         candidate.m_preview = makeRasterLayer(width,height,clearArgb);
         if (!candidate.m_file.create(path,width,height,format,clearArgb)) { m_error = candidate.m_file.lastError(); return false; }
@@ -27,7 +27,7 @@ bool BitmapPaintSession::createFile(const std::filesystem::path &path,int width,
 bool BitmapPaintSession::openFile(const std::filesystem::path &path)
 {
     try {
-        BitmapPaintSession candidate;
+        BitmapPaintSession candidate(m_file.fileIO());
         if (!candidate.m_file.open(path)) { m_error = candidate.m_file.lastError(); return false; }
         candidate.initializePixels(); candidate.m_preset = m_preset; candidate.m_color = m_color; candidate.m_eraser = m_eraser;
         *this = std::move(candidate); return true;

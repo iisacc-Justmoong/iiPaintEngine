@@ -4,6 +4,38 @@
 #include <algorithm>
 #include <utility>
 
+namespace {
+std::expected<bitmap_codec::DecodedBitmap,std::string> readBitmap(
+        const std::shared_ptr<BitmapFileIO> &io,const std::filesystem::path &path)
+{
+    if (!io) return std::unexpected("No bitmap file I/O provider was supplied.");
+    try {
+        auto bytes = io->read(path,static_cast<std::size_t>(maxBitmapEncodedBytes));
+        if (!bytes) return std::unexpected(bytes.error());
+        return bitmap_codec::read(*bytes);
+    } catch (const std::exception &error) {
+        return std::unexpected(std::string(error.what()));
+    } catch (...) {
+        return std::unexpected("Bitmap file I/O raised an unknown error.");
+    }
+}
+std::expected<void,std::string> writeBitmap(const std::shared_ptr<BitmapFileIO> &io,
+        const std::filesystem::path &path,std::string_view format,const RasterLayer &pixels,
+        const BitmapFileWriteOptions &options)
+{
+    if (!io) return std::unexpected("No bitmap file I/O provider was supplied.");
+    try {
+        auto bytes = bitmap_codec::write(format,pixels,options);
+        if (!bytes) return std::unexpected(bytes.error());
+        return io->write(path,*bytes);
+    } catch (const std::exception &error) {
+        return std::unexpected(std::string(error.what()));
+    } catch (...) {
+        return std::unexpected("Bitmap file I/O raised an unknown error.");
+    }
+}
+}
+
 const std::vector<std::string> &supportedBitmapReadFormats()
 {
     static const std::vector<std::string> formats{"bmp","gif","hdr","jpeg","pic","png","pnm","psd","tga"};
@@ -27,7 +59,7 @@ bool BitmapFile::create(const std::filesystem::path &path, Types::Pixel width, T
         setError("Unsupported bitmap writer: " + resolved); return false;
     }
     try {
-        BitmapFile candidate;
+        BitmapFile candidate(m_io);
         candidate.m_filePath = path; candidate.m_fileFormat = resolved;
         candidate.m_pixels = makeRasterLayer(width,height,clearArgb);
         candidate.m_open = true; candidate.m_modified = true;
@@ -38,7 +70,7 @@ bool BitmapFile::create(const std::filesystem::path &path, Types::Pixel width, T
 bool BitmapFile::open(const std::filesystem::path &path)
 {
     if (path.empty()) { setError("Bitmap path is empty."); return false; }
-    auto decoded = bitmap_codec::read(path);
+    auto decoded = readBitmap(m_io,path);
     if (!decoded) { setError(decoded.error()); return false; }
     m_filePath = path; m_fileFormat = std::move(decoded->format); m_pixels = std::move(decoded->pixels);
     m_open = true; m_modified = false; setError({}); return true;
@@ -46,7 +78,7 @@ bool BitmapFile::open(const std::filesystem::path &path)
 bool BitmapFile::save(const BitmapFileWriteOptions &options)
 {
     if (!canSaveInPlace()) { setError("No writable bitmap is open; select a supported saveAs format."); return false; }
-    auto result = bitmap_codec::write(m_filePath,m_fileFormat,m_pixels,options);
+    auto result = writeBitmap(m_io,m_filePath,m_fileFormat,m_pixels,options);
     if (!result) { setError(result.error()); return false; }
     m_modified = false; setError({}); return true;
 }
@@ -55,7 +87,7 @@ bool BitmapFile::saveAs(const std::filesystem::path &path, std::string_view form
 {
     if (!isOpen() || path.empty()) { setError("No bitmap is open or output path is empty."); return false; }
     const auto resolved = bitmap_codec::normalizeFormat(format.empty() ? path.extension().string() : std::string(format));
-    auto result = bitmap_codec::write(path,resolved,m_pixels,options);
+    auto result = writeBitmap(m_io,path,resolved,m_pixels,options);
     if (!result) { setError(result.error()); return false; }
     m_filePath = path; m_fileFormat = resolved; m_modified = false; setError({}); return true;
 }

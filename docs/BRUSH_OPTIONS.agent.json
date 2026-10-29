@@ -1,0 +1,1012 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:6661da44fbf2d1139051a760f8e9a42a38b7bfc86af5710844ba1f05714e7bea",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiPaintEngine",
+    "name": "iiPaintEngine",
+    "root": "SDK/iiPaintEngine",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/BRUSH_OPTIONS.md",
+    "sha256": "3689d1cfd4e2c7a8cee293d5863b7cf248f2101442e0c5ff7327fff9775d50cf",
+    "bytes": 15692,
+    "line_count": 255,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Brush options contract (0.5.0)",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Brush options contract (0.5.0)\n",
+      "level": 1,
+      "title": "Brush options contract (0.5.0)"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 5,
+      "raw": "The 0.4 option model below remains supported. The 0.5 ABR, symmetry and\nstabilization additions, current preset format and verification boundaries are\ndocumented in [BRUSH_EXPANSION.md](BRUSH_EXPANSION.md).\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 12,
+      "raw": "`BrushPreset` remains the editable brush object. Its `dynamics`, `material`,\n`shape`, `stroke`, and `color` members carry these additions through validation,\nruntime resolution, preset storage, snapshots, and document `brushSources`.\nThe new fields are optional effects with neutral defaults. They use C++ values\nand standard-library storage; the Brush and Stroke implementation adds no Qt\ndependency.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 13,
+      "end_line": 13,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "heading",
+      "start_line": 14,
+      "end_line": 14,
+      "raw": "## Evidence and interpretation\n",
+      "level": 2,
+      "title": "Evidence and interpretation"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 16,
+      "end_line": 26,
+      "raw": "The original 0.4 change followed the recovered Photoshop **27.10.0** snapshot in\n`Engineering/Projects/PhotoshopReverse`. That historical source/evidence tree was\nretired by the later Adobe source replacement; the hashes below describe the earlier\ninvestigation, not currently available source files. The current 0.5 provenance is\nlinked above. The historical interface investigation rechecked\n2,414 original file hashes and inventoried 61 relevant files, 718 control\ndeclarations, 157 main/group/tool/preset observations and 51 related-tool\nobservations. The JavaScript investigation searched all 11,300 recovered files\n(429,149,893 bytes), verified their manifest hashes, and directly reviewed 18\nkey application/preset sources. These are bounded searches of the recovered\ncorpus, not recovery of the native Photoshop brush renderer.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 28,
+      "end_line": 35,
+      "raw": "The principal `Required/layouts/Painting/Panels/brushStylerContents-4181.exv`\nhas SHA-256 `24dd2fbaeab85033063b7705a7343b150570c67dbfd0a9058359e9c6b38ce070`.\nThe source manifest SHA-256 is\n`550754a55ada18c9d74b7ffd09ac1c7a5bdde3e98b333b2d69427146a73f192d`.\nThe machine-readable records and complete search limits are retained in\n`PhotoshopReverse/evidence/brushes/{interface,javascript}-findings.json`;\nthe corresponding reports are `docs/BrushInterface.md` and\n`docs/BrushJavascript.md` in that project.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "table",
+      "start_line": 37,
+      "end_line": 51,
+      "raw": "| Observed family / main EXV lines | iiPaintEngine object contract |\n|---|---|\n| Ordinary tip, 122–168 | Existing `tip`, `shape`, size, hardness and stroke spacing |\n| Bristle, 175–219 | Existing count/length/stiffness/shape, added thickness and angle |\n| Erodible, 226–243 | Added `material.erodible`, scalar wear and `sharpenErodibleTip`; existing `shape` supplies the 2D footprint |\n| Airbrush tip, 250–297 | Added `material.airbrushTip`; existing hardness and spacing apply |\n| Shape dynamics, 308–390 | Named size/angle/roundness variations, flip jitter and tip projection; existing `tiltToEllipse`; initial stroke direction |\n| Scattering, 396–436 | Existing scatter geometry; named amount/count variation controls |\n| Texture, 446–521 | Invert, brightness, contrast, each-tip, mode, depth/floor and named depth variation |\n| Dual tip, 529–572 | Existing mask/scale/spacing/modes; secondary flip and scatter/count, more blend modes |\n| Color, 582–634 | Existing HSV/mix/per-stroke settings; mix jitter, purity and named foreground/background variation |\n| Transfer, 643–741 | Named opacity/flow/wetness/mix variations and a Mix binding target |\n| Pose, 752–793 | Explicit pressure/tilt X/tilt Y/rotation overrides |\n| Global effects, 88–109 | Noise, wet edges, existing time-based airbrush, causal smoothing, Protect Texture |\n| Mixer toolbar, `mixerBrush-1383.exv:36–44` | Existing wetness/mix/pickup/deposit; added reservoir load |\n",
+      "columns": [
+        "Observed family / main EXV lines",
+        "iiPaintEngine object contract"
+      ],
+      "rows": [
+        [
+          "Ordinary tip, 122–168",
+          "Existing `tip`, `shape`, size, hardness and stroke spacing"
+        ],
+        [
+          "Bristle, 175–219",
+          "Existing count/length/stiffness/shape, added thickness and angle"
+        ],
+        [
+          "Erodible, 226–243",
+          "Added `material.erodible`, scalar wear and `sharpenErodibleTip`; existing `shape` supplies the 2D footprint"
+        ],
+        [
+          "Airbrush tip, 250–297",
+          "Added `material.airbrushTip`; existing hardness and spacing apply"
+        ],
+        [
+          "Shape dynamics, 308–390",
+          "Named size/angle/roundness variations, flip jitter and tip projection; existing `tiltToEllipse`; initial stroke direction"
+        ],
+        [
+          "Scattering, 396–436",
+          "Existing scatter geometry; named amount/count variation controls"
+        ],
+        [
+          "Texture, 446–521",
+          "Invert, brightness, contrast, each-tip, mode, depth/floor and named depth variation"
+        ],
+        [
+          "Dual tip, 529–572",
+          "Existing mask/scale/spacing/modes; secondary flip and scatter/count, more blend modes"
+        ],
+        [
+          "Color, 582–634",
+          "Existing HSV/mix/per-stroke settings; mix jitter, purity and named foreground/background variation"
+        ],
+        [
+          "Transfer, 643–741",
+          "Named opacity/flow/wetness/mix variations and a Mix binding target"
+        ],
+        [
+          "Pose, 752–793",
+          "Explicit pressure/tilt X/tilt Y/rotation overrides"
+        ],
+        [
+          "Global effects, 88–109",
+          "Noise, wet edges, existing time-based airbrush, causal smoothing, Protect Texture"
+        ],
+        [
+          "Mixer toolbar, `mixerBrush-1383.exv:36–44`",
+          "Existing wetness/mix/pickup/deposit; added reservoir load"
+        ]
+      ]
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 52,
+      "end_line": 52,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 53,
+      "end_line": 60,
+      "raw": "UI IDs such as `szjt`, `fpop` and `step` are container-local view identifiers.\nMenu resources 805/806 and 1351–1363 do not identify serialized enum values.\nAll public enums, defaults, normalized units and formulas below are\n**iiPaintEngine implementation decisions**. They are not recovered Adobe C++\nsource or proof of Adobe pixel parity. Adobe's public descriptions corroborate\nthe concepts: [dynamic brush controls](https://helpx.adobe.com/photoshop/using/adding-dynamic-elements-brushes.html),\n[texture and dual tips](https://helpx.adobe.com/photoshop/desktop/apply-painting-techniques/brushes-presets/textured-and-dual-brush-settings.html),\nand [CS6 tip/pose descriptions](https://helpx.adobe.com/pdf/cs6/photoshop_reference.pdf).\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 61,
+      "end_line": 61,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 62,
+      "end_line": 69,
+      "raw": "Libraries `PHXS_UXP/js/brushUtils.js:24–59` and `PHXS/jsx/brush.jsx:87–132`\nread existing current-tool options and replace selected tool/flow/opacity/mode/\nforeground-color metadata. Native `applyBrushFile` and `save` handle ABR files;\nthe recovered scripts contain no full ABR codec. `PHXS/js/push.js:78–89` carries\nall metadata keys without providing a parameter schema. The scripts' truthy\nflow/opacity checks skip zero; the SDK continues to accept a valid explicit\nzero. The historical 0.4 change did not introduce an ABR importer; the bounded\ntip decoder added in 0.5 is documented in BRUSH_EXPANSION.md.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 70,
+      "end_line": 70,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "heading",
+      "start_line": 71,
+      "end_line": 71,
+      "raw": "## Named variations\n",
+      "level": 2,
+      "title": "Named variations"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 72,
+      "end_line": 72,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 73,
+      "end_line": 74,
+      "raw": "`BrushDynamicsVariation` is a repeated contract for these eleven members of\n`BrushDynamics`:\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 75,
+      "end_line": 75,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 76,
+      "end_line": 78,
+      "raw": "`sizeVariation`, `angleVariation`, `roundnessVariation`, `scatterVariation`,\n`scatterCountVariation`, `textureDepthVariation`, `colorMixVariation`,\n`opacityVariation`, `flowVariation`, `wetnessVariation`, `mixVariation`.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 79,
+      "end_line": 79,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "table",
+      "start_line": 80,
+      "end_line": 86,
+      "raw": "| Field | Default | Supported domain |\n|---|---|---|\n| `enabled` | false | bool |\n| `control` | Off | Off, Fade, PenPressure, PenTilt, StylusWheel, StylusRotation, InitialDirection, Direction |\n| `jitter` | 0 | [0,1] |\n| `minimum` | 0 | [0,1], floor for scalar variations |\n| `fadeSteps` | 25 | integer [1,9999], emitted marks |\n",
+      "columns": [
+        "Field",
+        "Default",
+        "Supported domain"
+      ],
+      "rows": [
+        [
+          "`enabled`",
+          "false",
+          "bool"
+        ],
+        [
+          "`control`",
+          "Off",
+          "Off, Fade, PenPressure, PenTilt, StylusWheel, StylusRotation, InitialDirection, Direction"
+        ],
+        [
+          "`jitter`",
+          "0",
+          "[0,1]"
+        ],
+        [
+          "`minimum`",
+          "0",
+          "[0,1], floor for scalar variations"
+        ],
+        [
+          "`fadeSteps`",
+          "25",
+          "integer [1,9999], emitted marks"
+        ]
+      ]
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 87,
+      "end_line": 87,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 88,
+      "end_line": 91,
+      "raw": "The order is pose substitution, legacy property responses, named variations,\nthen existing ordered `bindings`. A binding can deliberately replace the result\nof a named variation. Size, roundness, scatter, count, depth, opacity, flow,\nwetness and mixing variations multiply their existing scale result.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 92,
+      "end_line": 92,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 93,
+      "end_line": 99,
+      "raw": "For a scale control, `q` is 1 for Off, `max(0,1-dabIndex/fadeSteps)` for Fade,\npressure or tilt magnitude for pen controls, `(tangentialPressure+1)/2` for the\nwheel, or the wrapped fraction of one turn for rotation/direction controls.\nThe factor is `minimum + (1-minimum)*q*(1-jitter*random)`. Pen input disable\nflags substitute the neutral control value. Random input disable suppresses\njitter and flip jitter. Independent unsigned random channels are derived from\nthe seed-backed input and mark index; repeated input yields repeated results.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 100,
+      "end_line": 100,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 101,
+      "end_line": 106,
+      "raw": "Angle control produces a radian offset. Fade advances from zero to one full\nturn, pen controls cover a turn, and direction/rotation controls provide the\nactual angle. Its jitter is symmetric about zero; `minimum` has no angular\nmeaning. Foreground/background control adds a normalized color mix; Fade moves\nfrom foreground to secondary color, and Off contributes only its optional\njitter/floor. No Photoshop numeric menu mapping is implied.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 107,
+      "end_line": 107,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 108,
+      "end_line": 110,
+      "raw": "`BrushDynamicsInput::dabIndex` counts emitted marks from the start, including\nscattered marks and time-injected marks. `RasterDabStream` supplies it. Direct\ncallers of `resolveBrushDynamics` may set it explicitly.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 111,
+      "end_line": 111,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 112,
+      "end_line": 117,
+      "raw": "`shape.angleMode = InitialStrokeDirection` keeps the first nonzero movement\nangle for later marks. The initial press has angle zero because future input\nis unavailable. `initialDirectionRadians` is also supplied to angle controls.\nOnly a scalar angle and a flag are retained. `flipXJitter` and `flipYJitter`\ntoggle each mark's existing reflection independently. `projectTip` compresses\nthe 2D footprint by stylus tilt; it is a bitmap projection approximation.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 118,
+      "end_line": 118,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "heading",
+      "start_line": 119,
+      "end_line": 119,
+      "raw": "## Pose and color\n",
+      "level": 2,
+      "title": "Pose and color"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 120,
+      "end_line": 120,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 121,
+      "end_line": 126,
+      "raw": "`dynamics.pose` defaults to disabled. It contains four independent override\nflags and values: `pressure` [0,1], `tiltX`/`tiltY` [-1,1], and\n`rotationRadians` [-1024,1024]. Defaults are pressure 1 and other channels 0.\nOnly selected channels are substituted; all subsequent mappings and tip/angle\nselection consume the same substituted inputs. Sensor disable flags still\napply. `applyBrushPose()` exposes the same value transformation to callers.\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 127,
+      "end_line": 127,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 128,
+      "end_line": 133,
+      "raw": "`color.mixJitter` is [0,1], default 0, and adds a random secondary-color mixture.\n`color.purity` is [-1,1], default 0; negative purity reduces saturation toward\nzero and positive purity raises it toward one. These apply only with\n`color.enabled`. Existing `perStroke` now freezes the resolved color once per\nstroke, including input-driven mix changes. It retains one ARGB value, not an\ninput history. Setting it false applies color changes per mark.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 134,
+      "end_line": 134,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "heading",
+      "start_line": 135,
+      "end_line": 135,
+      "raw": "## Texture and secondary brush\n",
+      "level": 2,
+      "title": "Texture and secondary brush"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 136,
+      "end_line": 136,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "paragraph",
+      "start_line": 137,
+      "end_line": 137,
+      "raw": "Both `material.texture` and `paperGrain` gain these fields:\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 138,
+      "end_line": 138,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "table",
+      "start_line": 139,
+      "end_line": 147,
+      "raw": "| Field | Default | Domain / effect |\n|---|---|---|\n| `invert` | false | Reverse adjusted pattern alpha |\n| `brightness` | 0 | [-1,1], additive normalized tone |\n| `contrast` | 0 | [-1,1], contrast multiplier `1+contrast` around 0.5 |\n| `depth` | 1 | [0,1], zero hides pattern modulation |\n| `minimumDepth` | 0 | [0,1], floor of effective depth |\n| `textureEachTip` | false | True selects tip-local texture coordinates and depth dynamics |\n| `blendMode` | Multiply | Multiply, Subtract, Darken, Lighten, ColorDodge, ColorBurn, LinearBurn, HardMix, Height, LinearHeight |\n",
+      "columns": [
+        "Field",
+        "Default",
+        "Domain / effect"
+      ],
+      "rows": [
+        [
+          "`invert`",
+          "false",
+          "Reverse adjusted pattern alpha"
+        ],
+        [
+          "`brightness`",
+          "0",
+          "[-1,1], additive normalized tone"
+        ],
+        [
+          "`contrast`",
+          "0",
+          "[-1,1], contrast multiplier `1+contrast` around 0.5"
+        ],
+        [
+          "`depth`",
+          "1",
+          "[0,1], zero hides pattern modulation"
+        ],
+        [
+          "`minimumDepth`",
+          "0",
+          "[0,1], floor of effective depth"
+        ],
+        [
+          "`textureEachTip`",
+          "false",
+          "True selects tip-local texture coordinates and depth dynamics"
+        ],
+        [
+          "`blendMode`",
+          "Multiply",
+          "Multiply, Subtract, Darken, Lighten, ColorDodge, ColorBurn, LinearBurn, HardMix, Height, LinearHeight"
+        ]
+      ]
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 148,
+      "end_line": 148,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 149,
+      "end_line": 157,
+      "raw": "Brightness/contrast are clamped before inversion. The selected scalar blend\ncombines brush coverage and pattern alpha; `strength * effectiveDepth` mixes\nthat result with original coverage. Multiply uses the existing multiplication\nformula. Height is the minimum of coverage and texture; LinearHeight adds\ntexture height about 0.5 and clamps. These are explicit SDK scalar models,\nnot native Photoshop height compositing. Existing grain/asset-cache options\nremain available. When `textureEachTip` is false, the existing `space` field\nremains authoritative. Pattern indices wrap before integer conversion, even\nfor large valid offsets.\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 158,
+      "end_line": 158,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "paragraph",
+      "start_line": 159,
+      "end_line": 167,
+      "raw": "`material.dualBrush` gains `flipX`, `flipY` (false) and its own `BrushScatter`.\nScatter has the same radius/count/axes/distribution/jitter/relative-size\ncontract as primary scatter, defaults to disabled, and affects only the\nsecondary mask. Its deterministic offsets change at secondary `spacingRatio`\nintervals; count combines offset secondary mask samples by maximum coverage.\nIt does not add primary marks or retain a second input path. Projection scale\nconverts the secondary mask and offsets consistently to device pixels.\nAdditional dual blend modes are Darken, Lighten, ColorDodge, ColorBurn,\nLinearBurn and HardMix. Existing enum values retain their numeric order.\n"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 168,
+      "end_line": 168,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "heading",
+      "start_line": 169,
+      "end_line": 169,
+      "raw": "## Bristle, erodible, airbrush and mixing bitmap models\n",
+      "level": 2,
+      "title": "Bristle, erodible, airbrush and mixing bitmap models"
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 170,
+      "end_line": 170,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "paragraph",
+      "start_line": 171,
+      "end_line": 173,
+      "raw": "`material.bristle.thickness` defaults to 1 and accepts [0.001,1]. It scales\nthe existing 2D footprint width. `angleRadians` defaults to 0 and accepts\n[-1024,1024]. Existing count, length, stiffness and shape remain in use.\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 174,
+      "end_line": 174,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "paragraph",
+      "start_line": 175,
+      "end_line": 184,
+      "raw": "`material.erodible` defaults to disabled, softness 0.5 and wear 0. Softness\nand wear are [0,1]. For a mark at accumulated distance `d`, wear is\n`clamp(initialWear + softness*d/(max(1,brushSize)*100),0,1)`. The footprint\nwidens by `1+wear/2` and hardness decreases by `1-0.8*wear`. Its shape remains\nthe existing procedural/image tip. `BrushDab::tipWear` and\n`RasterDabStream::tipWear` expose the scalar result. Core callers may copy the\nresult to the next preset; `sharpenErodibleTip()` sets wear to zero.\n`BitmapPaintSession` carries wear after a successful pixel commit, but cancelled\nstrokes and a preset changed during a stroke do not overwrite the selected\nbrush's wear.\n"
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 185,
+      "end_line": 185,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
+      "kind": "paragraph",
+      "start_line": 186,
+      "end_line": 191,
+      "raw": "`material.airbrushTip` defaults to disabled. Granularity, spatter and\ndistortion are [0,1], default 0. SpatterSize is [0.01,4096] document pixels,\ndefault 1. Granularity modulates pixel coverage with deterministic grain;\nspatter removes seeded pattern cells of the configured size; distortion\ncompresses the footprint with tilt. Existing size/hardness/spacing and optional\ntime-based airbrush control placement. This is not a 3D conical fluid model.\n"
+    },
+    {
+      "id": "b000060",
+      "kind": "blank",
+      "start_line": 192,
+      "end_line": 192,
+      "raw": "\n"
+    },
+    {
+      "id": "b000061",
+      "kind": "paragraph",
+      "start_line": 193,
+      "end_line": 197,
+      "raw": "`material.simulation.load` is [0,1], default 1, and multiplies the existing\nwet/mixer bitmap pigment contribution. Zero deposits no pixels. Named mixing\nvariation and the new `BrushDynamicsTarget::Mix` scale `mixStrength` during\nsource-pixel color mixing. Existing models sample bitmap pixels rather than\nmaintaining a fluid simulation or a multi-color reservoir.\n"
+    },
+    {
+      "id": "b000062",
+      "kind": "blank",
+      "start_line": 198,
+      "end_line": 198,
+      "raw": "\n"
+    },
+    {
+      "id": "b000063",
+      "kind": "heading",
+      "start_line": 199,
+      "end_line": 199,
+      "raw": "## Effects, smoothing and preset selection\n",
+      "level": 2,
+      "title": "Effects, smoothing and preset selection"
+    },
+    {
+      "id": "b000064",
+      "kind": "blank",
+      "start_line": 200,
+      "end_line": 200,
+      "raw": "\n"
+    },
+    {
+      "id": "b000065",
+      "kind": "paragraph",
+      "start_line": 201,
+      "end_line": 205,
+      "raw": "`stroke.noiseEnabled` and `wetEdgesEnabled` default to false. Their strengths\ndefault to 0.5 and accept [0,1]. Noise modulates coverage using document-position,\nseed and mark-index values. Wet edges reduce dense coverage relative to soft\nedges; for coverage `a`, its multiplier is `1-strength*a`. It works on the\nbitmap tip mask without reconstructing an entire stroke contour.\n"
+    },
+    {
+      "id": "b000066",
+      "kind": "blank",
+      "start_line": 206,
+      "end_line": 206,
+      "raw": "\n"
+    },
+    {
+      "id": "b000067",
+      "kind": "paragraph",
+      "start_line": 207,
+      "end_line": 211,
+      "raw": "`stroke.smoothingEnabled` defaults to false; smoothing defaults to 0.5 in\n[0,1]. Each incoming position is filtered immediately against the preceding\nfiltered position with weight `1-0.95*smoothing`. It never queues points,\nreplays a path, requires future input, or snaps to a predicted endpoint. This\nis a causal position filter, not Photoshop's pulled-string/catch-up modes.\n"
+    },
+    {
+      "id": "b000068",
+      "kind": "blank",
+      "start_line": 212,
+      "end_line": 212,
+      "raw": "\n"
+    },
+    {
+      "id": "b000069",
+      "kind": "paragraph",
+      "start_line": 213,
+      "end_line": 222,
+      "raw": "`stroke.protectTexture` defaults to false.\n`selectBrushPreset(current,replacement)` preserves the current pattern bytes,\ndimensions, asset-cache identity and scale when this flag is set; replacement\ntone/depth/modes and other settings remain editable. The returned preset keeps\nprotection enabled. Pass `false` as its third argument to bypass protection.\n`BitmapPaintSession::setBrushPreset(preset, preserveProtectedTexture=true)` and\n`setBrushPresetData(payload, preserveProtectedTexture=true)` use this same\npolicy. Explicit false allows disabling protection or replacing a protected\npattern. Invalid replacements fail before mutation, even when their texture\nwould otherwise be replaced by protection.\n"
+    },
+    {
+      "id": "b000070",
+      "kind": "blank",
+      "start_line": 223,
+      "end_line": 223,
+      "raw": "\n"
+    },
+    {
+      "id": "b000071",
+      "kind": "heading",
+      "start_line": 224,
+      "end_line": 224,
+      "raw": "## Storage, validation and test boundaries\n",
+      "level": 2,
+      "title": "Storage, validation and test boundaries"
+    },
+    {
+      "id": "b000072",
+      "kind": "blank",
+      "start_line": 225,
+      "end_line": 225,
+      "raw": "\n"
+    },
+    {
+      "id": "b000073",
+      "kind": "paragraph",
+      "start_line": 226,
+      "end_line": 230,
+      "raw": "The 0.4 extension introduced preset format **3**; current output is format **4**.\nVersions 1, 2 and 3 remain readable and acquire neutral defaults for missing options.\nValidation rejects invalid enum values,\nnonfinite/out-of-range numbers and zero/excessive Fade steps, including disabled\nsettings. Snapshot/restore copy all nested settings.\n"
+    },
+    {
+      "id": "b000074",
+      "kind": "blank",
+      "start_line": 231,
+      "end_line": 231,
+      "raw": "\n"
+    },
+    {
+      "id": "b000075",
+      "kind": "paragraph",
+      "start_line": 232,
+      "end_line": 236,
+      "raw": "Document format remains 3. The historically named `presetV2` field embeds the\nversioned payload and now carries preset format 4. Its key remains stable;\nthe embedded `formatVersion` is authoritative. Older engines reject the new\npreset version instead of silently dropping these options. Public structs have\nchanged layout in 0.4 and again in 0.5, so SDK consumers must be rebuilt for 0.5.\n"
+    },
+    {
+      "id": "b000076",
+      "kind": "blank",
+      "start_line": 237,
+      "end_line": 237,
+      "raw": "\n"
+    },
+    {
+      "id": "b000077",
+      "kind": "paragraph",
+      "start_line": 238,
+      "end_line": 245,
+      "raw": "`BrushOptionsContractTest` checks controls, pose, initial direction, color,\ntexture/depth/modes, secondary reflection/count/zoom, noise/wet-edge coverage,\ntip extensions, mixer sampling, smoothing, Protect Texture, invalid values,\nlegacy loading, and full preset/snapshot/document round trips.\n`BitmapPaintSessionContractTest` covers real bitmap commits, serialized option\napplication, persistent wear, cancellation, mid-stroke preset replacement,\nand protected/unprotected selection. The existing architecture tests continue\nto prohibit retained trajectories and enforce dependency direction.\n"
+    },
+    {
+      "id": "b000078",
+      "kind": "blank",
+      "start_line": 246,
+      "end_line": 246,
+      "raw": "\n"
+    },
+    {
+      "id": "b000079",
+      "kind": "paragraph",
+      "start_line": 247,
+      "end_line": 255,
+      "raw": "Observed UI controls not implemented as shared brush options here include\nper-panel preset locks/capture policies, multi-layer sampling/clean-after-stroke tool policy,\nhealing/clone/selection/remove algorithms, and native menu enum mappings.\nThey are retained in the investigation ledger rather than stored as ineffective\nrenderer toggles. Native physical formulas, ABR codec compatibility, complete\nPhotoshop brush-source recovery and Adobe pixel parity remain unverified.\nSymmetry and independent pulled-string/catch-up models are now implemented in\n0.5. ABR tip extraction is bounded as described in BRUSH_EXPANSION.md and does not\nrestore modern full brush settings.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Brush options contract (0.5.0)",
+      "anchor": "brush-options-contract-050",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000007",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Evidence and interpretation",
+      "anchor": "evidence-and-interpretation",
+      "start_line": 14
+    },
+    {
+      "block_id": "b000019",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Named variations",
+      "anchor": "named-variations",
+      "start_line": 71
+    },
+    {
+      "block_id": "b000037",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Pose and color",
+      "anchor": "pose-and-color",
+      "start_line": 119
+    },
+    {
+      "block_id": "b000043",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Texture and secondary brush",
+      "anchor": "texture-and-secondary-brush",
+      "start_line": 135
+    },
+    {
+      "block_id": "b000053",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Bristle, erodible, airbrush and mixing bitmap models",
+      "anchor": "bristle-erodible-airbrush-and-mixing-bitmap-models",
+      "start_line": 169
+    },
+    {
+      "block_id": "b000063",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Effects, smoothing and preset selection",
+      "anchor": "effects-smoothing-and-preset-selection",
+      "start_line": 199
+    },
+    {
+      "block_id": "b000071",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Storage, validation and test boundaries",
+      "anchor": "storage-validation-and-test-boundaries",
+      "start_line": 224
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000011",
+        "line": 28,
+        "text": "The principal `Required/layouts/Painting/Panels/brushStylerContents-4181.exv`",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000015",
+        "line": 54,
+        "text": "Menu resources 805/806 and 1351–1363 do not identify serialized enum values.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000057",
+        "line": 183,
+        "text": "strokes and a preset changed during a stroke do not overwrite the selected",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000067",
+        "line": 209,
+        "text": "filtered position with weight `1-0.95*smoothing`. It never queues points,",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000075",
+        "line": 236,
+        "text": "changed layout in 0.4 and again in 0.5, so SDK consumers must be rebuilt for 0.5.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000003",
+        "label": "BRUSH_EXPANSION.md",
+        "target": "BRUSH_EXPANSION.md",
+        "kind": "relative",
+        "line": 5
+      },
+      {
+        "block_id": "b000015",
+        "label": "dynamic brush controls",
+        "target": "https://helpx.adobe.com/photoshop/using/adding-dynamic-elements-brushes.html",
+        "kind": "external",
+        "line": 58
+      },
+      {
+        "block_id": "b000015",
+        "label": "texture and dual tips",
+        "target": "https://helpx.adobe.com/photoshop/desktop/apply-painting-techniques/brushes-presets/textured-and-dual-brush-settings.html",
+        "kind": "external",
+        "line": 59
+      },
+      {
+        "block_id": "b000015",
+        "label": "CS6 tip/pose descriptions",
+        "target": "https://helpx.adobe.com/pdf/cs6/photoshop_reference.pdf",
+        "kind": "external",
+        "line": 60
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000013",
+        "columns": [
+          "Observed family / main EXV lines",
+          "iiPaintEngine object contract"
+        ],
+        "rows": [
+          [
+            "Ordinary tip, 122–168",
+            "Existing `tip`, `shape`, size, hardness and stroke spacing"
+          ],
+          [
+            "Bristle, 175–219",
+            "Existing count/length/stiffness/shape, added thickness and angle"
+          ],
+          [
+            "Erodible, 226–243",
+            "Added `material.erodible`, scalar wear and `sharpenErodibleTip`; existing `shape` supplies the 2D footprint"
+          ],
+          [
+            "Airbrush tip, 250–297",
+            "Added `material.airbrushTip`; existing hardness and spacing apply"
+          ],
+          [
+            "Shape dynamics, 308–390",
+            "Named size/angle/roundness variations, flip jitter and tip projection; existing `tiltToEllipse`; initial stroke direction"
+          ],
+          [
+            "Scattering, 396–436",
+            "Existing scatter geometry; named amount/count variation controls"
+          ],
+          [
+            "Texture, 446–521",
+            "Invert, brightness, contrast, each-tip, mode, depth/floor and named depth variation"
+          ],
+          [
+            "Dual tip, 529–572",
+            "Existing mask/scale/spacing/modes; secondary flip and scatter/count, more blend modes"
+          ],
+          [
+            "Color, 582–634",
+            "Existing HSV/mix/per-stroke settings; mix jitter, purity and named foreground/background variation"
+          ],
+          [
+            "Transfer, 643–741",
+            "Named opacity/flow/wetness/mix variations and a Mix binding target"
+          ],
+          [
+            "Pose, 752–793",
+            "Explicit pressure/tilt X/tilt Y/rotation overrides"
+          ],
+          [
+            "Global effects, 88–109",
+            "Noise, wet edges, existing time-based airbrush, causal smoothing, Protect Texture"
+          ],
+          [
+            "Mixer toolbar, `mixerBrush-1383.exv:36–44`",
+            "Existing wetness/mix/pickup/deposit; added reservoir load"
+          ]
+        ]
+      },
+      {
+        "block_id": "b000025",
+        "columns": [
+          "Field",
+          "Default",
+          "Supported domain"
+        ],
+        "rows": [
+          [
+            "`enabled`",
+            "false",
+            "bool"
+          ],
+          [
+            "`control`",
+            "Off",
+            "Off, Fade, PenPressure, PenTilt, StylusWheel, StylusRotation, InitialDirection, Direction"
+          ],
+          [
+            "`jitter`",
+            "0",
+            "[0,1]"
+          ],
+          [
+            "`minimum`",
+            "0",
+            "[0,1], floor for scalar variations"
+          ],
+          [
+            "`fadeSteps`",
+            "25",
+            "integer [1,9999], emitted marks"
+          ]
+        ]
+      },
+      {
+        "block_id": "b000047",
+        "columns": [
+          "Field",
+          "Default",
+          "Domain / effect"
+        ],
+        "rows": [
+          [
+            "`invert`",
+            "false",
+            "Reverse adjusted pattern alpha"
+          ],
+          [
+            "`brightness`",
+            "0",
+            "[-1,1], additive normalized tone"
+          ],
+          [
+            "`contrast`",
+            "0",
+            "[-1,1], contrast multiplier `1+contrast` around 0.5"
+          ],
+          [
+            "`depth`",
+            "1",
+            "[0,1], zero hides pattern modulation"
+          ],
+          [
+            "`minimumDepth`",
+            "0",
+            "[0,1], floor of effective depth"
+          ],
+          [
+            "`textureEachTip`",
+            "false",
+            "True selects tip-local texture coordinates and depth dynamics"
+          ],
+          [
+            "`blendMode`",
+            "Multiply",
+            "Multiply, Subtract, Darken, Lighten, ColorDodge, ColorBurn, LinearBurn, HardMix, Height, LinearHeight"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

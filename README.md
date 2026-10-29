@@ -1,17 +1,34 @@
 # iiPaintEngine
 
-[Windows 빌드 및 실행](docs/WindowsBuildAndRun.md)
+[Windows build and execution](docs/WindowsBuildAndRun.md)
 
-Package release: **0.5.1** (2026-10-19). This release includes the current
-native brush work, including ABR import, stabilization and symmetry. Build, test
-and installed-consumer results are recorded in the SDK patch-release report.
+Package release: **0.5.4** (2026-10-27). Atomic raster region history adds bounded,
+sparse multi-plane undo with explicit rejection, eviction and conflict results.
+See [the raster history contract](docs/RASTER_HISTORY.md).
+The 0.5.3 source sampling uses overflow-safe
+coordinates. Unloaded smudge transfers source color and alpha without adding
+foreground pigment or hidden-RGB fringes. See [wet brush sampling](docs/WET_BRUSH_SAMPLING.md).
+The 0.5.2 [selection and raster-edit corrections](docs/SELECTION_RASTER_EDIT.md) remain included.
 
 
-iiPaintEngine 0.5.1 is a C++23 bitmap painting library. Its public API uses the C++ standard library; its bundled image codec is MIT-licensed stb, compiled inside a C++23 translation unit. File creation uses the existing Qt-free iiFileProviderNative SDK. It has no GUI framework, event loop or image plugin discovery. Source, examples, and tests in this library compile as C++ only.
+iiPaintEngine is a C++23 bitmap painting library. Its public API uses the C++ standard library; its bundled image codec is MIT-licensed stb, compiled inside a C++23 translation unit. File access is supplied through `BitmapFileIO`; applications may connect the separate iiFileProvider adapter. The engine has no peer SDK, GUI framework, event loop or image plugin dependency.
+
+Brush authoring is also available as the optional `iiPaintEngine::BrushTools`
+component, integrated from iiBrushTools. It provides whole-gesture taper,
+correction and tile generation while the base streaming engine retains no
+input path. Existing `iiBrushTools::iiBrushTools` consumers may use the
+installed compatibility package. See [the authoring contract](docs/BrushTools.md).
+
+```cmake
+find_package(iiPaintEngine 0.5 CONFIG REQUIRED COMPONENTS BrushTools)
+target_link_libraries(my_app PRIVATE iiPaintEngine::BrushTools)
+```
+
+Set `IIPAINTENGINE_BUILD_BRUSH_TOOLS=OFF` to build only the base engine.
 
 ## Build and install
 
-A C++23 compiler and standard library with `std::expected` and `std::ios::noreplace`, CMake 3.31 or later, and iiFileProviderNative >=0.6 are required. Use CMAKE_PREFIX_PATH or iiFileProviderNative_DIR for a non-default dependency prefix. Build artifacts belong under `build/`.
+A C++23 compiler and standard library with `std::expected`, and CMake 3.31 or later are required. The engine builds without other SDK packages. Build artifacts belong under `build/`.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -28,7 +45,7 @@ target_link_libraries(app PRIVATE iiPaintEngine::iiPaintEngine)
 set_target_properties(app PROPERTIES CXX_EXTENSIONS OFF)
 ```
 
-The verified local macOS installation also mirrors this native package under `platforms/macos` to retain the earlier package-directory convention. Both paths contain the same C++23 library and standard C++ headers; no GUI runtime is bundled. This mirror represents the current host build only.
+An earlier macOS installation mirrored the native package under `platforms/macos`; that historical installation is not evidence that this source change has been installed.
 
 0.4 introduced the C++23 API/ABI migration; 0.5 extends public brush layouts and requires another consumer rebuild. Follow [the C++23 migration guide](docs/CXX23_MIGRATION.md). Upgrading replaces this package's public header tree so deleted APIs do not remain available accidentally.
 
@@ -36,12 +53,20 @@ The verified local macOS installation also mirrors this native package under `pl
 
 `BitmapPaintSession` owns an open `BitmapFile`, the selected brush, immediate preview pixels, pending stroke pixels, and dirty-rectangle pixel history. Every delivered pointer event is rasterized synchronously. An application controls its window, display, clock, and input delivery separately.
 
+An application provides a `BitmapFileIO` implementation. The separately built
+[file-provider adapter](Example/FileProvider/) supplies atomic publication and
+queues previews. File operations without a provider fail safely. Existing callers
+must inject a provider and rebuild after the public API/ABI change; see
+[the bitmap I/O contract](docs/bitmap-io.md).
+
 ```cpp
 #include <iiPaintEngine>
+#include "FileProviderBitmapIO.h"
+#include <memory>
 
 int main()
 {
-    BitmapPaintSession paint;
+    BitmapPaintSession paint(std::make_shared<paint_file::FileProviderBitmapIO>());
     if (!paint.createFile("paint.png", 256, 128)) return 1;
     auto preset = builtInBrushPresets().front();
     preset.size = 24;
@@ -110,16 +135,19 @@ Format detection uses file contents, including extensionless files and misleadin
 
 Binary PNM is decoded with standard C++ code that normalizes Maxval and reads 16-bit samples in big-endian order, following the [Netpbm format specification](https://netpbm.sourceforge.net/doc/ppm.html). GIF reads its first frame. PSD reads the flattened raster composite, not layers. HDR and 16-bit data are converted to the engine's 8-bit channels. EXIF orientation and ICC color transforms are not applied; metadata and embedded profiles are not preserved. Formats previously supplied by optional Qt plugins, including TIFF, WebP, HEIF, ICO/ICNS, and JPEG 2000, are not part of this build. Vector/PDF input is rejected. Read-only formats remain editable and can be saved using `saveAs` in a supported write format.
 
-Maximum dimensions are 16384 per axis, maximum decoded pixels are 64 Mi, and encoded files are limited to 256 MiB. Failed create/open/save operations preserve the current object. Encoding completes in memory before a same-directory exclusive staging file is written. Replacement is atomic where standard filesystem rename supports overwrite; otherwise the old file is retained with a restore-on-failure fallback. This fallback is not an atomic exchange and is not a multi-writer synchronization mechanism.
+Maximum dimensions are 16384 per axis, maximum decoded pixels are 64 Mi, and encoded files are limited to 256 MiB. Failed create/open/save operations preserve the current object. Encoding completes in memory before the supplied file provider publishes it; the provider must preserve an existing file when publication fails.
 
 PNG/BMP/TGA preserve alpha. JPEG/PNM/HDR flatten alpha against `BitmapFileWriteOptions::backgroundArgb`. JPEG quality accepts -1 (default 90) or 0–100. `save()` preserves the detected source format; `saveAs()` uses an explicit format or the destination extension.
 
 ## Runnable C++ examples
 
 ```sh
-build/Example/bin/iiPaintEngineExample build/paint.png
-build/iiPaintEngineBrushGallery build/brush-gallery.png
-build/iiPaintEngineBrushExpansionGallery build/brush-expansion-gallery.png
+cmake -S Example/FileProvider -B build/file-provider-app \
+  -DCMAKE_PREFIX_PATH="/path/to/iiPaintEngine;/path/to/iiFileProvider"
+cmake --build build/file-provider-app --parallel
+build/file-provider-app/iiPaintEngineExample Example/FileProvider/resources/paint.png
+build/file-provider-app/iiPaintEngineBrushGallery Example/FileProvider/resources/brush-gallery.png
+build/file-provider-app/iiPaintEngineBrushExpansionGallery Example/FileProvider/resources/brush-expansion-gallery.png
 ```
 
 All examples produce bitmap files and require no windowing runtime. The preset gallery renders all six presets; the expansion gallery demonstrates radial, mandala and stabilized strokes.
@@ -139,3 +167,12 @@ SPDX-License-Identifier: MIT
 The original code and documentation in this repository are licensed under the
 [MIT License](LICENSE). Third-party code, libraries, fonts, tools, and model
 weights retain their respective licenses.
+
+<!-- workspace-docs:readme:start -->
+## Documentation entry points
+
+- Human overview: this English `README.md`.
+- Agent instructions: [AGENT.md](AGENT.md).
+- Human documentation: [documentation index](docs/README.md).
+- Structured agent documentation: [agent index](docs/agent-index.json).
+<!-- workspace-docs:readme:end -->

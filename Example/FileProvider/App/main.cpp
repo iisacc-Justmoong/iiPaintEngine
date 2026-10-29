@@ -1,9 +1,10 @@
 #include <iiPaintEngine>
+#include "FileProviderBitmapIO.h"
 #include <iostream>
 int main(int argc,char **argv)
 {
     if(argc!=2) { std::cerr<<"Usage: iiPaintEngineExample output.png\n"; return 1; }
-    BitmapPaintSession paint;
+    BitmapPaintSession paint(std::make_shared<paint_file::FileProviderBitmapIO>());
     if(!paint.createFile(argv[1],256,128,"png",0xFFFFFFFFU)) return 2;
     auto preset=builtInBrushPresets().front(); preset.size=24;
     preset.stroke.noiseEnabled=true; preset.color.enabled=true; preset.color.purity=.2;

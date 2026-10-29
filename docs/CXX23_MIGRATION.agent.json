@@ -1,0 +1,527 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:d767624446fcacea4c31e68328a045175d25a0e89f77e68350bb0c741c702036",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiPaintEngine",
+    "name": "iiPaintEngine",
+    "root": "SDK/iiPaintEngine",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/CXX23_MIGRATION.md",
+    "sha256": "281ed6a86a890f8035a789df1ed03eedca3144dcfd9ab78ea4dbc397def62121",
+    "bytes": 6405,
+    "line_count": 52,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "C++23-only migration (0.4.0)",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# C++23-only migration (0.4.0)\n",
+      "level": 1,
+      "title": "C++23-only migration (0.4.0)"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "The library and public headers now require C++23. Applications must rebuild against 0.4.0; the package version contract does not treat 0.3 as ABI compatible. The previous brush extensions and preset/document storage formats are retained.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "heading",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "## API mapping\n",
+      "level": 2,
+      "title": "API mapping"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "table",
+      "start_line": 7,
+      "end_line": 18,
+      "raw": "| Earlier API | C++23 API |\n|---|---|\n| `QtAdapter/BitmapFileItem` and QML `Iipe.BitmapFile` | `Application/BitmapPaintSession` |\n| `QtAdapter/DocumentAdapter`, `LayerListModel`, `PaintEngineController` | Same C++ value APIs under `Application/` |\n| `QString` file path | `std::filesystem::path` |\n| `QString` format/error, `QStringList` registry | `std::string`, `std::vector<std::string>` |\n| `QImage` image access | `const RasterLayer& BitmapFile::pixels()` |\n| QColor brush/background | ARGB32 `std::uint32_t` |\n| Item mouse/tablet handlers | `processPointerEvent(const PointerEvent&)` |\n| Item live preview | `previewPixels()`; observe `BitmapPaintUpdate::dirtyBounds` |\n| Item airbrush timer | Caller clock invoking `advanceTime(monotonicSeconds)` |\n| Qt/QML registration and event policy hooks | Removed; window/input policy belongs to the application |\n",
+      "columns": [
+        "Earlier API",
+        "C++23 API"
+      ],
+      "rows": [
+        [
+          "`QtAdapter/BitmapFileItem` and QML `Iipe.BitmapFile`",
+          "`Application/BitmapPaintSession`"
+        ],
+        [
+          "`QtAdapter/DocumentAdapter`, `LayerListModel`, `PaintEngineController`",
+          "Same C++ value APIs under `Application/`"
+        ],
+        [
+          "`QString` file path",
+          "`std::filesystem::path`"
+        ],
+        [
+          "`QString` format/error, `QStringList` registry",
+          "`std::string`, `std::vector<std::string>`"
+        ],
+        [
+          "`QImage` image access",
+          "`const RasterLayer& BitmapFile::pixels()`"
+        ],
+        [
+          "QColor brush/background",
+          "ARGB32 `std::uint32_t`"
+        ],
+        [
+          "Item mouse/tablet handlers",
+          "`processPointerEvent(const PointerEvent&)`"
+        ],
+        [
+          "Item live preview",
+          "`previewPixels()`; observe `BitmapPaintUpdate::dirtyBounds`"
+        ],
+        [
+          "Item airbrush timer",
+          "Caller clock invoking `advanceTime(monotonicSeconds)`"
+        ],
+        [
+          "Qt/QML registration and event policy hooks",
+          "Removed; window/input policy belongs to the application"
+        ]
+      ]
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 19,
+      "end_line": 19,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 20,
+      "end_line": 20,
+      "raw": "The exported target adds `cxx_std_23` to consumers. Its configuration finds the existing Qt-free iiFileProviderNative >=0.6 package for file ownership. CMake's build language is CXX only. The native installation replaces package-owned headers, including retired adapter headers.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "heading",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "## Session behavior\n",
+      "level": 2,
+      "title": "Session behavior"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 23,
+      "end_line": 23,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "Create/open select a real bitmap file and discard previous file history/pending pixels only after success. The selected brush, color, and eraser mode survive file replacement. Failed operations report `lastError()` and preserve the current file.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 25,
+      "end_line": 25,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "A press captures the selected brush and color. Moves update preview immediately, touching only sample pixels. Release records a dirty-rectangle pixel patch and commits the preview. Cancel discards pending pixels without recording history or advancing wear. A changed brush/color/eraser selection affects subsequent strokes. Protected Texture selection uses the same policy as core `selectBrushPreset`; pass false to bypass it explicitly. Undo/redo/clear cancel unfinished painting and exchange raster patches. History does not rewind the selected brush's scalar wear.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "Preview uses the same source-over/destination-out calculations as full bitmap composition. A sample with no accumulated coverage leaves the committed pixel unchanged, including RGB bytes beneath zero alpha. Duplicate sample positions are idempotent when copied from the same pending buffer.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 29,
+      "end_line": 29,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 30,
+      "end_line": 30,
+      "raw": "`file()` is const so mutations that would bypass session history/preview cannot occur accidentally. Standalone pixel editing continues through `BitmapFile`. Saving during an unfinished stroke saves committed pixels; release first when the preview should be included. Session calls are synchronous; applications serialize calls to a given session. No GUI callbacks, threads, event queues, timers, or retained coordinate paths are introduced.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 31,
+      "end_line": 31,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "Pressure, tilt, stylus rotation, wheel/tangential pressure, and custom scalars travel through `PointerEvent`. Mouse input uses pressure 1. Tablet hover does not paint. `RasterViewport` and `ViewportTransform` remain standard C++ utilities for view/document/device coordinate conversion. The engine does not change OS input coalescing or supply a native display window.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 33,
+      "end_line": 33,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "heading",
+      "start_line": 34,
+      "end_line": 34,
+      "raw": "## Codec migration\n",
+      "level": 2,
+      "title": "Codec migration"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "PNM decoding uses standard C++ and the [Netpbm specification](https://netpbm.sourceforge.net/doc/ppm.html), including Maxval normalization and big-endian 16-bit samples. The remaining codecs use pinned MIT stb, implemented in `BitmapCodec.cpp` as C++23. Internal `.hpp` and stb headers are private, while installed consumers see standard C++ types only. The fixed registry is identical on every platform that builds this source; codecs are not loaded from GUI plugins.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 37,
+      "end_line": 37,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 38,
+      "end_line": 38,
+      "raw": "Read: BMP, GIF (first frame), HDR, JPEG, PIC, PNG, PNM (binary P5/P6), PSD (flattened composite), TGA. Write: BMP, HDR, JPEG, PNG, PNM (P6), TGA. TIFF, WebP, HEIF, JPEG 2000 and icon containers are unsupported in 0.4. EXIF orientation/ICC transforms and metadata preservation are not supplied; applications must normalize such input before painting if necessary. HDR/16-bit input is reduced to ARGB32 and writing HDR converts these normalized channels using gamma 2.2. PSD layer editing is not exposed through this codec.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 39,
+      "end_line": 39,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 40,
+      "end_line": 40,
+      "raw": "Unrecognized/vector content or decoder-reported failures, excessive dimensions/pixel counts, invalid write quality, and unknown writers fail without replacing the current file object. A complete encoded image is written to an exclusively created sibling before replacement. The standard rename overwrite path is atomic on supported filesystems. Where overwrite is unavailable, the library backs up the old destination, attempts replacement, and restores on failure; this fallback is not atomic. No concurrent-writer locking or metadata retention is claimed.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 41,
+      "end_line": 41,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "heading",
+      "start_line": 42,
+      "end_line": 42,
+      "raw": "## Build and installation scope\n",
+      "level": 2,
+      "title": "Build and installation scope"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 43,
+      "end_line": 43,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 44,
+      "end_line": 44,
+      "raw": "Use `cmake -S . -B build`, build and run CTest, then install. Additional verification builds live under `build/` as well. The source supports platform-neutral C++ APIs and no longer distributes Qt/mobile/GUI package machinery. A compiled host installation establishes operation on that host only; Windows, Linux, mobile, and WebAssembly require their own toolchain and runtime validation.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 45,
+      "end_line": 45,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 46,
+      "end_line": 46,
+      "raw": "The pre-migration source/dirty-state snapshot and old installed package are retained in this checkout's `build/` directory. These historical backups are excluded from active sources and the new installation. Do not reintroduce them as library dependencies.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 47,
+      "end_line": 47,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 48,
+      "end_line": 48,
+      "raw": "The local macOS package retains a native `platforms/macos` mirror for existing directory references. Its library, headers, and native configuration match the flat native package. Other platform binaries are not implied by this host installation. `BitmapFile` depends only on Core/Layer/Render pixel interfaces; stroke execution is composed in Application rather than imported by file I/O.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 49,
+      "end_line": 49,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "heading",
+      "start_line": 50,
+      "end_line": 50,
+      "raw": "## 0.5 brush extension\n",
+      "level": 2,
+      "title": "0.5 brush extension"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 52,
+      "end_line": 52,
+      "raw": "Public brush and stream layouts gained symmetry and pulled-string/catch-up settings; rebuild consumers against iiPaintEngine 0.5. Preset format 4 preserves them and reads formats 1/2/3 with neutral defaults. The document archive stays at format 3. See [Brush expansion](BRUSH_EXPANSION.md) for the bounded ABR reader, model semantics and current compatibility limits.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "C++23-only migration (0.4.0)",
+      "anchor": "c23-only-migration-040",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000005",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "API mapping",
+      "anchor": "api-mapping",
+      "start_line": 5
+    },
+    {
+      "block_id": "b000011",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Session behavior",
+      "anchor": "session-behavior",
+      "start_line": 22
+    },
+    {
+      "block_id": "b000023",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Codec migration",
+      "anchor": "codec-migration",
+      "start_line": 34
+    },
+    {
+      "block_id": "b000031",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Build and installation scope",
+      "anchor": "build-and-installation-scope",
+      "start_line": 42
+    },
+    {
+      "block_id": "b000039",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "0.5 brush extension",
+      "anchor": "05-brush-extension",
+      "start_line": 50
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000003",
+        "line": 3,
+        "text": "The library and public headers now require C++23. Applications must rebuild against 0.4.0; the package version contract does not treat 0.3 as ABI compatible. The previous brush extensions and preset/document storage formats are retained.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000019",
+        "line": 30,
+        "text": "`file()` is const so mutations that would bypass session history/preview cannot occur accidentally. Standalone pixel editing continues through `BitmapFile`. Saving during an unfinished stroke saves committed pixels; release first when the preview should be included. Session calls are synchronous; applications serialize calls to a given session. No GUI callbacks, threads, event queues, timers, or retained coordinate paths are introduced.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000027",
+        "line": 38,
+        "text": "Read: BMP, GIF (first frame), HDR, JPEG, PIC, PNG, PNM (binary P5/P6), PSD (flattened composite), TGA. Write: BMP, HDR, JPEG, PNG, PNM (P6), TGA. TIFF, WebP, HEIF, JPEG 2000 and icon containers are unsupported in 0.4. EXIF orientation/ICC transforms and metadata preservation are not supplied; applications must normalize such input before painting if necessary. HDR/16-bit input is reduced to ARGB32 and writing HDR converts these normalized channels using gamma 2.2. PSD layer editing is not exposed through this codec.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000035",
+        "line": 46,
+        "text": "The pre-migration source/dirty-state snapshot and old installed package are retained in this checkout's `build/` directory. These historical backups are excluded from active sources and the new installation. Do not reintroduce them as library dependencies.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000025",
+        "label": "Netpbm specification",
+        "target": "https://netpbm.sourceforge.net/doc/ppm.html",
+        "kind": "external",
+        "line": 36
+      },
+      {
+        "block_id": "b000041",
+        "label": "Brush expansion",
+        "target": "BRUSH_EXPANSION.md",
+        "kind": "relative",
+        "line": 52
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000007",
+        "columns": [
+          "Earlier API",
+          "C++23 API"
+        ],
+        "rows": [
+          [
+            "`QtAdapter/BitmapFileItem` and QML `Iipe.BitmapFile`",
+            "`Application/BitmapPaintSession`"
+          ],
+          [
+            "`QtAdapter/DocumentAdapter`, `LayerListModel`, `PaintEngineController`",
+            "Same C++ value APIs under `Application/`"
+          ],
+          [
+            "`QString` file path",
+            "`std::filesystem::path`"
+          ],
+          [
+            "`QString` format/error, `QStringList` registry",
+            "`std::string`, `std::vector<std::string>`"
+          ],
+          [
+            "`QImage` image access",
+            "`const RasterLayer& BitmapFile::pixels()`"
+          ],
+          [
+            "QColor brush/background",
+            "ARGB32 `std::uint32_t`"
+          ],
+          [
+            "Item mouse/tablet handlers",
+            "`processPointerEvent(const PointerEvent&)`"
+          ],
+          [
+            "Item live preview",
+            "`previewPixels()`; observe `BitmapPaintUpdate::dirtyBounds`"
+          ],
+          [
+            "Item airbrush timer",
+            "Caller clock invoking `advanceTime(monotonicSeconds)`"
+          ],
+          [
+            "Qt/QML registration and event policy hooks",
+            "Removed; window/input policy belongs to the application"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

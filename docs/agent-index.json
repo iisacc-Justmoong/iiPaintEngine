@@ -1,0 +1,167 @@
+{
+  "format": "iisacc.agent-document-index",
+  "schema_version": 1,
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiPaintEngine",
+    "name": "iiPaintEngine",
+    "root": "SDK/iiPaintEngine",
+    "kind": "sdk"
+  },
+  "documentation_root": "docs",
+  "agent_schema": "docs/agent-document.schema.json",
+  "documents": [
+    {
+      "document_id": "urn:iisacc:document:2db40cab51a84cc1895cc7b78b80185b5b766c242df66dfcdf25fab383c3f934",
+      "source": "AGENT.md",
+      "agent_json": "docs/entrypoints/AGENT.agent.json",
+      "source_sha256": "2a392f44632ca0255a4eeb2bbcee1eabe881a996e3d19cb845b8110dc20e2f31",
+      "role": "instructions"
+    },
+    {
+      "document_id": "urn:iisacc:document:f69301d14f06921c3457ef5bbbe123ee2efb3617d009c4aa379f78902af1e9e7",
+      "source": "README.md",
+      "agent_json": "docs/entrypoints/README.agent.json",
+      "source_sha256": "08ab3eb1074032efe4b13a45a5ec363a53211290cef4ff46dc7bcd6d4b5067de",
+      "role": "overview"
+    },
+    {
+      "document_id": "urn:iisacc:document:cb1fc2021309162027d73b4f9400a72f4beb20fd6df4d2644ce4bf90597843b2",
+      "source": "docs/BRUSHES.md",
+      "agent_json": "docs/BRUSHES.agent.json",
+      "source_sha256": "ff4ad9563b31467a6ad29caa3a5ce2eb2bcd275e716080df411e6851d516f2fd",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:5514ccc99608e66b2a4aa61f342d13e07cc97eb2d00d35f2445f10e5bc77c33a",
+      "source": "docs/BRUSH_EXPANSION.md",
+      "agent_json": "docs/BRUSH_EXPANSION.agent.json",
+      "source_sha256": "6a283e092065bd650748d1d41cf12adba77ec343a7a8074b652e4d126c160012",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:d4efa7a8e26d34d67b8779a76740d41e3be4861cd78d932ccfd4404bc84a1298",
+      "source": "docs/BRUSH_EXPANSION_VALIDATION.md",
+      "agent_json": "docs/BRUSH_EXPANSION_VALIDATION.agent.json",
+      "source_sha256": "e1434779f5416e24410c948ba39494d984a8a7bebcf4bf20321cd76a55e9dd97",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:6661da44fbf2d1139051a760f8e9a42a38b7bfc86af5710844ba1f05714e7bea",
+      "source": "docs/BRUSH_OPTIONS.md",
+      "agent_json": "docs/BRUSH_OPTIONS.agent.json",
+      "source_sha256": "3689d1cfd4e2c7a8cee293d5863b7cf248f2101442e0c5ff7327fff9775d50cf",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:dbc67197af90b412a47fcd374b22b498b2f78a0f6ef263645f038b823b84b9ca",
+      "source": "docs/BrushTools.md",
+      "agent_json": "docs/BrushTools.agent.json",
+      "source_sha256": "737bd84cc031619a03abb323042c602f06fead5e88b69468bc5a405d2b2e5dd6",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:d767624446fcacea4c31e68328a045175d25a0e89f77e68350bb0c741c702036",
+      "source": "docs/CXX23_MIGRATION.md",
+      "agent_json": "docs/CXX23_MIGRATION.agent.json",
+      "source_sha256": "281ed6a86a890f8035a789df1ed03eedca3144dcfd9ab78ea4dbc397def62121",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:e1bf637469f6f902f1e3927bd61425f39906375b73e848b7b0c7afd00e1e1deb",
+      "source": "docs/FILE_PROVIDER.md",
+      "agent_json": "docs/FILE_PROVIDER.agent.json",
+      "source_sha256": "1cb15eae3a7737b3f35a00d688a03c9df66ac53006b75202284c976d22eed8bc",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:01e78b687b0b9ce1a7f6809a697c0e913b860dfd7c11039f92bb848a4ff624ec",
+      "source": "docs/LAYER_COMPOSITING.md",
+      "agent_json": "docs/LAYER_COMPOSITING.agent.json",
+      "source_sha256": "e3b87b8982f507e587852b72e97c2b45a46ca76b5a94dfe2e9dbbf9c44969e6a",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:a0fa86b1bdabaedda4109aca21f39135de4c7c48142f331efb9772e826695a14",
+      "source": "docs/LOCALIZED_BRUSH_MATH.md",
+      "agent_json": "docs/LOCALIZED_BRUSH_MATH.agent.json",
+      "source_sha256": "25fe18b47634b68ca857b9160ab3bc45c0c6af2195af37aff36f06fa9bbccbf7",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:bbe804b6c03e13a673f92213932adfc07c30901b945b97e22460804bf99733c6",
+      "source": "docs/LOCAL_MASK_BRUSH.md",
+      "agent_json": "docs/LOCAL_MASK_BRUSH.agent.json",
+      "source_sha256": "387052a35f94eec75d22c6f8401486c1629f07587557f0c47a935a39fb978cf3",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:ab2a9e558f3d50a886f0940558b66b5ab74f3438142755f84eefaa0c5035f269",
+      "source": "docs/PERFORMANCE.md",
+      "agent_json": "docs/PERFORMANCE.agent.json",
+      "source_sha256": "c26abf473f9e14e75bea4b87fc8b99b1902bf12e8dec54f008e939b674b7c940",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:a87a71d0b438e4649dc168ece10fbb0fae2b86d814814b8876ea178624e7c962",
+      "source": "docs/RASTER_HISTORY.md",
+      "agent_json": "docs/RASTER_HISTORY.agent.json",
+      "source_sha256": "cc7b70476a446693dae57e8df28d8ed9646339273acaad545ce0188db3693b31",
+      "role": "history"
+    },
+    {
+      "document_id": "urn:iisacc:document:7c22272b2075521789a108c9b48eb9c6eb1bdc66a94a91cad4ff79bb02749143",
+      "source": "docs/README.md",
+      "agent_json": "docs/README.agent.json",
+      "source_sha256": "25d95b3505e70f5920ea57a63d0eec96fc7899a9250b3aa9ee86476a6fadeb4e",
+      "role": "overview"
+    },
+    {
+      "document_id": "urn:iisacc:document:b61b143784be0987244ad7f210e671002462b7630aa5552694b12b68d1f728b3",
+      "source": "docs/SELECTION_RASTER_EDIT.md",
+      "agent_json": "docs/SELECTION_RASTER_EDIT.agent.json",
+      "source_sha256": "2f945fb2bf01c996e8ef0017670896cacd563eac25ec8a187a8fcf159b53e17f",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:5b735cc06fe99e5070eff39ba63ad9be7141179aa7332f8ba4362ea1f2557678",
+      "source": "docs/WET_BRUSH_SAMPLING.md",
+      "agent_json": "docs/WET_BRUSH_SAMPLING.agent.json",
+      "source_sha256": "f97e314fe329cbfd839ad6b3d50b67bbd15e55769c43c7124cd8cd0479544a33",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:f7fbb75fd4f457964d324037153f03ff2176b3d22e8ad5a7cec9e04a682cb5fe",
+      "source": "docs/WindowsBuildAndRun.md",
+      "agent_json": "docs/WindowsBuildAndRun.agent.json",
+      "source_sha256": "1873158abdbd69a58f8ff1b791ef51787c119001944910ae6c09008846c88130",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:9cbb70011c0ce9ef031d009a622eed87246b142f8a31248f5f3a2806713f8be0",
+      "source": "docs/bitmap-io.md",
+      "agent_json": "docs/bitmap-io.agent.json",
+      "source_sha256": "845d04c550319ce86ee7d8c82bf5d38dc046df044c472156de3287bd4fdabf77",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:82e72481f9f89c16181920e5e56284e93a53fb9cd498524987f6df020250343e",
+      "source": "docs/documentation-structure.md",
+      "agent_json": "docs/documentation-structure.agent.json",
+      "source_sha256": "f9d7aa2ba31169daf789895f7a633fc7cf41772c1b983c3a872073386d0a20ba",
+      "role": "guide"
+    }
+  ],
+  "layout": {
+    "human_entry": "README.md",
+    "agent_entry": "AGENT.md",
+    "human_format": "markdown",
+    "agent_format": "structured_json",
+    "source_authority": "markdown"
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

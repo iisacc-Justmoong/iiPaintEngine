@@ -75,6 +75,9 @@ implementation adds no external dependency or non-C++ source.
 
 ## Reproduction
 
+The following commands record the earlier pre-separation source snapshot. For
+the current independent file-provider example, see [the bitmap I/O contract](bitmap-io.md).
+
 Provide a compatible iiFileProviderNative package with CMAKE_PREFIX_PATH, or use
 iiFileProviderNative_DIR explicitly. This machine used:
 

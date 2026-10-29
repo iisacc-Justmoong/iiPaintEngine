@@ -1,0 +1,263 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:5b735cc06fe99e5070eff39ba63ad9be7141179aa7332f8ba4362ea1f2557678",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiPaintEngine",
+    "name": "iiPaintEngine",
+    "root": "SDK/iiPaintEngine",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/WET_BRUSH_SAMPLING.md",
+    "sha256": "f97e314fe329cbfd839ad6b3d50b67bbd15e55769c43c7124cd8cd0479544a33",
+    "bytes": 2497,
+    "line_count": 21,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "젖은 브러시의 소스 픽셀 계약",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# 젖은 브러시의 소스 픽셀 계약\n",
+      "level": 1,
+      "title": "젖은 브러시의 소스 픽셀 계약"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "iiPaintEngine 0.5.3은 `RasterSourceSampler`의 경계 계산과 물감 투입 없는 Smudge를 보강한다. 공개 구조체 배치와 파일 형식은 유지한다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "heading",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "## 샘플러\n",
+      "level": 2,
+      "title": "샘플러"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "`projectBrushDabs(..., sourceSampler, material)`은 호출 중에만 샘플러를 빌린다. 콜백은 `position-origin`의 소스 내부 정수 좌표를 받는다. 차이는 64비트에서 검사한 뒤 내부 좌표 타입으로 바꾼다. 경계 밖 표본은 투명이며 콜백을 호출하지 않는다. 음수 원점과 서로 멀리 떨어진 좌표도 정수 overflow를 만들지 않는다.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "호출자는 소스 픽셀의 수명·일관성과 샘플링 대상을 소유한다. 이 API는 다른 레이어 합성이나 GUI·문서 접근을 하지 않는다. 샘플러가 없거나 유효 크기가 없으면 기존 단색 fallback을 사용하므로, 소스가 필요한 도구는 유효한 샘플러를 반드시 전달해야 한다.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "heading",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "## 물감 투입이 없는 Smudge\n",
+      "level": 2,
+      "title": "물감 투입이 없는 Smudge"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 13,
+      "end_line": 13,
+      "raw": "`simulation.enabled=true`, `model=Smudge`, `deposit=0`은 전경색을 넣지 않는 픽셀 이동 모드이다. 현재 소스와 브러시 방향 뒤쪽의 소스를 `smudgeStrength × wetness × pickup`으로 혼합한다. 끌어올 픽셀이 투명하면 현재 소스를 유지한다. 두 소스가 모두 비어 있으면 새 물감을 만들지 않는다.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 14,
+      "end_line": 14,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "색은 premultiplied alpha의 가중치로 혼합한 뒤 straight ARGB로 돌린다. alpha=0인 픽셀에 숨은 RGB는 색에 기여하지 않는다. 예를 들어 투명 위치에 파랑을 절반 강도로 끌어오면 `0x800000FF`이며 붉은 전경색이 섞이지 않는다. Pickup=0이면 빈 대상은 그대로이다.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "이는 소스 오버 브러시의 제한된 픽셀 이동 모델이다. 투명 소스를 끌어와 기존 불투명 영역을 깎는 유체 이동이나 물리 시뮬레이션은 아니다. `deposit>0`인 Smudge, Mixer와 WetPaint는 기존 물감·픽업·혼합 근사식을 유지한다. UI는 이 모드별 파라미터 의미를 구분해야 한다.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 18,
+      "end_line": 18,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "heading",
+      "start_line": 19,
+      "end_line": 19,
+      "raw": "## 검증\n",
+      "level": 2,
+      "title": "검증"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 20,
+      "end_line": 20,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "`WetBrushSimulationContract`는 Mixer의 두 색 결합, 원점이 있는 샘플러, 빈 소스, 반투명 파랑의 이동, Pickup=0과 범위 밖 콜백 방지를 검사한다. ASan·UBSan은 최솟값 원점을 빼는 경계도 실행한다. 설치 소비자는 같은 공개 타입과 연산을 새 패키지로 빌드·실행한다. 호스트 검사를 다른 플랫폼이나 실제 펜 실행으로 확대하지 않는다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "젖은 브러시의 소스 픽셀 계약",
+      "anchor": "젖은-브러시의-소스-픽셀-계약",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000005",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "샘플러",
+      "anchor": "샘플러",
+      "start_line": 5
+    },
+    {
+      "block_id": "b000011",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "물감 투입이 없는 Smudge",
+      "anchor": "물감-투입이-없는-smudge",
+      "start_line": 11
+    },
+    {
+      "block_id": "b000019",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "검증",
+      "anchor": "검증",
+      "start_line": 19
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000007",
+        "line": 7,
+        "text": "`projectBrushDabs(..., sourceSampler, material)`은 호출 중에만 샘플러를 빌린다. 콜백은 `position-origin`의 소스 내부 정수 좌표를 받는다. 차이는 64비트에서 검사한 뒤 내부 좌표 타입으로 바꾼다. 경계 밖 표본은 투명이며 콜백을 호출하지 않는다. 음수 원점과 서로 멀리 떨어진 좌표도 정수 overflow를 만들지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000009",
+        "line": 9,
+        "text": "호출자는 소스 픽셀의 수명·일관성과 샘플링 대상을 소유한다. 이 API는 다른 레이어 합성이나 GUI·문서 접근을 하지 않는다. 샘플러가 없거나 유효 크기가 없으면 기존 단색 fallback을 사용하므로, 소스가 필요한 도구는 유효한 샘플러를 반드시 전달해야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000015",
+        "line": 15,
+        "text": "색은 premultiplied alpha의 가중치로 혼합한 뒤 straight ARGB로 돌린다. alpha=0인 픽셀에 숨은 RGB는 색에 기여하지 않는다. 예를 들어 투명 위치에 파랑을 절반 강도로 끌어오면 `0x800000FF`이며 붉은 전경색이 섞이지 않는다. Pickup=0이면 빈 대상은 그대로이다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000017",
+        "line": 17,
+        "text": "이는 소스 오버 브러시의 제한된 픽셀 이동 모델이다. 투명 소스를 끌어와 기존 불투명 영역을 깎는 유체 이동이나 물리 시뮬레이션은 아니다. `deposit>0`인 Smudge, Mixer와 WetPaint는 기존 물감·픽업·혼합 근사식을 유지한다. UI는 이 모드별 파라미터 의미를 구분해야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000021",
+        "line": 21,
+        "text": "`WetBrushSimulationContract`는 Mixer의 두 색 결합, 원점이 있는 샘플러, 빈 소스, 반투명 파랑의 이동, Pickup=0과 범위 밖 콜백 방지를 검사한다. ASan·UBSan은 최솟값 원점을 빼는 경계도 실행한다. 설치 소비자는 같은 공개 타입과 연산을 새 패키지로 빌드·실행한다. 호스트 검사를 다른 플랫폼이나 실제 펜 실행으로 확대하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

@@ -62,7 +62,7 @@ int main()
     CHECK(!resolveBrushPreset(p).brush);
     p.stroke.smoothingCatchUpRate=2;
 
-    TestDirectory dir("stabilization"); BitmapPaintSession paint;
+    TestDirectory dir("stabilization"); BitmapPaintSession paint(dir.io);
     CHECK(paint.createFile(dir.path/"stroke.png",32,8));
     CHECK(paint.setBrushPreset(p));
     PointerEvent e; e.phase=PointerEventPhase::Press; e.button=PointerButton::Primary;

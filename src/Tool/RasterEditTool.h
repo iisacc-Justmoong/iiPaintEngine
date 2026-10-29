@@ -37,8 +37,12 @@ struct EraserOperation {
     Types::Scalar opacity = 1.0;
 };
 
+// Fill/gradient use straight-ARGB source-over with opacity * selection coverage.
+// Opacity is clamped to [0,1]; non-finite opacity and disabled operations are no-ops.
 void applyFill(DrawingSurface &surface, const SelectionState &selection, const FillOperation &operation);
 
+// Radial: start is the center, |end-start| is the radius. Zero-length gradients
+// use the first color; non-finite coordinates/spans leave the surface unchanged.
 void applyGradient(DrawingSurface &surface, const SelectionState &selection, const GradientOperation &operation);
 
 void applyEraser(DrawingSurface &surface, const SelectionState &selection, const EraserOperation &operation);

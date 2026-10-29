@@ -111,6 +111,8 @@ struct RasterProjection {
 struct RasterSourceSampler {
     using SampleArgb = std::uint32_t (*)(const void *context, DevicePixelPoint position);
 
+    // Synchronous callback in source-local pixels. origin is the device/world
+    // offset; outside samples are transparent and never reach the callback.
     const void *context = nullptr;
     SampleArgb sampleArgb = nullptr;
     DevicePixelPoint origin{};

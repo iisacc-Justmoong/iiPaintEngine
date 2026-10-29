@@ -1,0 +1,558 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:7c22272b2075521789a108c9b48eb9c6eb1bdc66a94a91cad4ff79bb02749143",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiPaintEngine",
+    "name": "iiPaintEngine",
+    "root": "SDK/iiPaintEngine",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/README.md",
+    "sha256": "25d95b3505e70f5920ea57a63d0eec96fc7899a9250b3aa9ee86476a6fadeb4e",
+    "bytes": 1974,
+    "line_count": 29,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "iiPaintEngine Documentation",
+    "role": "overview",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# iiPaintEngine Documentation\n",
+      "level": 1,
+      "title": "iiPaintEngine Documentation"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "html",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "<!-- workspace-docs:document-map:start -->\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "heading",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "## Human and agent document map\n",
+      "level": 2,
+      "title": "Human and agent document map"
+    },
+    {
+      "id": "b000005",
+      "kind": "blank",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "paragraph",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "Markdown is the maintained human source. Agent JSON is a structured, source-traceable projection.\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "table",
+      "start_line": 8,
+      "end_line": 28,
+      "raw": "| Document | Agent JSON |\n| --- | --- |\n| [`AGENT.md`](../AGENT.md) | [JSON](entrypoints/AGENT.agent.json) |\n| [`README.md`](../README.md) | [JSON](entrypoints/README.agent.json) |\n| [`docs/BRUSHES.md`](BRUSHES.md) | [JSON](BRUSHES.agent.json) |\n| [`docs/BRUSH_EXPANSION.md`](BRUSH_EXPANSION.md) | [JSON](BRUSH_EXPANSION.agent.json) |\n| [`docs/BRUSH_EXPANSION_VALIDATION.md`](BRUSH_EXPANSION_VALIDATION.md) | [JSON](BRUSH_EXPANSION_VALIDATION.agent.json) |\n| [`docs/BRUSH_OPTIONS.md`](BRUSH_OPTIONS.md) | [JSON](BRUSH_OPTIONS.agent.json) |\n| [`docs/BrushTools.md`](BrushTools.md) | [JSON](BrushTools.agent.json) |\n| [`docs/CXX23_MIGRATION.md`](CXX23_MIGRATION.md) | [JSON](CXX23_MIGRATION.agent.json) |\n| [`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md) | [JSON](FILE_PROVIDER.agent.json) |\n| [`docs/LAYER_COMPOSITING.md`](LAYER_COMPOSITING.md) | [JSON](LAYER_COMPOSITING.agent.json) |\n| [`docs/LOCALIZED_BRUSH_MATH.md`](LOCALIZED_BRUSH_MATH.md) | [JSON](LOCALIZED_BRUSH_MATH.agent.json) |\n| [`docs/LOCAL_MASK_BRUSH.md`](LOCAL_MASK_BRUSH.md) | [JSON](LOCAL_MASK_BRUSH.agent.json) |\n| [`docs/PERFORMANCE.md`](PERFORMANCE.md) | [JSON](PERFORMANCE.agent.json) |\n| [`docs/RASTER_HISTORY.md`](RASTER_HISTORY.md) | [JSON](RASTER_HISTORY.agent.json) |\n| [`docs/SELECTION_RASTER_EDIT.md`](SELECTION_RASTER_EDIT.md) | [JSON](SELECTION_RASTER_EDIT.agent.json) |\n| [`docs/WET_BRUSH_SAMPLING.md`](WET_BRUSH_SAMPLING.md) | [JSON](WET_BRUSH_SAMPLING.agent.json) |\n| [`docs/WindowsBuildAndRun.md`](WindowsBuildAndRun.md) | [JSON](WindowsBuildAndRun.agent.json) |\n| [`docs/bitmap-io.md`](bitmap-io.md) | [JSON](bitmap-io.agent.json) |\n| [`docs/documentation-structure.md`](documentation-structure.md) | [JSON](documentation-structure.agent.json) |\n",
+      "columns": [
+        "Document",
+        "Agent JSON"
+      ],
+      "rows": [
+        [
+          "[`AGENT.md`](../AGENT.md)",
+          "[JSON](entrypoints/AGENT.agent.json)"
+        ],
+        [
+          "[`README.md`](../README.md)",
+          "[JSON](entrypoints/README.agent.json)"
+        ],
+        [
+          "[`docs/BRUSHES.md`](BRUSHES.md)",
+          "[JSON](BRUSHES.agent.json)"
+        ],
+        [
+          "[`docs/BRUSH_EXPANSION.md`](BRUSH_EXPANSION.md)",
+          "[JSON](BRUSH_EXPANSION.agent.json)"
+        ],
+        [
+          "[`docs/BRUSH_EXPANSION_VALIDATION.md`](BRUSH_EXPANSION_VALIDATION.md)",
+          "[JSON](BRUSH_EXPANSION_VALIDATION.agent.json)"
+        ],
+        [
+          "[`docs/BRUSH_OPTIONS.md`](BRUSH_OPTIONS.md)",
+          "[JSON](BRUSH_OPTIONS.agent.json)"
+        ],
+        [
+          "[`docs/BrushTools.md`](BrushTools.md)",
+          "[JSON](BrushTools.agent.json)"
+        ],
+        [
+          "[`docs/CXX23_MIGRATION.md`](CXX23_MIGRATION.md)",
+          "[JSON](CXX23_MIGRATION.agent.json)"
+        ],
+        [
+          "[`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md)",
+          "[JSON](FILE_PROVIDER.agent.json)"
+        ],
+        [
+          "[`docs/LAYER_COMPOSITING.md`](LAYER_COMPOSITING.md)",
+          "[JSON](LAYER_COMPOSITING.agent.json)"
+        ],
+        [
+          "[`docs/LOCALIZED_BRUSH_MATH.md`](LOCALIZED_BRUSH_MATH.md)",
+          "[JSON](LOCALIZED_BRUSH_MATH.agent.json)"
+        ],
+        [
+          "[`docs/LOCAL_MASK_BRUSH.md`](LOCAL_MASK_BRUSH.md)",
+          "[JSON](LOCAL_MASK_BRUSH.agent.json)"
+        ],
+        [
+          "[`docs/PERFORMANCE.md`](PERFORMANCE.md)",
+          "[JSON](PERFORMANCE.agent.json)"
+        ],
+        [
+          "[`docs/RASTER_HISTORY.md`](RASTER_HISTORY.md)",
+          "[JSON](RASTER_HISTORY.agent.json)"
+        ],
+        [
+          "[`docs/SELECTION_RASTER_EDIT.md`](SELECTION_RASTER_EDIT.md)",
+          "[JSON](SELECTION_RASTER_EDIT.agent.json)"
+        ],
+        [
+          "[`docs/WET_BRUSH_SAMPLING.md`](WET_BRUSH_SAMPLING.md)",
+          "[JSON](WET_BRUSH_SAMPLING.agent.json)"
+        ],
+        [
+          "[`docs/WindowsBuildAndRun.md`](WindowsBuildAndRun.md)",
+          "[JSON](WindowsBuildAndRun.agent.json)"
+        ],
+        [
+          "[`docs/bitmap-io.md`](bitmap-io.md)",
+          "[JSON](bitmap-io.agent.json)"
+        ],
+        [
+          "[`docs/documentation-structure.md`](documentation-structure.md)",
+          "[JSON](documentation-structure.agent.json)"
+        ]
+      ]
+    },
+    {
+      "id": "b000009",
+      "kind": "html",
+      "start_line": 29,
+      "end_line": 29,
+      "raw": "<!-- workspace-docs:document-map:end -->\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "iiPaintEngine Documentation",
+      "anchor": "iipaintengine-documentation",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000004",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Human and agent document map",
+      "anchor": "human-and-agent-document-map",
+      "start_line": 4
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000008",
+        "label": "`AGENT.md`",
+        "target": "../AGENT.md",
+        "kind": "relative",
+        "line": 10
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "entrypoints/AGENT.agent.json",
+        "kind": "relative",
+        "line": 10
+      },
+      {
+        "block_id": "b000008",
+        "label": "`README.md`",
+        "target": "../README.md",
+        "kind": "relative",
+        "line": 11
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "entrypoints/README.agent.json",
+        "kind": "relative",
+        "line": 11
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/BRUSHES.md`",
+        "target": "BRUSHES.md",
+        "kind": "relative",
+        "line": 12
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "BRUSHES.agent.json",
+        "kind": "relative",
+        "line": 12
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/BRUSH_EXPANSION.md`",
+        "target": "BRUSH_EXPANSION.md",
+        "kind": "relative",
+        "line": 13
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "BRUSH_EXPANSION.agent.json",
+        "kind": "relative",
+        "line": 13
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/BRUSH_EXPANSION_VALIDATION.md`",
+        "target": "BRUSH_EXPANSION_VALIDATION.md",
+        "kind": "relative",
+        "line": 14
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "BRUSH_EXPANSION_VALIDATION.agent.json",
+        "kind": "relative",
+        "line": 14
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/BRUSH_OPTIONS.md`",
+        "target": "BRUSH_OPTIONS.md",
+        "kind": "relative",
+        "line": 15
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "BRUSH_OPTIONS.agent.json",
+        "kind": "relative",
+        "line": 15
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/BrushTools.md`",
+        "target": "BrushTools.md",
+        "kind": "relative",
+        "line": 16
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "BrushTools.agent.json",
+        "kind": "relative",
+        "line": 16
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/CXX23_MIGRATION.md`",
+        "target": "CXX23_MIGRATION.md",
+        "kind": "relative",
+        "line": 17
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "CXX23_MIGRATION.agent.json",
+        "kind": "relative",
+        "line": 17
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/FILE_PROVIDER.md`",
+        "target": "FILE_PROVIDER.md",
+        "kind": "relative",
+        "line": 18
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "FILE_PROVIDER.agent.json",
+        "kind": "relative",
+        "line": 18
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/LAYER_COMPOSITING.md`",
+        "target": "LAYER_COMPOSITING.md",
+        "kind": "relative",
+        "line": 19
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "LAYER_COMPOSITING.agent.json",
+        "kind": "relative",
+        "line": 19
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/LOCALIZED_BRUSH_MATH.md`",
+        "target": "LOCALIZED_BRUSH_MATH.md",
+        "kind": "relative",
+        "line": 20
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "LOCALIZED_BRUSH_MATH.agent.json",
+        "kind": "relative",
+        "line": 20
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/LOCAL_MASK_BRUSH.md`",
+        "target": "LOCAL_MASK_BRUSH.md",
+        "kind": "relative",
+        "line": 21
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "LOCAL_MASK_BRUSH.agent.json",
+        "kind": "relative",
+        "line": 21
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/PERFORMANCE.md`",
+        "target": "PERFORMANCE.md",
+        "kind": "relative",
+        "line": 22
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "PERFORMANCE.agent.json",
+        "kind": "relative",
+        "line": 22
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/RASTER_HISTORY.md`",
+        "target": "RASTER_HISTORY.md",
+        "kind": "relative",
+        "line": 23
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "RASTER_HISTORY.agent.json",
+        "kind": "relative",
+        "line": 23
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/SELECTION_RASTER_EDIT.md`",
+        "target": "SELECTION_RASTER_EDIT.md",
+        "kind": "relative",
+        "line": 24
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "SELECTION_RASTER_EDIT.agent.json",
+        "kind": "relative",
+        "line": 24
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/WET_BRUSH_SAMPLING.md`",
+        "target": "WET_BRUSH_SAMPLING.md",
+        "kind": "relative",
+        "line": 25
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "WET_BRUSH_SAMPLING.agent.json",
+        "kind": "relative",
+        "line": 25
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/WindowsBuildAndRun.md`",
+        "target": "WindowsBuildAndRun.md",
+        "kind": "relative",
+        "line": 26
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "WindowsBuildAndRun.agent.json",
+        "kind": "relative",
+        "line": 26
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/bitmap-io.md`",
+        "target": "bitmap-io.md",
+        "kind": "relative",
+        "line": 27
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "bitmap-io.agent.json",
+        "kind": "relative",
+        "line": 27
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/documentation-structure.md`",
+        "target": "documentation-structure.md",
+        "kind": "relative",
+        "line": 28
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "documentation-structure.agent.json",
+        "kind": "relative",
+        "line": 28
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000008",
+        "columns": [
+          "Document",
+          "Agent JSON"
+        ],
+        "rows": [
+          [
+            "[`AGENT.md`](../AGENT.md)",
+            "[JSON](entrypoints/AGENT.agent.json)"
+          ],
+          [
+            "[`README.md`](../README.md)",
+            "[JSON](entrypoints/README.agent.json)"
+          ],
+          [
+            "[`docs/BRUSHES.md`](BRUSHES.md)",
+            "[JSON](BRUSHES.agent.json)"
+          ],
+          [
+            "[`docs/BRUSH_EXPANSION.md`](BRUSH_EXPANSION.md)",
+            "[JSON](BRUSH_EXPANSION.agent.json)"
+          ],
+          [
+            "[`docs/BRUSH_EXPANSION_VALIDATION.md`](BRUSH_EXPANSION_VALIDATION.md)",
+            "[JSON](BRUSH_EXPANSION_VALIDATION.agent.json)"
+          ],
+          [
+            "[`docs/BRUSH_OPTIONS.md`](BRUSH_OPTIONS.md)",
+            "[JSON](BRUSH_OPTIONS.agent.json)"
+          ],
+          [
+            "[`docs/BrushTools.md`](BrushTools.md)",
+            "[JSON](BrushTools.agent.json)"
+          ],
+          [
+            "[`docs/CXX23_MIGRATION.md`](CXX23_MIGRATION.md)",
+            "[JSON](CXX23_MIGRATION.agent.json)"
+          ],
+          [
+            "[`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md)",
+            "[JSON](FILE_PROVIDER.agent.json)"
+          ],
+          [
+            "[`docs/LAYER_COMPOSITING.md`](LAYER_COMPOSITING.md)",
+            "[JSON](LAYER_COMPOSITING.agent.json)"
+          ],
+          [
+            "[`docs/LOCALIZED_BRUSH_MATH.md`](LOCALIZED_BRUSH_MATH.md)",
+            "[JSON](LOCALIZED_BRUSH_MATH.agent.json)"
+          ],
+          [
+            "[`docs/LOCAL_MASK_BRUSH.md`](LOCAL_MASK_BRUSH.md)",
+            "[JSON](LOCAL_MASK_BRUSH.agent.json)"
+          ],
+          [
+            "[`docs/PERFORMANCE.md`](PERFORMANCE.md)",
+            "[JSON](PERFORMANCE.agent.json)"
+          ],
+          [
+            "[`docs/RASTER_HISTORY.md`](RASTER_HISTORY.md)",
+            "[JSON](RASTER_HISTORY.agent.json)"
+          ],
+          [
+            "[`docs/SELECTION_RASTER_EDIT.md`](SELECTION_RASTER_EDIT.md)",
+            "[JSON](SELECTION_RASTER_EDIT.agent.json)"
+          ],
+          [
+            "[`docs/WET_BRUSH_SAMPLING.md`](WET_BRUSH_SAMPLING.md)",
+            "[JSON](WET_BRUSH_SAMPLING.agent.json)"
+          ],
+          [
+            "[`docs/WindowsBuildAndRun.md`](WindowsBuildAndRun.md)",
+            "[JSON](WindowsBuildAndRun.agent.json)"
+          ],
+          [
+            "[`docs/bitmap-io.md`](bitmap-io.md)",
+            "[JSON](bitmap-io.agent.json)"
+          ],
+          [
+            "[`docs/documentation-structure.md`](documentation-structure.md)",
+            "[JSON](documentation-structure.agent.json)"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

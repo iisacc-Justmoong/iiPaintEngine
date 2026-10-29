@@ -9,7 +9,8 @@ int main()
     const auto cmake=read(root/"CMakeLists.txt");
     const auto config=read(root/"cmake/iiPaintEngineConfig.cmake.in");
     if(cmake.find("LANGUAGES CXX")==std::string::npos || cmake.find("PUBLIC cxx_std_23")==std::string::npos) return 1;
-    if(config.find("find_dependency(iiFileProviderNative 0.6 CONFIG")==std::string::npos
+    if(config.find("iiFileProvider")!=std::string::npos
+        || config.find("iiSDKCore")!=std::string::npos
         || config.find("find_dependency(Qt")!=std::string::npos) return 2;
     if(!std::filesystem::exists(root/"third_party/stb/LICENSE")) return 3;
     if(read(root/"LICENSE").find("MIT License")==std::string::npos) return 4;

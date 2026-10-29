@@ -31,26 +31,9 @@ struct ProjectionContext {
     RasterProjection projection{};
 };
 
-std::size_t projectedSampleCapacity(BrushDabSpan dabs, const Rasterizer &rasterizer)
-{
-    if (dabs.empty()) {
-        return 0;
-    }
-
-    const Types::Pixel footprintWidth = rasterizer.brushWidth > 0
-            ? rasterizer.brushWidth
-            : std::max<Types::Pixel>(1, rasterizer.radius * 2 + 1);
-    const Types::Pixel footprintHeight = rasterizer.brushHeight > 0
-            ? rasterizer.brushHeight
-            : std::max<Types::Pixel>(1, rasterizer.radius * 2 + 1);
-    const std::size_t footprint = static_cast<std::size_t>(footprintWidth)
-            * static_cast<std::size_t>(footprintHeight);
-    if (footprint == 0 || dabs.size() > maximumProjectedSampleReserve / footprint) {
-        return maximumProjectedSampleReserve;
-    }
-
-    return std::min(maximumProjectedSampleReserve, dabs.size() * footprint);
-}
+std::size_t projectedSampleCapacity(BrushDabSpan dabs,
+                                    const Rasterizer &rasterizer,
+                                    const RasterProjection &projection);
 
 Types::Scalar materialProjectionMask(Types::Scalar maskAlpha,
                                      const BrushDab &dab,
@@ -124,18 +107,13 @@ bool hasSourceLayer(const ProjectionContext &context)
 
 std::uint32_t sampledSourceArgb(const RasterSourceSampler &sourceSampler, DevicePixelPoint position)
 {
-    const DevicePixelPoint localPosition{
-            position.x - sourceSampler.origin.x,
-            position.y - sourceSampler.origin.y,
-    };
-    if (localPosition.x < 0
-            || localPosition.y < 0
-            || localPosition.x >= sourceSampler.width
-            || localPosition.y >= sourceSampler.height) {
+    const auto x = std::int64_t(position.x) - sourceSampler.origin.x;
+    const auto y = std::int64_t(position.y) - sourceSampler.origin.y;
+    if (x < 0 || y < 0 || x >= sourceSampler.width || y >= sourceSampler.height) {
         return 0x00000000U;
     }
-
-    return sourceSampler.sampleArgb(sourceSampler.context, localPosition);
+    return sourceSampler.sampleArgb(sourceSampler.context,
+        {static_cast<Types::Pixel>(x), static_cast<Types::Pixel>(y)});
 }
 
 std::uint32_t wetDabColorArgb(const BrushDab &dab,
@@ -172,6 +150,19 @@ std::uint32_t wetDabColorArgb(const BrushDab &dab,
 
     const std::uint32_t localArgb = sampledSourceArgb(*context.sourceSampler, position);
     const std::uint32_t pulledArgb = sampledSourceArgb(*context.sourceSampler, {pulledX, pulledY});
+    if (simulation.model == BrushSimulationModel::Smudge && deposit == 0.0) {
+        const UnitColor local = unitColorFromArgb(localArgb);
+        const UnitColor pulled = sourceAlpha(pulledArgb) > 0 ? unitColorFromArgb(pulledArgb) : local;
+        const double t = smudge * pickup;
+        const double localWeight = local.alpha * (1.0 - t), pulledWeight = pulled.alpha * t;
+        const double alpha = localWeight + pulledWeight;
+        if (alpha <= 0) return 0;
+        return argbFromUnitColor({
+            (local.red * localWeight + pulled.red * pulledWeight) / alpha,
+            (local.green * localWeight + pulled.green * pulledWeight) / alpha,
+            (local.blue * localWeight + pulled.blue * pulledWeight) / alpha,
+            alpha});
+    }
     const UnitColor local = sourceAlpha(localArgb) > 0 ? unitColorFromArgb(localArgb) : brush;
     const UnitColor pulled = sourceAlpha(pulledArgb) > 0 ? unitColorFromArgb(pulledArgb) : local;
     const UnitColor dragged = mixColor(local, pulled, smudge);
@@ -612,6 +603,54 @@ ScalarBounds boundsForDab(const BrushDab &dab, const Rasterizer &rasterizer)
     }
 
     return rasterizer.proceduralTip ? proceduralBounds(dab, rasterizer) : circleBoundsForDab(dab, rasterizer);
+}
+
+std::size_t projectedSampleCapacity(BrushDabSpan dabs,
+                                    const Rasterizer &rasterizer,
+                                    const RasterProjection &projection)
+{
+    // This is only a reservation hint. If geometry cannot be estimated safely,
+    // leave the vector to grow normally and let the rendering path decide what
+    // to do with the input, exactly as before.
+    constexpr Types::Scalar safeMagnitude = 100'000'000.0;
+    std::size_t capacity = 0;
+    for (const BrushDab &source : dabs) {
+        const BrushDab dab = projectedDab(source, projection);
+        if (dab.scale <= 0 || dab.alpha <= 0) {
+            continue;
+        }
+        const Types::Scalar radius = static_cast<Types::Scalar>(rasterizer.radius) * dab.scale;
+        if (!std::isfinite(dab.position.x) || !std::isfinite(dab.position.y)
+                || !std::isfinite(dab.scale) || !std::isfinite(dab.rotationRadians)
+                || !std::isfinite(dab.ellipseScaleX) || !std::isfinite(dab.ellipseScaleY)
+                || !std::isfinite(radius)
+                || std::abs(dab.position.x) > safeMagnitude
+                || std::abs(dab.position.y) > safeMagnitude
+                || std::abs(radius) > safeMagnitude) {
+            return 0;
+        }
+
+        const ScalarBounds bounds = boundsForDab(dab, rasterizer);
+        if (!std::isfinite(bounds.left) || !std::isfinite(bounds.top)
+                || !std::isfinite(bounds.right) || !std::isfinite(bounds.bottom)) {
+            return 0;
+        }
+        const Types::Scalar width = std::ceil(bounds.right) - std::floor(bounds.left) + 1.0;
+        const Types::Scalar height = std::ceil(bounds.bottom) - std::floor(bounds.top) + 1.0;
+        if (!std::isfinite(width) || !std::isfinite(height) || width <= 0 || height <= 0) {
+            return 0;
+        }
+        if (width >= maximumProjectedSampleReserve || height >= maximumProjectedSampleReserve) {
+            return maximumProjectedSampleReserve;
+        }
+        const auto w = static_cast<std::size_t>(width);
+        const auto h = static_cast<std::size_t>(height);
+        if (w > (maximumProjectedSampleReserve - capacity) / h) {
+            return maximumProjectedSampleReserve;
+        }
+        capacity += w * h;
+    }
+    return capacity;
 }
 
 void appendBrushImage(std::vector<RasterSample> &samples,
@@ -1505,7 +1544,7 @@ std::vector<RasterSample> projectBrushDabs(BrushDabSpan dabs,
                                            const RasterProjection &projection)
 {
     std::vector<RasterSample> samples;
-    samples.reserve(projectedSampleCapacity(dabs, rasterizer));
+    samples.reserve(projectedSampleCapacity(dabs, rasterizer, projection));
     ProjectionContext context;
     context.projection = projection;
     for (const BrushDab &dab : dabs) {
@@ -1532,7 +1571,7 @@ std::vector<RasterSample> projectBrushDabs(BrushDabSpan dabs,
                                            const BrushMaterial &material)
 {
     std::vector<RasterSample> samples;
-    samples.reserve(projectedSampleCapacity(dabs, rasterizer));
+    samples.reserve(projectedSampleCapacity(dabs, rasterizer, projection));
     ProjectionContext context;
     context.material = &material;
     context.projection = projection;
@@ -1563,7 +1602,7 @@ std::vector<RasterSample> projectBrushDabs(BrushDabSpan dabs,
                                            const BrushMaterial &material)
 {
     std::vector<RasterSample> samples;
-    samples.reserve(projectedSampleCapacity(dabs, rasterizer));
+    samples.reserve(projectedSampleCapacity(dabs, rasterizer, projection));
     ProjectionContext context;
     context.sourceSampler = &sourceSampler;
     context.material = &material;

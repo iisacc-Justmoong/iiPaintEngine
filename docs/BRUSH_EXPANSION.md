@@ -150,7 +150,9 @@ The C++ gallery exercises 16-fold radial, 12-sector mandala and stabilized
 dual-axis strokes:
 
 ```sh
-build/iiPaintEngineBrushExpansionGallery build/brush-expansion-gallery.png
+cmake -S Example/FileProvider -B build/file-provider-app -DCMAKE_PREFIX_PATH="/path/to/iiPaintEngine;/path/to/iiFileProvider"
+cmake --build build/file-provider-app --parallel
+build/file-provider-app/iiPaintEngineBrushExpansionGallery Example/FileProvider/resources/brush-expansion-gallery.png
 ```
 
 ## Remaining work toward a Photoshop-class superset

@@ -1,5 +1,7 @@
 #include <cmath>
 #include <cstdint>
+#include <iostream>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -162,5 +164,30 @@ int main()
         return 40;
     }
 
-    return 0;
+    int failures = 0;
+    const auto check = [&](bool value, const char* message) {
+        if (!value) { std::cerr << message << '\n'; ++failures; }
+    };
+    auto empty = makeRasterLayer(8, 3, 0x00ff00ffU);
+    dab.position = {4, 1};
+    rasterizer.brushSize = 4;
+    smudgeMaterial.simulation.wetness = 1;
+    auto emptySamples = projectBrushDabs({dab}, rasterizer, {}, sourceSamplerForLayer(empty), smudgeMaterial);
+    check(emptySamples.empty(), "unloaded smudge must not create pigment from an empty source");
+    smudgeMaterial.simulation.wetness = .5;
+    auto edgeSamples = projectBrushDabs({dab}, rasterizer, {}, sourceSampler, smudgeMaterial);
+    const auto* edge = sampleAt(edgeSamples, {4, 1});
+    check(edge && edge->argb == 0x800000ffU,
+          "half-strength unloaded smudge must pull blue alpha without foreground or hidden-rgb fringe");
+    smudgeMaterial.simulation.pickup = 0;
+    auto noPickup = projectBrushDabs({dab}, rasterizer, {}, sourceSampler, smudgeMaterial);
+    check(noPickup.empty(), "zero pickup unloaded smudge leaves an empty target unchanged");
+    bool called = false;
+    RasterSourceSampler distant{&called, [](const void* value, DevicePixelPoint) {
+        *const_cast<bool*>(static_cast<const bool*>(value)) = true;
+        return 0xff00ff00U;
+    }, {std::numeric_limits<Types::Pixel>::min(), 0}, 1, 3};
+    (void)projectBrushDabs({dab}, rasterizer, {}, distant, smudgeMaterial);
+    check(!called, "out-of-bounds source coordinates must not reach the callback");
+    return failures ? 1 : 0;
 }

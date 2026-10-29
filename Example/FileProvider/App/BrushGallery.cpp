@@ -1,4 +1,5 @@
 #include <iiPaintEngine>
+#include "FileProviderBitmapIO.h"
 #include <cmath>
 #include <iostream>
 int main(int argc,char **argv)
@@ -46,7 +47,7 @@ int main(int argc,char **argv)
         for(int y=0;y<panelHeight;++y) for(int x=0;x<panelWidth;++x)
             gallery.pixels[(top+y)*width+x+15]=rasterLayerPixelAt(rowPixels,{x,y});
     }
-    BitmapFile file;
+    BitmapFile file(std::make_shared<paint_file::FileProviderBitmapIO>());
     if(!file.create(argv[1],gallery.width,gallery.height,"png")) return 3;
     if(!file.replacePixels(gallery)||!file.save()) return 4;
     std::cout<<"Rendered "<<presets.size()<<" brush presets\n";

@@ -23,7 +23,7 @@ std::size_t paintedCount(const RasterLayer &pixels)
 int main()
 {
     TestDirectory dir{"session-input"};
-    BitmapPaintSession paint,control;
+    BitmapPaintSession paint(dir.io),control(dir.io);
     CHECK(paint.createFile(dir.path / "paint.png",64,64));
     CHECK(control.createFile(dir.path / "control.png",64,64));
     BrushPreset preset; preset.size = 16;
@@ -58,7 +58,7 @@ int main()
     }
     const auto finalPreview = paint.previewPixels().pixels;
     CHECK(paint.save());
-    BitmapFile disk; CHECK(disk.open(dir.path / "paint.png") && paintedCount(disk.pixels()) == 0);
+    BitmapFile disk(dir.io); CHECK(disk.open(dir.path / "paint.png") && paintedCount(disk.pixels()) == 0);
     const auto release = input(PointerEventPhase::Release,48,32,2);
     CHECK(paint.processPointerEvent(release).committed && control.processPointerEvent(release).committed);
     CHECK(paint.file().pixels().pixels == finalPreview && finalPreview == control.file().pixels().pixels);

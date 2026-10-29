@@ -1,9 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include <expected>
 #include <filesystem>
+#include <memory>
+#include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "Core/PaintRect.h"
@@ -18,6 +22,16 @@ struct BitmapFileWriteOptions {
     std::uint32_t backgroundArgb = 0xFFFFFFFFU;
 };
 
+// The application owns file access. A successful write must publish complete
+// bytes, and a failed write must preserve any previously published file.
+class BitmapFileIO {
+public:
+    using Bytes = std::vector<unsigned char>;
+    virtual ~BitmapFileIO() = default;
+    virtual std::expected<Bytes,std::string> read(const std::filesystem::path &,std::size_t maximumBytes) = 0;
+    virtual std::expected<void,std::string> write(const std::filesystem::path &,std::span<const unsigned char>) = 0;
+};
+
 const std::vector<std::string> &supportedBitmapReadFormats();
 
 const std::vector<std::string> &supportedBitmapWriteFormats();
@@ -26,6 +40,8 @@ const std::vector<std::string> &supportedEditableBitmapFormats();
 
 class BitmapFile final {
 public:
+    explicit BitmapFile(std::shared_ptr<BitmapFileIO> io = {}) noexcept : m_io(std::move(io)) {}
+    const std::shared_ptr<BitmapFileIO> &fileIO() const noexcept { return m_io; }
     bool create(const std::filesystem::path &filePath,
                 Types::Pixel width,
                 Types::Pixel height,
@@ -62,6 +78,7 @@ private:
     RasterLayer m_pixels;
     bool m_open = false;
     bool m_modified = false;
+    std::shared_ptr<BitmapFileIO> m_io;
 
     void setError(const std::string &error);
 };
