@@ -48,7 +48,7 @@ auto pixels = projectBrushDabs(dabs, resolved.brush->rasterizer, {}, resolved.br
 
 좌표·크기·거리·속도는 문서 픽셀, 초, 문서 픽셀/초 단위이다. 각도는 라디안, 압력은 `[0,1]`, 기울기 X/Y와 tangential pressure는 `[-1,1]`이다. `BrushStrokeSettings::spacing > 0`이면 절대 간격이 `spacingRatio`보다 우선한다. 크기 상한은 4096이다. `shape.roundness`는 `[0.01,1]`이다.
 
-`opacity`는 한 획의 누적 불투명도 상한이며 `flow`는 각 스탬프의 잉크량이다. 절차적 팁의 hardness는 중심의 불투명 영역과 가장자리 감쇠 폭을 바꾸며, 이미지 마스크의 hardness는 기존 알파 응답을 조절한다. 팁은 알파 마스크이다. 다색 이미지 스탬프는 지원하지 않는다.
+`opacity`는 한 획의 누적 불투명도 상한이며 `flow`는 각 스탬프의 잉크량이다. 팁과 재질의 부분 마스크는 잉크량에 적용하므로 같은 획에서 여러 번 덧칠하면 가장자리도 상한까지 점진적으로 진해진다. `RasterSample::argb`의 알파는 비어 있는 획에 대한 해당 스탬프의 실제 기여량이며 `opacityCap`은 팁 마스크를 곱하기 전의 획 상한이다. 수동으로 `RasterSample`을 생성하는 소비자도 이 계약을 따른다. 별도 획은 이미 확정된 픽셀 위에 각각 합성된다. 실험 조건과 관측의 한계는 [Photoshop 브러시 관측과 누적 계약](PHOTOSHOP_BRUSH_ACCUMULATION.md)에 기록한다. 절차적 팁의 hardness는 중심의 불투명 영역과 가장자리 감쇠 폭을 바꾸며, 이미지 마스크의 hardness는 기존 알파 응답을 조절한다. 팁은 알파 마스크이다. 다색 이미지 스탬프는 지원하지 않는다.
 
 크기와 동적 응답을 모두 곱한 최종 산포 반경은 문서 픽셀 1,000,000 이내로 제한한다. 개별 설정이 유효하더라도 곱한 결과가 정수 픽셀 좌표 범위를 넘지 않도록 하기 위함이다.
 

@@ -47,6 +47,8 @@ struct BrushDab {
     std::uint32_t randomSeed = 0;
     Types::Scalar noiseStrength = 0.0;
     Types::Scalar wetEdgesStrength = 0.0;
+    BrushNoiseOptions noise;
+    BrushWetEdgeOptions wetEdges;
     Types::Scalar mixScale = 1.0;
     Types::Scalar tipWear = 0.0;
     Types::Scalar airbrushGranularity = 0.0;

@@ -1,0 +1,78 @@
+{
+  "recorded_at": "2026-10-19T04:55:03.112470+00:00",
+  "scope": "iiPaintEngine 0.5 brush extensions",
+  "implementation": "Independent C++23 standard-library code; no Rust, Qt, new vendored implementation or Adobe proprietary source added.",
+  "reference_repository": {
+    "origin": "https://github.com/storytold/photocraft.git",
+    "commit": "d95fdf3181c01ad41e95456091a394b105a9afb2",
+    "classification": "PhotoCraft independent reconstruction, not recovered Adobe native source",
+    "license": "MIT OR Apache-2.0",
+    "files": [
+      {
+        "path": "crates/paint/src/brush.rs",
+        "sha256": "86cb5590cdf17c3d689520922916f898f73b47dfe0d5fe03d40bc954c7ab7522"
+      },
+      {
+        "path": "crates/paint/src/symmetry.rs",
+        "sha256": "b94922b222b8c3ca5ce46520b39e6b4c95e69283273e0808a55d1ab63920f237"
+      },
+      {
+        "path": "crates/paint/src/curve.rs",
+        "sha256": "edaadc7f766242d1bdbbf8f68255374c9911051c2d45fc27b6e0338956b416d3"
+      },
+      {
+        "path": "crates/psd/src/abr.rs",
+        "sha256": "ff4be45cc931295f5589eb143d456f65d27b5bffc0ab985064f563f54f3d7d94"
+      },
+      {
+        "path": "crates/io/src/abr_map.rs",
+        "sha256": "5b9d5371a1d0f6fc01f27edcb3a6a29af24b4801ce06fdcdaaf352af140fa32e"
+      },
+      {
+        "path": "docs/brush-parity.md",
+        "sha256": "ed9875e9466ad779bcefb864e1a65d718a55f93d64cfbcf147a10479787bbb9f"
+      }
+    ]
+  },
+  "public_references": [
+    {
+      "url": "https://helpx.adobe.com/photoshop/desktop/apply-painting-techniques/create-fill-with-patterns/paint-symmetrical-patterns.html",
+      "use": "Symmetry concepts and radial/mandala behavior"
+    },
+    {
+      "url": "https://helpx.adobe.com/photoshop/desktop/repair-retouch/clean-restore-images/create-smoother-more-polished-brush-strokes-with-stroke-smoothing.html",
+      "use": "Pulled-string, stationary catch-up, endpoint and zoom concepts"
+    },
+    {
+      "url": "https://github.com/Agamnentzar/ag-psd/blob/master/src/abr.ts",
+      "use": "Independent primary-source cross-reference of the sectioned ABR layout and grayscale coverage orientation",
+      "license": "MIT"
+    }
+  ],
+  "source_mapping": [
+    {
+      "feature": "ABR input",
+      "module": "Brush/AbrBrushImporter",
+      "boundary": "Legacy v1/v2 geometry and sectioned v6/v7/v9/v10 sampled tips; modern descriptors, patterns, hierarchy and export not implemented"
+    },
+    {
+      "feature": "Current stamp symmetry",
+      "module": "Stroke/BrushSymmetry",
+      "boundary": "Up to 64 sectors and 65536 resulting stamps/event; no retained trajectory"
+    },
+    {
+      "feature": "Pulled-string stabilization",
+      "module": "Stroke/Rasterizer and Application/BitmapPaintSession",
+      "boundary": "Document-space causal filter and explicit caller clock; no future input or zoom-dependent policy"
+    }
+  ],
+  "compatibility_claims": {
+    "original_adobe_source_used": false,
+    "adobe_pixel_parity_verified": false,
+    "complete_abr_settings_compatibility": false,
+    "high_precision_surface_added": false,
+    "all_platforms_or_physical_tablets_verified": false
+  },
+  "historical_note": "The old recovered PhotoshopReverse evidence cited by BRUSH_OPTIONS belongs to a retired investigation and is not treated as currently available source.",
+  "concurrent_release_note": "The package version was independently advanced from 0.5.0 to 0.5.1 during the task; that release edit was preserved."
+}

@@ -41,6 +41,10 @@ struct RenderedStroke {
 // Rejection returns no partial tile result and never writes to the source.
 [[nodiscard]] std::expected<RenderedStroke, Error> renderGesture(std::span<const StrokePoint> inputs,
     Tool tool, const Controls& controls, const RenderTarget& target, const Limits& limits = {});
+// Render an already validated brush state with authored taper and input correction.
+// The caller owns the state and must provide a supported source-over or eraser brush.
+[[nodiscard]] std::expected<RenderedStroke, Error> renderGestureWithResolvedBrush(std::span<const StrokePoint> inputs,
+    const ResolvedBrush& brush, const Controls& controls, const RenderTarget& target, const Limits& limits = {});
 [[nodiscard]] std::expected<RenderedStroke, Error> renderGestureWithPreset(std::span<const StrokePoint> inputs,
     Tool tool, const Controls& controls, const BrushPreset& base, const RenderTarget& target,
     const Limits& limits = {});

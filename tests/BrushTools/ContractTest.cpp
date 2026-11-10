@@ -114,6 +114,21 @@ void taperTest()
     check((at(image,140,40)>>24)>=240,"size taper reduced center alpha instead of size");
     set(c,P::TaperStrength,0); auto untapered=render(c);
     check(width(untapered,140)>=15,"zero taper strength still narrows the tip");
+    auto resolved=resolve(Tool::Paint,c);
+    check(bool(resolved),"brush resolve failed");
+    const auto stateResult=renderGestureWithResolvedBrush(line(),*resolved,c,{{0,0,192,96}});
+    check(stateResult && same(*stateResult,untapered),"resolved brush render changed the tool result");
+    resolved->state.rasterizer.blendMode=RasterBlendMode::Multiply;
+    check(!renderGestureWithResolvedBrush(line(),*resolved,c,{{0,0,192,96}}),"unsupported state blend accepted");
+    resolved->state.rasterizer.blendMode=RasterBlendMode::SourceOver;
+    resolved->state.rasterizer.smoothingEnabled=true;resolved->state.rasterizer.smoothing=.5;
+    const auto smoothed=renderGestureWithResolvedBrush(line(),*resolved,c,{{0,0,192,96}});
+    RasterDabStream stream;
+    const auto samples=line();
+    for(std::size_t i=0;i<samples.size();++i) (void)appendRasterDabs(stream,samples[i],resolved->state,i+1==samples.size());
+    check(smoothed && std::abs(smoothed->length-stream.traveledDistance)<1e-10 && smoothed->length<128,
+          "fractional taper did not use smoothed stroke distance");
+
     set(c,P::TaperStrength,100); set(c,P::MinimumSize,100);
     check(same(render(c),untapered),"minimum size 100 must disable size reduction");
 }

@@ -1,0 +1,157 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:01e78b687b0b9ce1a7f6809a697c0e913b860dfd7c11039f92bb848a4ff624ec",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiPaintEngine",
+    "name": "iiPaintEngine",
+    "root": "SDK/iiPaintEngine",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/LAYER_COMPOSITING.md",
+    "sha256": "e3b87b8982f507e587852b72e97c2b45a46ca76b5a94dfe2e9dbbf9c44969e6a",
+    "bytes": 2518,
+    "line_count": 11,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Layer compositing (0.4.1)",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Layer compositing (0.4.1)\n",
+      "level": 1,
+      "title": "Layer compositing (0.4.1)"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "`compositeRasterPixel(source, backdrop, mode, opacity, noiseKey)` accepts straight ARGB32 and returns straight ARGB32. RGB arithmetic uses encoded channels, without an ICC or linear-light conversion. Source-over weights the source-only, overlapping and backdrop-only portions independently; a transparent backdrop never darkens a Multiply layer. Zero output alpha has canonical zero RGB. DestinationOut remains available as an erasing operator.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "Pixel-layer modes are Normal (`SourceOver`), Dissolve, Darken, Multiply, ColorBurn, LinearBurn, DarkerColor, Lighten, Screen, ColorDodge, LinearDodge, LighterColor, Overlay, SoftLight, HardLight, VividLight, LinearLight, PinLight, HardMix, Difference, Exclusion, Subtract, Divide, Hue, Saturation, Color and Luminosity. Existing enum values are preserved. Nonseparable modes use the W3C luminosity and saturation operations; DarkerColor/LighterColor select a complete RGB triple by channel sum. Dissolve hashes the caller-provided coordinate key, produces binary source coverage, and is repeatable. Callers rendering regions must supply stable document-coordinate keys.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "The alpha and separable/nonseparable definitions follow [W3C Compositing and Blending](https://www.w3.org/TR/compositing-1/). Hard Mix uses the [Adobe channel-sum rule](https://helpx.adobe.com/photoshop/desktop/repair-retouch/adjust-light-tone/blending-mode-descriptions.html): sums at least 255 produce 255, including equality. All 65,536 channel pairs are tested. The remaining arithmetic modes implement documented RGB operations; exact Photoshop color-managed, 16-bit, HDR and special Fill-slider arithmetic is not claimed. The layer API does not extend the brush stroke blend-mode subset.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "`compositeLayerStack` renders contiguous clipping chains against their base shape, including its pixel mask. Clipped layers cannot pick up opacity from unrelated background layers. Children blend within that shape without increasing its alpha; base opacity and mode are applied to the completed chain. A hidden base suppresses its clipped children, and an orphan clipped layer contributes nothing. Nested pixel groups retain their isolated child composition.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "`LayerBlendModesTest` checks all 27 modes over transparent backdrops, reference arithmetic, endpoint ordering, nonseparable results, partial-alpha overlap and deterministic Dissolve. `LayerCompositingContractTest` checks masks, groups and clipping. This is CPU pixel evidence, not GPU shader or Photoshop GUI parity.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Layer compositing (0.4.1)",
+      "anchor": "layer-compositing-041",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000003",
+        "line": 3,
+        "text": "`compositeRasterPixel(source, backdrop, mode, opacity, noiseKey)` accepts straight ARGB32 and returns straight ARGB32. RGB arithmetic uses encoded channels, without an ICC or linear-light conversion. Source-over weights the source-only, overlapping and backdrop-only portions independently; a transparent backdrop never darkens a Multiply layer. Zero output alpha has canonical zero RGB. DestinationOut remains available as an erasing operator.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000005",
+        "line": 5,
+        "text": "Pixel-layer modes are Normal (`SourceOver`), Dissolve, Darken, Multiply, ColorBurn, LinearBurn, DarkerColor, Lighten, Screen, ColorDodge, LinearDodge, LighterColor, Overlay, SoftLight, HardLight, VividLight, LinearLight, PinLight, HardMix, Difference, Exclusion, Subtract, Divide, Hue, Saturation, Color and Luminosity. Existing enum values are preserved. Nonseparable modes use the W3C luminosity and saturation operations; DarkerColor/LighterColor select a complete RGB triple by channel sum. Dissolve hashes the caller-provided coordinate key, produces binary source coverage, and is repeatable. Callers rendering regions must supply stable document-coordinate keys.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000007",
+        "label": "W3C Compositing and Blending",
+        "target": "https://www.w3.org/TR/compositing-1/",
+        "kind": "external",
+        "line": 7
+      },
+      {
+        "block_id": "b000007",
+        "label": "Adobe channel-sum rule",
+        "target": "https://helpx.adobe.com/photoshop/desktop/repair-retouch/adjust-light-tone/blending-mode-descriptions.html",
+        "kind": "external",
+        "line": 7
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

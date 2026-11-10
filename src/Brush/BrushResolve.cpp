@@ -115,6 +115,11 @@ std::vector<std::string> validateBrushPreset(const BrushPreset &p)
     v.enumeration("blendMode", s.blendMode, RasterBlendMode::Overlay);
     v.range("noiseStrength", s.noiseStrength, 0, 1);
     v.range("wetEdgesStrength", s.wetEdgesStrength, 0, 1);
+    v.range("noise.size", s.noise.size, 0.1, 1024);
+    v.range("wetEdges.width", s.wetEdges.width, 0, 1024);
+    v.range("wetEdges.diffusion", s.wetEdges.diffusion, 0, 1);
+    v.range("buildUp.rate", s.buildUp.rate, 0, 1);
+    v.range("buildUp.opacityLimit", s.buildUp.opacityLimit, 0, 1);
     v.range("smoothing", s.smoothing, 0, 1);
     v.enumeration("smoothingMode", s.smoothingMode, BrushSmoothingMode::PulledString);
     v.range("smoothingRadius", s.smoothingRadius, 0, 4096);
@@ -206,10 +211,11 @@ BrushResolve resolveBrushPreset(const BrushPreset &p, std::uint32_t colorArgb, s
     r.flowEnabled = p.stroke.flowEnabled; r.opacityEnabled = p.stroke.opacityEnabled;
     r.hardnessEnabled = p.stroke.hardnessEnabled; r.warmupDistance = p.stroke.warmupDistance;
     r.taperMinimum = p.stroke.taperMinimum; r.warmupTaperShape = p.stroke.warmupTaperShape;
-    r.airbrushEnabled = p.stroke.airbrushEnabled; r.airbrushRate = p.stroke.airbrushRate;
+    r.airbrushEnabled = p.stroke.airbrushEnabled || (p.stroke.buildUp.enabled && p.stroke.buildUp.timeBased); r.airbrushRate = p.stroke.airbrushRate;
     r.blendMode = p.stroke.blendMode;
     r.noiseEnabled = p.stroke.noiseEnabled; r.noiseStrength = p.stroke.noiseStrength;
     r.wetEdgesEnabled = p.stroke.wetEdgesEnabled; r.wetEdgesStrength = p.stroke.wetEdgesStrength;
+    r.noise = p.stroke.noise; r.wetEdges = p.stroke.wetEdges; r.buildUp = p.stroke.buildUp;
     r.smoothingEnabled = p.stroke.smoothingEnabled; r.smoothing = p.stroke.smoothing;
     r.smoothingMode = p.stroke.smoothingMode; r.smoothingRadius = p.stroke.smoothingRadius;
     r.smoothingCatchUp = p.stroke.smoothingCatchUp; r.smoothingCatchUpRate = p.stroke.smoothingCatchUpRate;

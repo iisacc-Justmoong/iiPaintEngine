@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/BRUSH_OPTIONS.md",
-    "sha256": "3689d1cfd4e2c7a8cee293d5863b7cf248f2101442e0c5ff7327fff9775d50cf",
-    "bytes": 15692,
-    "line_count": 255,
+    "sha256": "46ff15c7bcdbc5408ff439b50a0e89a86abb315735483ccc89a951701d077b22",
+    "bytes": 16888,
+    "line_count": 276,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -722,6 +722,66 @@
       "start_line": 247,
       "end_line": 255,
       "raw": "Observed UI controls not implemented as shared brush options here include\nper-panel preset locks/capture policies, multi-layer sampling/clean-after-stroke tool policy,\nhealing/clone/selection/remove algorithms, and native menu enum mappings.\nThey are retained in the investigation ledger rather than stored as ineffective\nrenderer toggles. Native physical formulas, ABR codec compatibility, complete\nPhotoshop brush-source recovery and Adobe pixel parity remain unverified.\nSymmetry and independent pulled-string/catch-up models are now implemented in\n0.5. ABR tip extraction is bounded as described in BRUSH_EXPANSION.md and does not\nrestore modern full brush settings.\n"
+    },
+    {
+      "id": "b000080",
+      "kind": "blank",
+      "start_line": 256,
+      "end_line": 256,
+      "raw": "\n"
+    },
+    {
+      "id": "b000081",
+      "kind": "heading",
+      "start_line": 257,
+      "end_line": 257,
+      "raw": "### Noise, wet edges and build-up controls\n",
+      "level": 3,
+      "title": "Noise, wet edges and build-up controls"
+    },
+    {
+      "id": "b000082",
+      "kind": "blank",
+      "start_line": 258,
+      "end_line": 258,
+      "raw": "\n"
+    },
+    {
+      "id": "b000083",
+      "kind": "paragraph",
+      "start_line": 259,
+      "end_line": 267,
+      "raw": "`BrushNoiseOptions.size` controls the spatial noise cell in document pixels. The\nwet-edge object has an edge width in document pixels and normalized diffusion;\nits strength remains the separate `wetEdgesStrength` setting. Build-up has an\nindependent enabled flag, per-deposit accumulation multiplier, opacity ceiling,\nand optional time-based placement. Time-based placement uses the existing\ncaller-supplied monotonic input clock and airbrush rate; no timer or input path\nis retained by the engine. The options are stored in the brush preset with\nbackward-compatible defaults. A disabled build-up preserves existing opacity and\nflow. The options are also copied into the resolved rasterizer state.\n"
+    },
+    {
+      "id": "b000084",
+      "kind": "blank",
+      "start_line": 268,
+      "end_line": 268,
+      "raw": "\n"
+    },
+    {
+      "id": "b000085",
+      "kind": "heading",
+      "start_line": 269,
+      "end_line": 269,
+      "raw": "## Color noise\n",
+      "level": 2,
+      "title": "Color noise"
+    },
+    {
+      "id": "b000086",
+      "kind": "blank",
+      "start_line": 270,
+      "end_line": 270,
+      "raw": "\n"
+    },
+    {
+      "id": "b000087",
+      "kind": "paragraph",
+      "start_line": 271,
+      "end_line": 276,
+      "raw": "`BrushNoiseOptions.monochrome` defaults to true: noise changes coverage while\npreserving the original color. When false, the engine also varies RGB channels\nindependently using the same document coordinates, grain size, and stroke seed.\nThe choice does not alter alpha coverage or the defaults of existing brushes and\nis saved in the preset. The preview and committed stroke use the same noise\ncalculation for the same inputs and seed.\n"
     }
   ],
   "outline": [
@@ -788,6 +848,22 @@
       "title": "Storage, validation and test boundaries",
       "anchor": "storage-validation-and-test-boundaries",
       "start_line": 224
+    },
+    {
+      "block_id": "b000081",
+      "parent_id": "b000071",
+      "level": 3,
+      "title": "Noise, wet edges and build-up controls",
+      "anchor": "noise-wet-edges-and-build-up-controls",
+      "start_line": 257
+    },
+    {
+      "block_id": "b000085",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Color noise",
+      "anchor": "color-noise",
+      "start_line": 269
     }
   ],
   "indexes": {

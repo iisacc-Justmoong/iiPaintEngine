@@ -81,7 +81,7 @@ int main()
     const std::vector<RasterSample> fullMaskSamples = projectBrushDabs({fullMaskDab}, brush.rasterizer);
     const RasterSample *centerSample = sampleAt(fullMaskSamples, {10, 10});
     if (centerSample == nullptr
-            || alphaOf(centerSample->argb) != 26
+            || alphaOf(centerSample->argb) != 8
             || centerSample->opacityCap != 77) {
         return 1;
     }
@@ -94,5 +94,6 @@ int main()
             RasterSample{{1, 1}, 0x1A202020U, 77},
     };
     paintRasterSamples(layer, repeatedFlowSamples);
-    return alphaOf(rasterLayerPixelAt(layer, {1, 1})) == 77 ? 0 : 1;
+    // Four deposits of 26 within a 77-alpha stroke approach that limit.
+    return alphaOf(rasterLayerPixelAt(layer, {1, 1})) == 62 ? 0 : 1;
 }

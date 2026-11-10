@@ -39,6 +39,8 @@ Types::Scalar materialProjectionMask(Types::Scalar maskAlpha,
                                      const BrushDab &dab,
                                      DevicePixelPoint position,
                                      const ProjectionContext &context);
+std::uint32_t noiseColorArgb(std::uint32_t color, const BrushDab &dab,
+                             DevicePixelPoint position, const ProjectionContext &context);
 
 Types::Scalar clamp01(Types::Scalar value)
 {
@@ -174,22 +176,30 @@ std::uint32_t wetDabColorArgb(const BrushDab &dab,
     return argbFromUnitColor(result);
 }
 
-std::uint8_t projectedAlpha(std::uint32_t argb, Types::Scalar maskAlpha, Types::Scalar alpha)
+Types::Scalar strokeOpacity(std::uint32_t argb,
+                            const Rasterizer &rasterizer,
+                            Types::Scalar opacityCapScale)
 {
     const auto source = static_cast<Types::Scalar>(sourceAlpha(argb));
-    const auto mask = clamp01(maskAlpha);
-    return alphaByte(source * mask * clamp01(alpha));
+    const Types::Scalar opacity = rasterizer.opacityEnabled ? rasterizer.opacity : 1.0;
+    return source * clamp01(opacity) * clamp01(opacityCapScale);
 }
 
-std::uint8_t opacityCap(std::uint32_t argb,
-                        Types::Scalar maskAlpha,
-                        const Rasterizer &rasterizer,
+std::uint8_t projectedAlpha(std::uint32_t argb,
+                            Types::Scalar maskAlpha,
+                            Types::Scalar alpha,
+                            const Rasterizer &rasterizer,
+                            Types::Scalar opacityCapScale)
+{
+    return alphaByte(strokeOpacity(argb, rasterizer, opacityCapScale)
+                     * clamp01(maskAlpha) * clamp01(alpha));
+}
+
+std::uint8_t opacityCap(std::uint32_t argb, const Rasterizer &rasterizer,
                         Types::Scalar opacityCapScale)
 {
-    const auto source = static_cast<Types::Scalar>(sourceAlpha(argb));
-    const auto mask = clamp01(maskAlpha);
-    const Types::Scalar opacity = rasterizer.opacityEnabled ? rasterizer.opacity : 1.0;
-    return alphaByte(source * mask * clamp01(opacity) * clamp01(opacityCapScale));
+    const auto limit = rasterizer.buildUp.enabled ? clamp01(rasterizer.buildUp.opacityLimit) : 1.0;
+    return alphaByte(std::min(strokeOpacity(argb, rasterizer, opacityCapScale), limit * 255.0));
 }
 
 Types::Scalar applyMaskHardness(Types::Scalar maskAlpha, Types::Scalar hardness)
@@ -252,9 +262,10 @@ void appendCircle(std::vector<RasterSample> &samples,
             if (maskAlpha <= 0.0) {
                 continue;
             }
-            const std::uint32_t colorArgb = wetDabColorArgb(dab, rasterizer, context, {x, y});
-            const std::uint8_t alpha = projectedAlpha(colorArgb, maskAlpha, dab.alpha);
-            const std::uint8_t cap = opacityCap(colorArgb, maskAlpha, rasterizer, dab.opacityCapScale);
+            const std::uint32_t colorArgb = noiseColorArgb(wetDabColorArgb(dab, rasterizer, context, {x, y}), dab, {x, y}, context);
+            const std::uint8_t alpha = projectedAlpha(colorArgb, maskAlpha, dab.alpha,
+                                                       rasterizer, dab.opacityCapScale);
+            const std::uint8_t cap = opacityCap(colorArgb, rasterizer, dab.opacityCapScale);
             if (alpha == 0 || cap == 0) {
                 continue;
             }
@@ -588,9 +599,9 @@ void appendProceduralTip(std::vector<RasterSample> &samples, const BrushDab &dab
             const auto falloff = hardness >= 1.0 ? 1.0 : clamp01((1.0 - distance) / (1.0 - hardness));
             auto mask = materialProjectionMask(coverage * falloff, dab, {x,y}, context);
             if (mask <= 0) continue;
-            const auto color = wetDabColorArgb(dab, r, context, {x,y});
-            const auto alpha = projectedAlpha(color, mask, dab.alpha);
-            const auto cap = opacityCap(color, mask, r, dab.opacityCapScale);
+            const auto color = noiseColorArgb(wetDabColorArgb(dab, r, context, {x,y}), dab, {x,y}, context);
+            const auto alpha = projectedAlpha(color, mask, dab.alpha, r, dab.opacityCapScale);
+            const auto cap = opacityCap(color, r, dab.opacityCapScale);
             if (alpha && cap) samples.push_back({{x,y}, withAlpha(color, alpha), cap, dab.blendMode});
         }
     }
@@ -714,9 +725,10 @@ void appendBrushImage(std::vector<RasterSample> &samples,
             if (materialMaskAlpha <= 0.0) {
                 continue;
             }
-            const std::uint32_t colorArgb = wetDabColorArgb(dab, rasterizer, context, {x, y});
-            const std::uint8_t alpha = projectedAlpha(colorArgb, materialMaskAlpha, dab.alpha);
-            const std::uint8_t cap = opacityCap(colorArgb, materialMaskAlpha, rasterizer, dab.opacityCapScale);
+            const std::uint32_t colorArgb = noiseColorArgb(wetDabColorArgb(dab, rasterizer, context, {x, y}), dab, {x, y}, context);
+            const std::uint8_t alpha = projectedAlpha(colorArgb, materialMaskAlpha, dab.alpha,
+                                                       rasterizer, dab.opacityCapScale);
+            const std::uint8_t cap = opacityCap(colorArgb, rasterizer, dab.opacityCapScale);
             if (alpha == 0 || cap == 0) {
                 continue;
             }
@@ -903,6 +915,23 @@ DocumentPoint documentPointForDevice(DevicePixelPoint position, const Projection
     };
 }
 
+std::uint32_t noiseColorArgb(std::uint32_t color, const BrushDab &dab,
+                             DevicePixelPoint position, const ProjectionContext &context)
+{
+    if (dab.noise.monochrome || dab.noiseStrength <= 0) return color;
+    const auto document=documentPointForDevice(position,context);
+    const auto grain=std::max(.1,dab.noise.size);
+    const auto x=static_cast<std::uint32_t>(static_cast<std::int64_t>(std::floor(document.x/grain)));
+    const auto y=static_cast<std::uint32_t>(static_cast<std::int64_t>(std::floor(document.y/grain)));
+    const auto seed=dab.randomSeed ^ (x*0x9E3779B9U) ^ (y*0x85EBCA6BU);
+    const auto amplitude=.35*clamp01(dab.noiseStrength);
+    auto result=unitColorFromArgb(color);
+    result.red+=amplitude*deterministicSigned(seed ^ 0xA511E9B3U,dab.sequenceIndex);
+    result.green+=amplitude*deterministicSigned(seed ^ 0x63D83595U,dab.sequenceIndex);
+    result.blue+=amplitude*deterministicSigned(seed ^ 0xB5297A4DU,dab.sequenceIndex);
+    return argbFromUnitColor(result);
+}
+
 Types::Scalar sampledTextureAlpha(const BrushTexture &texture,
                                   const BrushDab &dab,
                                   DevicePixelPoint position,
@@ -956,7 +985,7 @@ Types::Scalar applyTextureMask(Types::Scalar maskAlpha,
     }
 
     const Types::Scalar textureAlpha = sampledTextureAlpha(texture, dab, position, context);
-    const auto depth = std::clamp(texture.depth * (texture.textureEachTip ? dab.textureDepthScale : 1),
+    const auto depth = std::clamp(texture.depth * dab.textureDepthScale,
                                   texture.minimumDepth, 1.0);
     const Types::Scalar strength = clamp01(texture.strength * depth);
     if (texture.blendMode == BrushTextureBlendMode::Multiply)
@@ -1059,11 +1088,18 @@ Types::Scalar materialProjectionMask(Types::Scalar maskAlpha,
         result = applyTextureMask(result, context.material->paperGrain, dab, position, context);
         result = applyDualBrushMask(result, context.material->dualBrush, dab, position, context);
     }
-    if (dab.wetEdgesStrength > 0) result *= 1 - clamp01(dab.wetEdgesStrength) * maskAlpha;
+    if (dab.wetEdgesStrength > 0) {
+        const auto width = clamp01(dab.wetEdges.width);
+        const auto diffusion = clamp01(dab.wetEdges.diffusion);
+        const auto exponent = std::max(.05, 2.0 - 1.8 * width);
+        const auto center = std::pow(clamp01(maskAlpha), exponent);
+        const auto edge = center * (1.0 - diffusion) + maskAlpha * diffusion;
+        result *= 1 - clamp01(dab.wetEdgesStrength) * edge;
+    }
     if (dab.noiseStrength > 0 || dab.airbrushGranularity > 0 || dab.airbrushSpatter > 0) {
         const auto document = documentPointForDevice(position, context);
-        const auto x = static_cast<std::uint32_t>(static_cast<std::int64_t>(std::floor(document.x)));
-        const auto y = static_cast<std::uint32_t>(static_cast<std::int64_t>(std::floor(document.y)));
+        const auto x = static_cast<std::uint32_t>(static_cast<std::int64_t>(std::floor(document.x / std::max(.1, dab.noise.size))));
+        const auto y = static_cast<std::uint32_t>(static_cast<std::int64_t>(std::floor(document.y / std::max(.1, dab.noise.size))));
         const auto noise = deterministicUnit(dab.randomSeed ^ (x * 0x9E3779B9U) ^ (y * 0x85EBCA6BU), dab.sequenceIndex);
         result *= 1 - clamp01(dab.noiseStrength) * noise;
         result *= 1 - clamp01(dab.airbrushGranularity) * deterministicUnit(dab.randomSeed + x + y * 97U, dab.sequenceIndex);
@@ -1332,6 +1368,9 @@ BrushDab makeBrushDab(const StrokePoint &sample,
     dab.randomSeed = randomSeed;
     dab.noiseStrength = rasterizer.noiseEnabled ? rasterizer.noiseStrength : 0;
     dab.wetEdgesStrength = rasterizer.wetEdgesEnabled ? rasterizer.wetEdgesStrength : 0;
+    dab.noise = rasterizer.noise;
+    dab.wetEdges = rasterizer.wetEdges;
+    dab.wetEdges.width /= std::max(1.0, rasterizer.brushSize * .5);
     dab.mixScale = dynamicsResult.mixScale;
     if (material.erodible.enabled) {
         dab.tipWear = clamp01(material.erodible.wear + material.erodible.softness
@@ -1347,7 +1386,7 @@ BrushDab makeBrushDab(const StrokePoint &sample,
             * (material.dualBrush.enabled ? std::max<Types::Scalar>(0.01, material.dualBrush.scale) : 1.0);
     if (material.erodible.enabled) dab.scale *= 1 + dab.tipWear * .5;
     dab.rotationRadians = baseRotation + jitter + dynamicsResult.rotationOffsetRadians;
-    dab.alpha = clamp01(flow) * dynamicsResult.flowScale * taperFactor(rasterizer, distanceOnTrajectory)
+    dab.alpha = clamp01(flow) * (rasterizer.buildUp.enabled ? clamp01(rasterizer.buildUp.rate) : 1.0) * dynamicsResult.flowScale * taperFactor(rasterizer, distanceOnTrajectory)
             * materialFlowScale(material,
                                 textureAlpha,
                                 dynamicsResult.textureDepthScale,
@@ -1485,7 +1524,7 @@ std::vector<BrushDab> appendRasterDabs(RasterDabStream &state, const StrokePoint
             stream.initialDirection = direction; stream.initialDirectionSet = true;
         }
         constexpr double epsilon = 1e-6;
-        if (brush.rasterizer.airbrushEnabled) {
+        if (brush.rasterizer.airbrushEnabled || (brush.rasterizer.buildUp.enabled && brush.rasterizer.buildUp.timeBased)) {
             if (duration / interval > 65536) throw std::length_error("airbrush event exceeds time budget");
             while (stream.nextDabTime <= next.time + 1e-9 && duration > 0) {
                 const auto t = std::clamp((stream.nextDabTime-start.time)/duration,0.0,1.0);

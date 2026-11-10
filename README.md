@@ -28,7 +28,7 @@ Set `IIPAINTENGINE_BUILD_BRUSH_TOOLS=OFF` to build only the base engine.
 
 ## Build and install
 
-A C++23 compiler and standard library with `std::expected`, and CMake 3.31 or later are required. The engine builds without other SDK packages. Build artifacts belong under `build/`.
+A C++23 compiler and standard library with `std::expected`, and CMake 3.31 or later are required. The engine builds without other SDK packages. Build artifacts belong under `build/`; runtime and test resources belong under `resources/`. Example applications are disabled by default and can be explicitly enabled with `-DIIPAINTENGINE_BUILD_EXAMPLES=ON`. See [build layout](docs/BuildLayout.md) for the remaining legacy test-staging limitations.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release

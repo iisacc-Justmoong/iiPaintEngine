@@ -1,0 +1,256 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:1f263bad7ec55e645b2509e1c45eca4bab5e534272ad002675ef25a30dd7916f",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiPaintEngine",
+    "name": "iiPaintEngine",
+    "root": "SDK/iiPaintEngine",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/PHOTOSHOP_BRUSH_ACCUMULATION.md",
+    "sha256": "3bc76969923df9a6ff34b1b0981d31212f763f5e8753465e8ed22d47c1a6ed3e",
+    "bytes": 3524,
+    "line_count": 62,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Brush accumulation: Photoshop observation and engine contract",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Brush accumulation: Photoshop observation and engine contract\n",
+      "level": 1,
+      "title": "Brush accumulation: Photoshop observation and engine contract"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "heading",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "## Reference experiment\n",
+      "level": 2,
+      "title": "Reference experiment"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 11,
+      "raw": "On 2026-11-05, Photoshop 2026 was used on a new 1920 × 1080 RGB/8 sRGB\nwhite document at 100% zoom. The black soft-round brush was 100 px wide,\nwith hardness 0% and smoothing 0%. A click created a dot; a click followed\nby Shift-click created a straight stroke; a second stroke crossed the first.\nThe exported image is\n`resources/photoshop-brush-reference-20261105/photoshop-strokes.png`. The\ntwo earlier black lines at the top are setup marks and are not measurements.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 13,
+      "end_line": 20,
+      "raw": "At opacity 50%, flow 100%, the red channel of the dot 20 pixels below its\ncenter was 172 and that of the straight stroke at the same distance from its\ncenterline was 143. At opacity 100%, flow 20%, the dot and straight-stroke\ncenter values were 204 and 154 respectively. In both cases, a lower value\nmeans more black pigment on the white canvas. The crossings of separate\nstrokes were darker. These measurements show the qualitative behavior under\nthe stated setup; they do not identify Photoshop's internal algorithm or\nestablish pixel, input-device, color-management, or overall feature parity.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "heading",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "## iiPaintEngine requirements\n",
+      "level": 2,
+      "title": "iiPaintEngine requirements"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 23,
+      "end_line": 23,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 24,
+      "end_line": 32,
+      "raw": "For each source-over dab, the effective stroke cap is source alpha multiplied\nby enabled stroke opacity and the dab's opacity-cap dynamics. The projected\nsample alpha is that cap multiplied by the tip/material mask and dab flow.\nIt is the effective alpha of that dab on an empty stroke. A partial mask is\ncoverage, not a per-pixel ceiling: repeated deposits can build toward the\nstroke cap without exceeding it. With a constant cap, a sample contributes\nits normalized coverage to the remaining capacity of that pixel. Separate\nstrokes composite independently. Lower dynamic caps cannot erase pigment\nalready accumulated in the same stroke.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 33,
+      "end_line": 33,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 34,
+      "end_line": 41,
+      "raw": "The same behavior applies to circle, procedural, and image-mask brush tips.\nIncremental input batches must produce the same pixels as a single batch;\npreview and commit must agree. Eraser input accumulates the same coverage\nbefore it is applied as destination-out to the committed pixels, and its\npreview, commit and pixel-based undo/redo must agree. For the low-level\n`paintRasterSamples` API, consecutive destination-out samples form an\neraser run, and only touched pixels are accumulated. A change in blend mode\nflushes the preceding run before processing the next one.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 42,
+      "end_line": 42,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 43,
+      "end_line": 44,
+      "raw": "The reference experiment is about brush appearance. No drawing-latency or\nphysical stylus performance claim follows from it.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 45,
+      "end_line": 45,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "heading",
+      "start_line": 46,
+      "end_line": 46,
+      "raw": "## Verification\n",
+      "level": 2,
+      "title": "Verification"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 47,
+      "end_line": 47,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 48,
+      "end_line": 55,
+      "raw": "On macOS arm64, the canonical `build/` was built and all 68 CTest cases\npassed. `PhotoshopBrushAccumulationTest` checks soft-edge buildup for three\ntip implementations, moving dabs, low flow, independent strokes,\nincremental batches, dynamic caps and translucent sources.\n`BitmapPaintSessionContractTest` checks an eraser's changed preview, its\ncommit and undo/redo pixels. `StrokeCompositingTest` checks repeated\nlow-flow erasure and ordering across blend-mode changes; its existing stroke\ncompositing expectations use the stated per-deposit alpha contract.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 56,
+      "end_line": 56,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 57,
+      "end_line": 62,
+      "raw": "The previously built macOS Congregation painting-damage integration test was\nalso run with `DYLD_LIBRARY_PATH` selecting this build's\n`libiiPaintEngine.dylib`; the loader confirmed that path and the test returned\n`PAINTING_DAMAGE_INTEGRATION_OK`. This is a test-process integration check,\nnot evidence that a new Congregation application was built, installed, or\ndeployed to iPad, nor a measurement of pen latency.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Brush accumulation: Photoshop observation and engine contract",
+      "anchor": "brush-accumulation-photoshop-observation-and-engine-contract",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000003",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Reference experiment",
+      "anchor": "reference-experiment",
+      "start_line": 3
+    },
+    {
+      "block_id": "b000009",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "iiPaintEngine requirements",
+      "anchor": "iipaintengine-requirements",
+      "start_line": 22
+    },
+    {
+      "block_id": "b000017",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Verification",
+      "anchor": "verification",
+      "start_line": 46
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000007",
+        "line": 19,
+        "text": "the stated setup; they do not identify Photoshop's internal algorithm or",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000013",
+        "line": 35,
+        "text": "Incremental input batches must produce the same pixels as a single batch;",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000013",
+        "line": 36,
+        "text": "preview and commit must agree. Eraser input accumulates the same coverage",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000013",
+        "line": 38,
+        "text": "preview, commit and pixel-based undo/redo must agree. For the low-level",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

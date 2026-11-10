@@ -1,0 +1,121 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:e69a54667799a66e027479d7c6ee6e6fac15786e5e252da66752f5fcff699a07",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiPaintEngine",
+    "name": "iiPaintEngine",
+    "root": "SDK/iiPaintEngine",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/DynamicLinking.md",
+    "sha256": "eb9d695b9d514698087ee97e548b4ce2c4b7b1d435e111e9f25c42feefa5073b",
+    "bytes": 812,
+    "line_count": 11,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "동적 라이브러리 빌드",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# 동적 라이브러리 빌드\n",
+      "level": 1,
+      "title": "동적 라이브러리 빌드"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 6,
+      "raw": "페인팅 엔진과 선택적 BrushTools는 `IIPAINTENGINE_BUILD_SHARED=ON`에서 각각\n공유 라이브러리로 빌드한다. `OFF`는 명시적인 정적 빌드다. Windows DLL,\niOS 프레임워크, WebAssembly 사이드 모듈을 지원하며 기존 CMake 타깃 이름을\n유지한다. 앱은 사용하는 라이브러리와 필요한 런타임을 함께 포함해야 한다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 8,
+      "end_line": 9,
+      "raw": "테스트는 구성 요소의 유형과 연결 및 브러시 계약을 확인한다. 이는 앱이나\n물리 입력 장치의 실행 검증을 의미하지 않는다.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "Emscripten 소비자 설정은 공유 사이드 모듈을 가져오기 전에 CMake의 공유 라이브러리 지원을 활성화한다. 앱의 메인 모듈 컴파일·링크 옵션은 빌더 또는 앱이 지정해야 한다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "동적 라이브러리 빌드",
+      "anchor": "동적-라이브러리-빌드",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000003",
+        "line": 6,
+        "text": "유지한다. 앱은 사용하는 라이브러리와 필요한 런타임을 함께 포함해야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000005",
+        "line": 9,
+        "text": "물리 입력 장치의 실행 검증을 의미하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000007",
+        "line": 11,
+        "text": "Emscripten 소비자 설정은 공유 사이드 모듈을 가져오기 전에 CMake의 공유 라이브러리 지원을 활성화한다. 앱의 메인 모듈 컴파일·링크 옵션은 빌더 또는 앱이 지정해야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

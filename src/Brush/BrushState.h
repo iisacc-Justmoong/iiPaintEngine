@@ -45,6 +45,9 @@ struct Rasterizer {
     Types::Scalar noiseStrength = 0.5;
     bool wetEdgesEnabled = false;
     Types::Scalar wetEdgesStrength = 0.5;
+    BrushNoiseOptions noise;
+    BrushWetEdgeOptions wetEdges;
+    BrushBuildUpOptions buildUp;
     bool smoothingEnabled = false;
     Types::Scalar smoothing = 0.5;
     BrushSmoothingMode smoothingMode = BrushSmoothingMode::Exponential;

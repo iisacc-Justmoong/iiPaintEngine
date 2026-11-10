@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/BrushTools.md",
-    "sha256": "737bd84cc031619a03abb323042c602f06fead5e88b69468bc5a405d2b2e5dd6",
-    "bytes": 12167,
-    "line_count": 116,
+    "sha256": "a175fe4ac998211d0e6321875feaa7a81543c07172a9bd8d7738a0ef661838d2",
+    "bytes": 12873,
+    "line_count": 125,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -464,6 +464,36 @@
       "start_line": 111,
       "end_line": 116,
       "raw": "스냅샷은 여러 작업이 공유할 수 있지만 각 작업은 별도의 샘플러를 한 작업자에서\n사용하고, 렌더가 끝난 뒤에만 누락 보고를 읽는다. 바깥 경계는 전체 유효 원본\n범위를 포함해야 한다. 합성 8192×8192 좌표의 대각선 획은 382개 타일의\n논리 픽셀 6,258,688바이트로 원본 전체를 제공한 렌더와 일치했다. 인덱스,\n렌더 버퍼, 할당자 오버헤드는 포함하지 않았으며 실제 8K 파일이나 앱 성능\n수락의 증거는 아니다.\n"
+    },
+    {
+      "id": "b000062",
+      "kind": "blank",
+      "start_line": 117,
+      "end_line": 118,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000063",
+      "kind": "heading",
+      "start_line": 119,
+      "end_line": 119,
+      "raw": "## 실행 중인 브러시 상태 재사용\n",
+      "level": 2,
+      "title": "실행 중인 브러시 상태 재사용"
+    },
+    {
+      "id": "b000064",
+      "kind": "blank",
+      "start_line": 120,
+      "end_line": 120,
+      "raw": "\n"
+    },
+    {
+      "id": "b000065",
+      "kind": "paragraph",
+      "start_line": 121,
+      "end_line": 125,
+      "raw": "`renderGestureWithResolvedBrush`는 호출자가 이미 검증하고 고정한 `ResolvedBrush`와\n입력 보정 설정을 받아 동일한 타일 렌더러에서 전체 획 테이퍼를 적용한다. 스트리밍 보정이 활성화되면 먼저 보정된 경로의 전체 길이를 측정한다. 원본 상태와\n입력은 변경하지 않는다. SourceOver와 지우기만 지원하며 다른 합성 모드는 거부한다.\n상태의 유효성과 원본 스냅샷의 일관성은 호출자가 보장하고, 입력과 렌더 예산은\n기존 API와 동일하게 검사한다. 화면 미리보기·이력 커밋과 문서 잠금은 소비자의 책임이다.\n"
     }
   ],
   "outline": [
@@ -530,6 +560,14 @@
       "title": "누락 타일 탐색",
       "anchor": "누락-타일-탐색",
       "start_line": 102
+    },
+    {
+      "block_id": "b000063",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "실행 중인 브러시 상태 재사용",
+      "anchor": "실행-중인-브러시-상태-재사용",
+      "start_line": 119
     }
   ],
   "indexes": {
@@ -643,6 +681,13 @@
         "block_id": "b000061",
         "line": 113,
         "text": "범위를 포함해야 한다. 합성 8192×8192 좌표의 대각선 획은 382개 타일의",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000065",
+        "line": 123,
+        "text": "입력은 변경하지 않는다. SourceOver와 지우기만 지원하며 다른 합성 모드는 거부한다.",
         "basis": "lexical_match",
         "context": "paragraph"
       }

@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "docs/BRUSHES.md",
-    "sha256": "ff4ad9563b31467a6ad29caa3a5ce2eb2bcd275e716080df411e6851d516f2fd",
-    "bytes": 10740,
+    "sha256": "76a9ce76b039e0a0d181d26150c2968bc858ad5ea949203c15b81a28df7b2d7a",
+    "bytes": 11360,
     "line_count": 99,
     "encoding": "utf-8",
     "language": "ko"
@@ -182,7 +182,7 @@
       "kind": "paragraph",
       "start_line": 51,
       "end_line": 51,
-      "raw": "`opacity`는 한 획의 누적 불투명도 상한이며 `flow`는 각 스탬프의 잉크량이다. 절차적 팁의 hardness는 중심의 불투명 영역과 가장자리 감쇠 폭을 바꾸며, 이미지 마스크의 hardness는 기존 알파 응답을 조절한다. 팁은 알파 마스크이다. 다색 이미지 스탬프는 지원하지 않는다.\n"
+      "raw": "`opacity`는 한 획의 누적 불투명도 상한이며 `flow`는 각 스탬프의 잉크량이다. 팁과 재질의 부분 마스크는 잉크량에 적용하므로 같은 획에서 여러 번 덧칠하면 가장자리도 상한까지 점진적으로 진해진다. `RasterSample::argb`의 알파는 비어 있는 획에 대한 해당 스탬프의 실제 기여량이며 `opacityCap`은 팁 마스크를 곱하기 전의 획 상한이다. 수동으로 `RasterSample`을 생성하는 소비자도 이 계약을 따른다. 별도 획은 이미 확정된 픽셀 위에 각각 합성된다. 실험 조건과 관측의 한계는 [Photoshop 브러시 관측과 누적 계약](PHOTOSHOP_BRUSH_ACCUMULATION.md)에 기록한다. 절차적 팁의 hardness는 중심의 불투명 영역과 가장자리 감쇠 폭을 바꾸며, 이미지 마스크의 hardness는 기존 알파 응답을 조절한다. 팁은 알파 마스크이다. 다색 이미지 스탬프는 지원하지 않는다.\n"
     },
     {
       "id": "b000016",
@@ -583,7 +583,7 @@
       {
         "block_id": "b000015",
         "line": 51,
-        "text": "`opacity`는 한 획의 누적 불투명도 상한이며 `flow`는 각 스탬프의 잉크량이다. 절차적 팁의 hardness는 중심의 불투명 영역과 가장자리 감쇠 폭을 바꾸며, 이미지 마스크의 hardness는 기존 알파 응답을 조절한다. 팁은 알파 마스크이다. 다색 이미지 스탬프는 지원하지 않는다.",
+        "text": "`opacity`는 한 획의 누적 불투명도 상한이며 `flow`는 각 스탬프의 잉크량이다. 팁과 재질의 부분 마스크는 잉크량에 적용하므로 같은 획에서 여러 번 덧칠하면 가장자리도 상한까지 점진적으로 진해진다. `RasterSample::argb`의 알파는 비어 있는 획에 대한 해당 스탬프의 실제 기여량이며 `opacityCap`은 팁 마스크를 곱하기 전의 획 상한이다. 수동으로 `RasterSample`을 생성하는 소비자도 이 계약을 따른다. 별도 획은 이미 확정된 픽셀 위에 각각 합성된다. 실험 조건과 관측의 한계는 [Photoshop 브러시 관측과 누적 계약](PHOTOSHOP_BRUSH_ACCUMULATION.md)에 기록한다. 절차적 팁의 hardness는 중심의 불투명 영역과 가장자리 감쇠 폭을 바꾸며, 이미지 마스크의 hardness는 기존 알파 응답을 조절한다. 팁은 알파 마스크이다. 다색 이미지 스탬프는 지원하지 않는다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
@@ -630,6 +630,13 @@
         "target": "BRUSH_EXPANSION.md",
         "kind": "relative",
         "line": 46
+      },
+      {
+        "block_id": "b000015",
+        "label": "Photoshop 브러시 관측과 누적 계약",
+        "target": "PHOTOSHOP_BRUSH_ACCUMULATION.md",
+        "kind": "relative",
+        "line": 51
       },
       {
         "block_id": "b000049",

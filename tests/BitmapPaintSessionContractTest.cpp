@@ -57,8 +57,14 @@ int main()
     badEvent.documentPosition.x = std::numeric_limits<double>::infinity();
     CHECK(!session.processPointerEvent(badEvent).accepted && !session.strokeActive());
     session.setEraserMode(true);
+    const auto beforeErase = session.file().pixels().pixels;
     CHECK(session.processPointerEvent(event(PointerEventPhase::Press,32,32,4)).accepted);
+    const auto erasedPreview = session.previewPixels().pixels;
+    CHECK(erasedPreview != beforeErase);
+    CHECK(session.file().pixels().pixels == beforeErase);
     CHECK(session.processPointerEvent(event(PointerEventPhase::Release,32,32,4)).committed);
-    CHECK(session.undo() && session.redo());
+    CHECK(session.file().pixels().pixels == erasedPreview);
+    CHECK(session.undo() && session.file().pixels().pixels == beforeErase);
+    CHECK(session.redo() && session.file().pixels().pixels == erasedPreview);
     return 0;
 }

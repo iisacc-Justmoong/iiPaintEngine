@@ -1,0 +1,742 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:bbe804b6c03e13a673f92213932adfc07c30901b945b97e22460804bf99733c6",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiPaintEngine",
+    "name": "iiPaintEngine",
+    "root": "SDK/iiPaintEngine",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/LOCAL_MASK_BRUSH.md",
+    "sha256": "387052a35f94eec75d22c6f8401486c1629f07587557f0c47a935a39fb978cf3",
+    "bytes": 10315,
+    "line_count": 190,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Local correction mask brush",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Local correction mask brush\n",
+      "level": 1,
+      "title": "Local correction mask brush"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 6,
+      "raw": "iiPaintEngine 0.4.2 adds `PixelMask`, `LocalMaskBrushOptions` and `MaskPaintSession`.\nApplications supply document-pixel pointer events and receive normalized float\nmask pixels. A separate adjustment library can borrow the row-major coverage\nwithout either SDK linking to the other.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "heading",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "## Evidence and implementation boundary\n",
+      "level": 2,
+      "title": "Evidence and implementation boundary"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 10,
+      "end_line": 18,
+      "raw": "The Lightroom 9.6 investigation's\n`Engineering/Projects/Adobe/Lightroom/docs/Scripts.md` records local brush\ndeclarations. Its `recovered/scripts/decompiled/Contents/PlugIns/Develop.lrmodule/Contents/Resources/DevelopLocalizedCommon.lua:7136–7184`\ncontains normalized size, flow, density, stroke opacity and feather constants.\n`.../PlugIns/organize.lrmodule/Contents/Resources/EditParameters2.lua:12621–12767`\ndeclares their preference keys and percentage ranges, and disables density in\nsubtract mode. AutoMask is declared at 10073–10108. These are decompiler output;\ntheir high-level execution semantics were not verified. No Adobe native pixel\nalgorithm is executed by this API.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 19,
+      "end_line": 19,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 20,
+      "end_line": 30,
+      "raw": "Adobe's [Lightroom desktop masking documentation](https://helpx.adobe.com/lightroom/desktop/edit-photos/masking.html)\n(checked 2026-10-14) describes diameter in pixels, feathered edges, application\nrate, stroke transparency and similar-color AutoMask. Lua's normalized size\ndoes not establish Adobe's actual pixel conversion. The formulas, defaults and\ncolor model below are iiPaintEngine decisions. Existing Photoshop brush options\nremain in [BRUSH_OPTIONS.md](BRUSH_OPTIONS.md). The separately recovered numeric\nhelpers in [LOCALIZED_BRUSH_MATH.md](LOCALIZED_BRUSH_MATH.md) are not claimed to\nbe Adobe's native dab pixel kernel and do not silently replace this feather model.\nThe numeric [original vectors](localized-brush-vectors.json) and\n[provenance](localized-brush-math-provenance.json) are installed passive documentation;\nthe C++ test consumes the separate header fixture.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 31,
+      "end_line": 31,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "heading",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "## Public API\n",
+      "level": 2,
+      "title": "Public API"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 33,
+      "end_line": 33,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "fenced_code",
+      "start_line": 34,
+      "end_line": 59,
+      "raw": "```cpp\n#include <iiPaintEngine>\n\nMaskPaintSession session;\nsession.createMask(640, 480);\nLocalMaskBrushOptions options;\noptions.sizePixels = 24;\noptions.feather = .75;\noptions.flow = .25;\noptions.density = .8;\noptions.strokeOpacity = .5;\nsession.setBrushOptions(options);\n\nPointerEvent event;\nevent.phase = PointerEventPhase::Press;\nevent.button = PointerButton::Primary;\nevent.primaryButtonDown = true;\nevent.documentPosition = {320, 240};\nsession.processPointerEvent(event);\nconst PixelMask& preview = session.previewMask();\n\nevent.phase = PointerEventPhase::Release;\nevent.primaryButtonDown = false;\nsession.processPointerEvent(event);\nconst PixelMask& committed = session.mask();\n```\n",
+      "language": "cpp",
+      "code": "#include <iiPaintEngine>\n\nMaskPaintSession session;\nsession.createMask(640, 480);\nLocalMaskBrushOptions options;\noptions.sizePixels = 24;\noptions.feather = .75;\noptions.flow = .25;\noptions.density = .8;\noptions.strokeOpacity = .5;\nsession.setBrushOptions(options);\n\nPointerEvent event;\nevent.phase = PointerEventPhase::Press;\nevent.button = PointerButton::Primary;\nevent.primaryButtonDown = true;\nevent.documentPosition = {320, 240};\nsession.processPointerEvent(event);\nconst PixelMask& preview = session.previewMask();\n\nevent.phase = PointerEventPhase::Release;\nevent.primaryButtonDown = false;\nsession.processPointerEvent(event);\nconst PixelMask& committed = session.mask();\n",
+      "closed": true
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 60,
+      "end_line": 60,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 61,
+      "end_line": 67,
+      "raw": "`PixelMask` has `width`, `height` and `std::vector<float> coverage`, one finite\n[0,1] value per pixel in row-major order. Pixel centers are integer document\npositions. Dimensions must be positive and no greater than 16384 per axis;\ntotal pixels must not exceed 64 Mi. `replaceMask` validates all coverage and\nresets guidance, pixel history and unfinished input. Failed create/replace\npreserves the previous session. Core mask factories throw on invalid input;\nsession mutation methods return bool and explain failure through `lastError()`.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 68,
+      "end_line": 68,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "table",
+      "start_line": 69,
+      "end_line": 80,
+      "raw": "| Option | Default | Domain and effect |\n|---|---:|---|\n| `sizePixels` | 24 | Diameter [0.01,4096] document pixels |\n| `feather` | 1 | [0,1], radial edge transition fraction |\n| `flow` | 1 | [0,1], per-dab rate; zero is inert |\n| `density` | 1 | [0,1], absolute Add coverage ceiling |\n| `strokeOpacity` | 1 | [0,1], entire stroke's maximum contribution |\n| `pressureAffectsSize` | false | Reuse existing pressure-to-size dynamics |\n| `pressureAffectsOpacity` | false | Reuse per-dab pressure opacity ceiling |\n| `autoMask` | false | Enable fixed start-color guidance |\n| `autoMaskTolerance` | .15 | [0,1], normalized RGB RMS distance threshold |\n| `mode` | Add | Add or Erase; eraser pointer forces Erase for its stroke |\n",
+      "columns": [
+        "Option",
+        "Default",
+        "Domain and effect"
+      ],
+      "rows": [
+        [
+          "`sizePixels`",
+          "24",
+          "Diameter [0.01,4096] document pixels"
+        ],
+        [
+          "`feather`",
+          "1",
+          "[0,1], radial edge transition fraction"
+        ],
+        [
+          "`flow`",
+          "1",
+          "[0,1], per-dab rate; zero is inert"
+        ],
+        [
+          "`density`",
+          "1",
+          "[0,1], absolute Add coverage ceiling"
+        ],
+        [
+          "`strokeOpacity`",
+          "1",
+          "[0,1], entire stroke's maximum contribution"
+        ],
+        [
+          "`pressureAffectsSize`",
+          "false",
+          "Reuse existing pressure-to-size dynamics"
+        ],
+        [
+          "`pressureAffectsOpacity`",
+          "false",
+          "Reuse per-dab pressure opacity ceiling"
+        ],
+        [
+          "`autoMask`",
+          "false",
+          "Enable fixed start-color guidance"
+        ],
+        [
+          "`autoMaskTolerance`",
+          ".15",
+          "[0,1], normalized RGB RMS distance threshold"
+        ],
+        [
+          "`mode`",
+          "Add",
+          "Add or Erase; eraser pointer forces Erase for its stroke"
+        ]
+      ]
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 81,
+      "end_line": 81,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 82,
+      "end_line": 86,
+      "raw": "Invalid enum, nonfinite and out-of-domain options are rejected without replacing\nselected settings. Selecting options during a stroke affects the next stroke;\nactive options and sampled color remain frozen. Default flow 1 is an SDK choice:\nrecovered common and panel declarations differ (1 and .5), so no effective\nLightroom UI default is claimed.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 87,
+      "end_line": 87,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "heading",
+      "start_line": 88,
+      "end_line": 88,
+      "raw": "## Float pixel model\n",
+      "level": 2,
+      "title": "Float pixel model"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 89,
+      "end_line": 89,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 90,
+      "end_line": 93,
+      "raw": "The session resolves a procedural round `BrushPreset` and reuses\n`InputStrokeBuilder`, `RasterDabStream`, `BrushDab` placement and dab device-pixel\nbounds. Its preset placement density is always 1. **`BrushPreset::density`\nretains its existing dab-placement meaning** and serialization.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 94,
+      "end_line": 94,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 95,
+      "end_line": 100,
+      "raw": "For normalized radius distance `r`, the edge coverage is\n`clamp((1-r)*radius + .5,0,1)`. Feather 0 keeps this antialiased hard edge;\npositive feather multiplies by `clamp((1-r)/feather,0,1)`. This follows the\nexisting procedural round-tip geometry and half-pixel edge model while keeping\nfloat precision. Subpixel areas are approximate, not analytic area integrals.\nOnly pixels intersecting the mask are visited. Flow is not quantized into ARGB8.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 101,
+      "end_line": 101,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 102,
+      "end_line": 105,
+      "raw": "For one dab, `a = flow * geometricCoverage * guidanceWeight`. Pending stroke\ncoverage accumulates as `P + (1-P)*a`, limited by the dab's opacity ceiling.\nAccumulation never decreases an existing `P` when a later dab has a lower\nopacity ceiling. With pressure opacity disabled, the ceiling is 1.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 106,
+      "end_line": 106,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 107,
+      "end_line": 107,
+      "raw": "Let `B` be committed coverage, `D` density and `O` stroke opacity:\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 108,
+      "end_line": 108,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "list",
+      "start_line": 109,
+      "end_line": 110,
+      "raw": "- Add preview is `B + max(0,D-B)*(O*P)`.\n- Erase preview is `B*(1-O*P)`; density is ignored in Erase mode.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "Add preview is `B + max(0,D-B)*(O*P)`.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Erase preview is `B*(1-O*P)`; density is ignored in Erase mode.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 111,
+      "end_line": 111,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 112,
+      "end_line": 119,
+      "raw": "Add cannot exceed `max(B,D)` or reduce a pixel above a newly selected lower\ndensity. Repeated dabs within a stroke cannot bypass stroke opacity. A later\nstroke uses the new committed `B` and can progress further toward density.\nFrom zero, flow 1/density .6/stroke opacity .25 gives .15 on the first stroke\nand .2625 on the next; repeated passes in the first stroke stay at .15.\nErase actually decreases float coverage. An unchanged position emits no extra\ndistance-based dab; the API creates no timer or input queue. Existing per-event\n65,536-dab limits reject excessive input before mask pixels change.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 120,
+      "end_line": 120,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 121,
+      "end_line": 129,
+      "raw": "Optional pressure switches reuse `BrushDynamics::pressureToSize` and\n`pressureToOpacity`, each set to 1 when enabled. They do not change the existing\ndynamics model. Mouse input uses neutral pressure 1; synthetic tablet input\nsupplies its measured pressure, normalized by existing dynamics. Tablet tests\ncompare pressure .25/1 at the same configured diameter, test actual coverage\nand footprint changes, and ensure later lighter contact cannot reduce prior\nAdd coverage. Disabled switches are neutral. Hover and touch follow the\nexisting input builder's non-painting policy. Cancel always discards pending\npixels. No physical tablet or Adobe pressure-response parity is claimed.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 130,
+      "end_line": 130,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "heading",
+      "start_line": 131,
+      "end_line": 131,
+      "raw": "## AutoMask and source guidance\n",
+      "level": 2,
+      "title": "AutoMask and source guidance"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 132,
+      "end_line": 132,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 133,
+      "end_line": 138,
+      "raw": "`setColorGuidance(std::span<const std::uint32_t>)` copies straight ARGB32 source\npixels with the mask's exact pixel count. Caller storage may be released after\nthe call. Replacing/clearing guidance while a stroke is active is rejected.\nAutoMask requires a start inside the source on a nonzero-alpha pixel and\ncaptures that nearest integer-center RGB once. Later movement keeps it fixed;\nthe next stroke samples a new reference.\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 139,
+      "end_line": 139,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 140,
+      "end_line": 143,
+      "raw": "For each touched source pixel, normalized RGB RMS distance `d` is compared with\ntolerance `t`. Positive `t` uses `1-smoothstep(clamp(d/t,0,1))`, multiplied by\nsource alpha. Tolerance zero accepts exact RGB only. Alpha-zero source pixels\nalways contribute zero; hidden RGB cannot seed or enter an automatic mask.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 144,
+      "end_line": 144,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 145,
+      "end_line": 151,
+      "raw": "This is a soft color-edge restriction of actual brushed pixels. It does not\nsegment objects, flood-fill connected regions, recognize subjects, run AI,\ntransform ICC profiles or use a perceptually uniform color space. Similar\ndisconnected colors can be painted when touched. Image noise, lighting and\nsupplied color space affect selection. Callers should supply a stable original\nimage rather than a changing correction preview. Adobe AutoMask pixel parity\nhas not been established.\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 152,
+      "end_line": 152,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "heading",
+      "start_line": 153,
+      "end_line": 153,
+      "raw": "## Pixel lifecycle and history\n",
+      "level": 2,
+      "title": "Pixel lifecycle and history"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 154,
+      "end_line": 154,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "paragraph",
+      "start_line": 155,
+      "end_line": 159,
+      "raw": "Every accepted event synchronously updates touched pending/preview pixels;\n`mask()` remains committed until release or `commitStroke()`. Release at an\nunchanged position commits exactly the preview. Release at a new position\nfirst paints the final segment. Empty/unchanged strokes create no history.\nCancel restores committed pixels to preview.\n"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 160,
+      "end_line": 160,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 161,
+      "end_line": 166,
+      "raw": "Undo/redo exchange dirty-rectangle float pixel patches. Clear is undoable;\nnew commits discard redo. Undo/redo/clear discard unfinished input. The input\nbuilder owns one active flag, and the existing stream owns one preceding point\nplus scalar placement state. Guidance, pending state and history contain\npixels; there is no point list, pointer event history or replayable stroke.\nInvalid finite/range/timestamp/dab-budget input preserves existing mask pixels.\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 167,
+      "end_line": 167,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "paragraph",
+      "start_line": 168,
+      "end_line": 173,
+      "raw": "The session owns three mask planes, an optional ARGB guidance plane and\napplication-lifetime pixel history. Callers must budget large masks/history;\nthere is no automatic backing store, history eviction or concurrent-mutation\ncontract. Borrowed coverage spans remain valid only while pixel storage is\nvalid and the caller synchronizes access. The engine owns no window, render\nthread, clock, external adjustment SDK or user image file.\n"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 174,
+      "end_line": 174,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "heading",
+      "start_line": 175,
+      "end_line": 175,
+      "raw": "## Tests and installation\n",
+      "level": 2,
+      "title": "Tests and installation"
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 176,
+      "end_line": 176,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "paragraph",
+      "start_line": 177,
+      "end_line": 185,
+      "raw": "`MaskPaintSessionContract` checks actual diameter/feather pixels, low-flow\nfloat precision, repeated accumulation, independent caps, stroke reentry,\nerasure, preview/commit/cancel, pixel history, option snapshots, pressure and\nfailure preservation. `MaskAutoMaskContract` checks contrasting edges, reference\nfreezing/resampling, source-copy lifetime, tolerance, partial/zero alpha and\nmissing/invalid guidance. Public umbrella and staged install consumer tests\ncompile and execute the new API. Full Release and ASan/UBSan suites run under\n`build/`; install tests write only to `build/` staging prefixes. Host fixtures\ndo not establish physical pen input or Lightroom runtime parity.\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 186,
+      "end_line": 186,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "paragraph",
+      "start_line": 187,
+      "end_line": 190,
+      "raw": "On macOS the shared target explicitly uses `@rpath/libiiPaintEngine.dylib` for\nboth build and install IDs. An old cache's absolute install-name directory must\nnot bind a newly linked consumer to an earlier installed SDK. The staged\ninstallation contract verifies this actual ID before compiling the consumer.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Local correction mask brush",
+      "anchor": "local-correction-mask-brush",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000005",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Evidence and implementation boundary",
+      "anchor": "evidence-and-implementation-boundary",
+      "start_line": 8
+    },
+    {
+      "block_id": "b000011",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Public API",
+      "anchor": "public-api",
+      "start_line": 32
+    },
+    {
+      "block_id": "b000021",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Float pixel model",
+      "anchor": "float-pixel-model",
+      "start_line": 88
+    },
+    {
+      "block_id": "b000037",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "AutoMask and source guidance",
+      "anchor": "automask-and-source-guidance",
+      "start_line": 131
+    },
+    {
+      "block_id": "b000045",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Pixel lifecycle and history",
+      "anchor": "pixel-lifecycle-and-history",
+      "start_line": 153
+    },
+    {
+      "block_id": "b000053",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Tests and installation",
+      "anchor": "tests-and-installation",
+      "start_line": 175
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000009",
+        "line": 27,
+        "text": "be Adobe's native dab pixel kernel and do not silently replace this feather model.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000015",
+        "line": 63,
+        "text": "positions. Dimensions must be positive and no greater than 16384 per axis;",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000015",
+        "line": 64,
+        "text": "total pixels must not exceed 64 Mi. `replaceMask` validates all coverage and",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000027",
+        "line": 104,
+        "text": "Accumulation never decreases an existing `P` when a later dab has a lower",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000035",
+        "line": 122,
+        "text": "`pressureToOpacity`, each set to 1 when enabled. They do not change the existing",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000043",
+        "line": 149,
+        "text": "supplied color space affect selection. Callers should supply a stable original",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000051",
+        "line": 169,
+        "text": "application-lifetime pixel history. Callers must budget large masks/history;",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000055",
+        "line": 185,
+        "text": "do not establish physical pen input or Lightroom runtime parity.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000057",
+        "line": 188,
+        "text": "both build and install IDs. An old cache's absolute install-name directory must",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000009",
+        "label": "Lightroom desktop masking documentation",
+        "target": "https://helpx.adobe.com/lightroom/desktop/edit-photos/masking.html",
+        "kind": "external",
+        "line": 20
+      },
+      {
+        "block_id": "b000009",
+        "label": "BRUSH_OPTIONS.md",
+        "target": "BRUSH_OPTIONS.md",
+        "kind": "relative",
+        "line": 25
+      },
+      {
+        "block_id": "b000009",
+        "label": "LOCALIZED_BRUSH_MATH.md",
+        "target": "LOCALIZED_BRUSH_MATH.md",
+        "kind": "relative",
+        "line": 26
+      },
+      {
+        "block_id": "b000009",
+        "label": "original vectors",
+        "target": "localized-brush-vectors.json",
+        "kind": "relative",
+        "line": 28
+      },
+      {
+        "block_id": "b000009",
+        "label": "provenance",
+        "target": "localized-brush-math-provenance.json",
+        "kind": "relative",
+        "line": 29
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000017",
+        "columns": [
+          "Option",
+          "Default",
+          "Domain and effect"
+        ],
+        "rows": [
+          [
+            "`sizePixels`",
+            "24",
+            "Diameter [0.01,4096] document pixels"
+          ],
+          [
+            "`feather`",
+            "1",
+            "[0,1], radial edge transition fraction"
+          ],
+          [
+            "`flow`",
+            "1",
+            "[0,1], per-dab rate; zero is inert"
+          ],
+          [
+            "`density`",
+            "1",
+            "[0,1], absolute Add coverage ceiling"
+          ],
+          [
+            "`strokeOpacity`",
+            "1",
+            "[0,1], entire stroke's maximum contribution"
+          ],
+          [
+            "`pressureAffectsSize`",
+            "false",
+            "Reuse existing pressure-to-size dynamics"
+          ],
+          [
+            "`pressureAffectsOpacity`",
+            "false",
+            "Reuse per-dab pressure opacity ceiling"
+          ],
+          [
+            "`autoMask`",
+            "false",
+            "Enable fixed start-color guidance"
+          ],
+          [
+            "`autoMaskTolerance`",
+            ".15",
+            "[0,1], normalized RGB RMS distance threshold"
+          ],
+          [
+            "`mode`",
+            "Add",
+            "Add or Erase; eraser pointer forces Erase for its stroke"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

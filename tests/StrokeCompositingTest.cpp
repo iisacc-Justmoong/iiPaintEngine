@@ -34,7 +34,8 @@ int main()
     };
 
     accumulateStrokeSamples(buffer, repeatedRed);
-    if (alphaOf(strokeCompositePixelAt(buffer, {1, 1})) != 0x80) {
+    // Four 50% deposits approach, but do not immediately reach, the cap.
+    if (alphaOf(strokeCompositePixelAt(buffer, {1, 1})) != 0x78) {
         return 1;
     }
 
@@ -59,7 +60,7 @@ int main()
     RasterLayer layer = makeRasterLayer(3, 3, 0xFF0000FFU);
     compositeStrokeBufferOntoLayer(layer, buffer);
     const std::uint32_t composited = rasterLayerPixelAt(layer, {1, 1});
-    if (alphaOf(composited) != 0xFF || redOf(composited) < 0x7F || blueOf(composited) > 0x80) {
+    if (alphaOf(composited) != 0xFF || redOf(composited) != 0x78 || blueOf(composited) != 0x87) {
         return 1;
     }
 
@@ -80,6 +81,17 @@ int main()
         return 1;
     }
 
+    // A run of eraser dabs is one stroke: repeated flow builds toward the
+    // 50% stroke limit instead of applying 50% as an independent limit per dab.
+    RasterLayer lowFlowErase = makeRasterLayer(3, 3, 0xFF336699U);
+    const std::vector<RasterSample> eraserRun(4,
+            RasterSample{{1, 1}, 0x1A000000U, 0x80U, RasterBlendMode::DestinationOut});
+    paintRasterSamples(lowFlowErase, eraserRun);
+    if (alphaOf(rasterLayerPixelAt(lowFlowErase, {1, 1})) != 179
+            || rasterLayerPixelAt(lowFlowErase, {0, 0}) != 0xFF336699U) {
+        return 1;
+    }
+
     RasterLayer mixedLayer = makeRasterLayer(3, 3, 0xFF0000FFU);
     paintRasterSamples(mixedLayer, {
             RasterSample{{0, 0}, 0x80FF0000U, 0xFFU, RasterBlendMode::SourceOver},
@@ -89,6 +101,19 @@ int main()
     if (redOf(rasterLayerPixelAt(mixedLayer, {0, 0})) <= 0x7F
             || rasterLayerPixelAt(mixedLayer, {1, 1}) != 0x00000000U
             || redOf(rasterLayerPixelAt(mixedLayer, {2, 2})) <= 0x7F) {
+        return 1;
+    }
+
+    const std::vector<RasterSample> ordered{
+            RasterSample{{1, 1}, 0x80000000U, 0x80U, RasterBlendMode::DestinationOut},
+            RasterSample{{1, 1}, 0x80FF0000U, 0xFFU, RasterBlendMode::SourceOver},
+            RasterSample{{1, 1}, 0x40000000U, 0x40U, RasterBlendMode::DestinationOut},
+    };
+    RasterLayer orderedBatch = makeRasterLayer(3, 3, 0xFF336699U);
+    RasterLayer orderedSteps = orderedBatch;
+    paintRasterSamples(orderedBatch, ordered);
+    for (const auto &sample : ordered) paintRasterSamples(orderedSteps, {sample});
+    if (rasterLayerPixelAt(orderedBatch, {1, 1}) != rasterLayerPixelAt(orderedSteps, {1, 1})) {
         return 1;
     }
 

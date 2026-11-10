@@ -156,6 +156,12 @@ int main()
     const auto shallow = appendRasterDabs(stream, StrokePoint{{40,40}, 0}, *resolved.brush);
     const auto shallowPixels = projectBrushDabs(shallow, resolved.brush->rasterizer, {}, resolved.brush->material);
     CHECK(alphaAt(shallowPixels, 40, 40) > alphaAt(stamp(p), 40, 40));
+    t.textureEachTip = false;
+    resolved = resolveBrushPreset(p); CHECK(resolved.brush);
+    resetRasterDabStream(stream);
+    const auto documentShallow = appendRasterDabs(stream, StrokePoint{{40,40}, 0}, *resolved.brush);
+    const auto documentPixels = projectBrushDabs(documentShallow, resolved.brush->rasterizer, {}, resolved.brush->material);
+    CHECK(alphaAt(documentPixels, 40, 40) > alphaAt(stamp(p), 40, 40));
     // Large valid texture offsets are wrapped before conversion to an integer pixel.
     p.material.texture.offsetX = 1e9; p.material.texture.scale = .001;
     CHECK(!stamp(p).empty());
@@ -197,6 +203,46 @@ int main()
     CHECK(alphaAt(noisy, 40, 40) < alphaAt(plain, 40, 40));
     CHECK(alphaAt(noisy, 40, 40) == alphaAt(stamp(p, 21), 40, 40));
     CHECK(alphaAt(noisy, 40, 40) != alphaAt(stamp(p, 22), 40, 40));
+
+    // Independent grain size and wet-edge width/spread change actual coverage.
+    p = {}; p.size = 20; p.hardness = 0;
+    p.stroke.noiseEnabled = true; p.stroke.noiseStrength = 1;
+    p.stroke.noise.size = 1; const auto fine = stamp(p, 21);
+    p.stroke.noise.size = 6; const auto coarse = stamp(p, 21);
+    CHECK(alphaAt(fine, 40, 40) != alphaAt(coarse, 40, 40) || alphaAt(fine, 41, 40) != alphaAt(coarse, 41, 40));
+    CHECK(p.stroke.noise.monochrome);
+    p.stroke.noise.monochrome = false;
+    const auto colorNoise=stamp(p,21),colorNoiseAgain=stamp(p,21);
+    CHECK(colorNoise.size()==coarse.size() && colorNoise.size()==colorNoiseAgain.size());
+    bool differentColor=false;
+    for(std::size_t i=0;i<colorNoise.size();++i) {
+        CHECK(colorNoise[i].argb==colorNoiseAgain[i].argb);
+        CHECK((colorNoise[i].argb>>24)==(coarse[i].argb>>24));
+        differentColor|=(colorNoise[i].argb&0x00ffffffU)!=(coarse[i].argb&0x00ffffffU);
+    }
+    CHECK(differentColor);
+    p.stroke.noiseEnabled = false; p.stroke.wetEdgesEnabled = true; p.stroke.wetEdgesStrength = .7;
+    p.stroke.wetEdges.width = .1; p.stroke.wetEdges.diffusion = .1; const auto narrow = stamp(p);
+    p.stroke.wetEdges.width = .9; p.stroke.wetEdges.diffusion = .9; const auto wide = stamp(p);
+    CHECK(alphaAt(narrow, 44, 40) != alphaAt(wide, 44, 40));
+    p.stroke.buildUp.enabled = true; p.stroke.buildUp.opacityLimit = .4; p.stroke.buildUp.rate = .3;
+    const auto buildup = resolveBrushPreset(p);
+    CHECK(buildup.brush && near(buildup.brush->rasterizer.buildUp.opacityLimit, .4));
+    RasterDabStream buildStream;
+    StrokePoint buildPoint{{40,40}}; buildPoint.time = 1;
+    const auto initialBuildDabs = appendRasterDabs(buildStream, buildPoint, *buildup.brush);
+    const auto buildPixels = projectBrushDabs(initialBuildDabs, buildup.brush->rasterizer, {}, buildup.brush->material);
+    CHECK(!buildPixels.empty() && buildPixels.front().opacityCap <= 102);
+    p.stroke.buildUp.timeBased = true;
+    const auto timed = resolveBrushPreset(p); CHECK(timed.brush);
+    RasterDabStream timedStream; buildPoint.time = 1;
+    appendRasterDabs(timedStream, buildPoint, *timed.brush);
+    buildPoint.time = 1.1;
+    CHECK(!appendRasterDabs(timedStream, buildPoint, *timed.brush).empty());
+    const auto encoded = serializeBrushPreset(p);
+    const auto decoded = readBrushPreset(encoded);
+    CHECK(decoded.preset && !decoded.preset->stroke.noise.monochrome && near(decoded.preset->stroke.noise.size, 6) &&
+          near(decoded.preset->stroke.wetEdges.width, .9) && decoded.preset->stroke.buildUp.enabled);
 
     // Tip extensions produce distinct bitmap footprints and expose scalar wear.
     p = {}; p.material.bristle.enabled = true; p.material.bristle.thickness = .2;

@@ -253,3 +253,24 @@ Photoshop brush-source recovery and Adobe pixel parity remain unverified.
 Symmetry and independent pulled-string/catch-up models are now implemented in
 0.5. ABR tip extraction is bounded as described in BRUSH_EXPANSION.md and does not
 restore modern full brush settings.
+
+### Noise, wet edges and build-up controls
+
+`BrushNoiseOptions.size` controls the spatial noise cell in document pixels. The
+wet-edge object has an edge width in document pixels and normalized diffusion;
+its strength remains the separate `wetEdgesStrength` setting. Build-up has an
+independent enabled flag, per-deposit accumulation multiplier, opacity ceiling,
+and optional time-based placement. Time-based placement uses the existing
+caller-supplied monotonic input clock and airbrush rate; no timer or input path
+is retained by the engine. The options are stored in the brush preset with
+backward-compatible defaults. A disabled build-up preserves existing opacity and
+flow. The options are also copied into the resolved rasterizer state.
+
+## Color noise
+
+`BrushNoiseOptions.monochrome` defaults to true: noise changes coverage while
+preserving the original color. When false, the engine also varies RGB channels
+independently using the same document coordinates, grain size, and stroke seed.
+The choice does not alter alpha coverage or the defaults of existing brushes and
+is saved in the preset. The preview and committed stroke use the same noise
+calculation for the same inputs and seed.

@@ -11,18 +11,38 @@ endif()
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+option(CMAKE_EXPORT_COMPILE_COMMANDS "Generate a compilation database for developer tooling" OFF)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 include(CTest)
 option(IIPAINTENGINE_BUILD_SHARED "Build a shared library" ON)
-option(IIPAINTENGINE_BUILD_EXAMPLES "Build C++ bitmap examples" ON)
+option(IIPAINTENGINE_BUILD_EXAMPLES "Build C++ bitmap examples" OFF)
 option(IIPAINTENGINE_SANITIZE "Instrument C++ sources with address and undefined behavior checks" OFF)
 option(IIPAINTENGINE_BUILD_BRUSH_TOOLS "Build the brush-authoring component" ON)
 set(IIPAINTENGINE_LIBRARY_TYPE STATIC)
-if(IIPAINTENGINE_BUILD_SHARED AND NOT EMSCRIPTEN)
+if(IIPAINTENGINE_BUILD_SHARED)
     set(IIPAINTENGINE_LIBRARY_TYPE SHARED)
 endif()
+if(EMSCRIPTEN AND IIPAINTENGINE_BUILD_SHARED)
+    set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
+endif()
+function(iipaint_configure_shared target)
+    if(NOT IIPAINTENGINE_BUILD_SHARED)
+        return()
+    endif()
+    if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        set_target_properties(${target} PROPERTIES FRAMEWORK TRUE FRAMEWORK_VERSION A
+            MACOSX_FRAMEWORK_IDENTIFIER "com.iisacc.${target}")
+    elseif(APPLE)
+        set_property(TARGET ${target} APPEND PROPERTY INSTALL_RPATH "@loader_path")
+    elseif(UNIX AND NOT EMSCRIPTEN)
+        set_property(TARGET ${target} APPEND PROPERTY INSTALL_RPATH "$ORIGIN")
+    endif()
+    if(EMSCRIPTEN)
+        target_compile_options(${target} PRIVATE -fPIC -sSIDE_MODULE=1)
+        target_link_options(${target} PRIVATE -sSIDE_MODULE=1)
+    endif()
+endfunction()
 file(GLOB_RECURSE IIPAINTENGINE_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 # The gesture authoring component is an upper layer, not part of the streaming engine.
 list(FILTER IIPAINTENGINE_SOURCES EXCLUDE REGEX "/src/iiBrushTools/")
@@ -32,6 +52,7 @@ else()
     set_source_files_properties(src/Brush/LocalizedBrushMath.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math;-ffp-contract=off")
 endif()
 add_library(iiPaintEngine ${IIPAINTENGINE_LIBRARY_TYPE} ${IIPAINTENGINE_SOURCES})
+iipaint_configure_shared(iiPaintEngine)
 add_library(iiPaintEngine::iiPaintEngine ALIAS iiPaintEngine)
 target_compile_features(iiPaintEngine PUBLIC cxx_std_23)
 target_include_directories(iiPaintEngine PUBLIC
@@ -57,21 +78,24 @@ if(IIPAINTENGINE_SANITIZE)
 endif()
 
 if(IIPAINTENGINE_BUILD_BRUSH_TOOLS)
-    add_library(iiPaintEngineBrushTools STATIC src/iiBrushTools/Controls.cpp src/iiBrushTools/Gesture.cpp src/iiBrushTools/PreviewQueue.cpp src/iiBrushTools/FrozenSource.cpp src/iiBrushTools/FrozenRender.cpp)
+    add_library(iiPaintEngineBrushTools ${IIPAINTENGINE_LIBRARY_TYPE} src/iiBrushTools/Controls.cpp src/iiBrushTools/Gesture.cpp src/iiBrushTools/PreviewQueue.cpp src/iiBrushTools/FrozenSource.cpp src/iiBrushTools/FrozenRender.cpp)
+    iipaint_configure_shared(iiPaintEngineBrushTools)
     add_library(iiPaintEngine::BrushTools ALIAS iiPaintEngineBrushTools)
     add_library(iiBrushTools::iiBrushTools ALIAS iiPaintEngineBrushTools)
-    set_target_properties(iiPaintEngineBrushTools PROPERTIES EXPORT_NAME BrushTools POSITION_INDEPENDENT_CODE ON CXX_EXTENSIONS OFF IMPORTED_NO_SYSTEM TRUE)
+    set_target_properties(iiPaintEngineBrushTools PROPERTIES EXPORT_NAME BrushTools POSITION_INDEPENDENT_CODE ON CXX_EXTENSIONS OFF IMPORTED_NO_SYSTEM TRUE WINDOWS_EXPORT_ALL_SYMBOLS ON)
     target_compile_features(iiPaintEngineBrushTools PUBLIC cxx_std_23)
     target_include_directories(iiPaintEngineBrushTools PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine>)
     target_link_libraries(iiPaintEngineBrushTools PUBLIC iiPaintEngine)
-    install(TARGETS iiPaintEngineBrushTools EXPORT iiPaintEngineBrushToolsTargets ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    install(TARGETS iiPaintEngineBrushTools EXPORT iiPaintEngineBrushToolsTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR})
     install(FILES docs/BrushTools-LICENSE.txt DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/iiPaintEngine/BrushTools)
     install(EXPORT iiPaintEngineBrushToolsTargets NAMESPACE iiPaintEngine:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiPaintEngine)
     configure_package_config_file(cmake/iiBrushToolsConfig.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/iiBrushToolsConfig.cmake INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiBrushTools)
-    write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/iiBrushToolsConfigVersion.cmake VERSION 0.1.1 COMPATIBILITY SameMinorVersion)
+    write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/iiBrushToolsConfigVersion.cmake VERSION 0.1.2 COMPATIBILITY SameMinorVersion)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/iiBrushToolsConfig.cmake ${CMAKE_CURRENT_BINARY_DIR}/iiBrushToolsConfigVersion.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiBrushTools)
 endif()
@@ -79,7 +103,7 @@ endif()
 install(TARGETS iiPaintEngine EXPORT iiPaintEngineTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR})
 # Replace only the package-owned header tree when upgrading a retired API.
 install(CODE "file(REMOVE_RECURSE \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine\")")
 install(FILES src/iiPaintEngine src/library.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiPaintEngine)
@@ -122,9 +146,24 @@ if(IIPAINTENGINE_BUILD_EXAMPLES)
     endif()
 endif()
 if(BUILD_TESTING)
+    if(NOT IIPAINTENGINE_BUILD_EXAMPLES)
+        add_test(NAME iiPaintEngineDefaultTargets COMMAND ${CMAKE_COMMAND}
+            "-DBUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+            "-DEXPECT_COMPILATION_DATABASE=${CMAKE_EXPORT_COMPILE_COMMANDS}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/DefaultTargetsTest.cmake")
+    endif()
     if(IIPAINTENGINE_BUILD_BRUSH_TOOLS)
         add_executable(iiPaintEngineBrushToolsTests tests/BrushTools/ContractTest.cpp)
         target_link_libraries(iiPaintEngineBrushToolsTests PRIVATE iiPaintEngine::BrushTools)
+        if(IIPAINTENGINE_BUILD_SHARED AND NOT CMAKE_CROSSCOMPILING)
+            add_test(NAME iiPaintEngine.BrushTools.shared_type COMMAND "${CMAKE_COMMAND}"
+                "-DTARGET_TYPE=$<TARGET_PROPERTY:iiPaintEngineBrushTools,TYPE>"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/BrushTools/shared_target_type.cmake")
+            add_test(NAME iiPaintEngine.BrushTools.shared_link COMMAND "${CMAKE_COMMAND}"
+                "-DIMAGE=$<TARGET_FILE:iiPaintEngineBrushToolsTests>"
+                "-DEXPECTED=$<TARGET_FILE:iiPaintEngineBrushTools>"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/BrushTools/shared_link.cmake")
+        endif()
         foreach(_case Controls Taper Correction Parameters Input Tiles)
             add_test(NAME iiPaintEngine.BrushTools.${_case} COMMAND iiPaintEngineBrushToolsTests ${_case})
         endforeach()

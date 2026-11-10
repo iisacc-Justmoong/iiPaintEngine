@@ -1,0 +1,636 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:5514ccc99608e66b2a4aa61f342d13e07cc97eb2d00d35f2445f10e5bc77c33a",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiPaintEngine",
+    "name": "iiPaintEngine",
+    "root": "SDK/iiPaintEngine",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/BRUSH_EXPANSION.md",
+    "sha256": "6a283e092065bd650748d1d41cf12adba77ec343a7a8074b652e4d126c160012",
+    "bytes": 9776,
+    "line_count": 170,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Brush interoperability, symmetry and stabilization (0.5)",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Brush interoperability, symmetry and stabilization (0.5)\n",
+      "level": 1,
+      "title": "Brush interoperability, symmetry and stabilization (0.5)"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 7,
+      "raw": "This release strengthens the existing C++23 bitmap brush pipeline in three areas:\nABR tip import, current-stamp symmetry and causal pulled-string stabilization.\nThe existing pressure/tilt/rotation response curves, ordered bindings, textures,\ndual tips, bristles, wet/mixer models, airbrush and scalar tip wear remain in use.\nNo Qt, Rust implementation, scripting runtime or new third-party library is added.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 15,
+      "raw": "The current Adobe/Photoshop checkout is PhotoCraft, an independent Rust\nreconstruction at commit d95fdf3181c01ad41e95456091a394b105a9afb2. It is a design and\nformat reference, not recovered Adobe native source. References and source hashes\nare recorded in [brush-expansion-provenance.json](brush-expansion-provenance.json).\nPublic behavior references are Adobe's [symmetry documentation](https://helpx.adobe.com/photoshop/desktop/apply-painting-techniques/create-fill-with-patterns/paint-symmetrical-patterns.html)\nand [stroke smoothing documentation](https://helpx.adobe.com/photoshop/desktop/repair-retouch/clean-restore-images/create-smoother-more-polished-brush-strokes-with-stroke-smoothing.html).\nThe algorithms here are independent SDK models; no Adobe pixel-parity claim is made.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "heading",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "## ABR import\n",
+      "level": 2,
+      "title": "ABR import"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 18,
+      "end_line": 18,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 19,
+      "end_line": 20,
+      "raw": "The Brush module exposes a memory-only, atomic decoder. File access stays with\nthe caller and iiFileProvider; the decoder does not depend on Stroke/Application.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "fenced_code",
+      "start_line": 22,
+      "end_line": 37,
+      "raw": "```cpp\n#include <iiPaintEngine>\n\n// bytes is a borrowed span over an ABR file read by the application.\nauto result = importAbrBrushes(bytes);\nif (!result) {\n    // result.error(): typed code, absolute byte offset and diagnostic message.\n    return;\n}\nfor (const auto &entry : result->brushes) {\n    // Inspect result->warnings and entry.completeSettings before treating\n    // a sampled tip as a full Photoshop brush preset.\n    auto resolved = resolveBrushPreset(entry.preset, 0xFF336699U, 1234);\n    if (resolved.brush) { /* select entry.preset or render immediately */ }\n}\n```\n",
+      "language": "cpp",
+      "code": "#include <iiPaintEngine>\n\n// bytes is a borrowed span over an ABR file read by the application.\nauto result = importAbrBrushes(bytes);\nif (!result) {\n    // result.error(): typed code, absolute byte offset and diagnostic message.\n    return;\n}\nfor (const auto &entry : result->brushes) {\n    // Inspect result->warnings and entry.completeSettings before treating\n    // a sampled tip as a full Photoshop brush preset.\n    auto resolved = resolveBrushPreset(entry.preset, 0xFF336699U, 1234);\n    if (resolved.brush) { /* select entry.preset or render immediately */ }\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 38,
+      "end_line": 38,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "table",
+      "start_line": 39,
+      "end_line": 43,
+      "raw": "| Layout | Imported content | Boundaries |\n| --- | --- | --- |\n| ABR v1/v2 | Computed tip diameter/hardness/roundness/angle/spacing; sampled mask; v2 sampled name | Legacy miscellaneous flags are not modern dynamics; anti-alias-off is reported as unsupported |\n| ABR v6/v7/v9/v10, subversion 1/2 | Every supported sampled tip and its source ID | Modern descriptors, preset names/associations, patterns, folders and tool settings are not decoded |\n| Sample encoding | 8/16-bit, raw and PackBits including no-op, literal and repeat packets | 16-bit coverage is rounded to the engine's 8-bit mask and produces a warning |\n",
+      "columns": [
+        "Layout",
+        "Imported content",
+        "Boundaries"
+      ],
+      "rows": [
+        [
+          "ABR v1/v2",
+          "Computed tip diameter/hardness/roundness/angle/spacing; sampled mask; v2 sampled name",
+          "Legacy miscellaneous flags are not modern dynamics; anti-alias-off is reported as unsupported"
+        ],
+        [
+          "ABR v6/v7/v9/v10, subversion 1/2",
+          "Every supported sampled tip and its source ID",
+          "Modern descriptors, preset names/associations, patterns, folders and tool settings are not decoded"
+        ],
+        [
+          "Sample encoding",
+          "8/16-bit, raw and PackBits including no-op, literal and repeat packets",
+          "16-bit coverage is rounded to the engine's 8-bit mask and produces a warning"
+        ]
+      ]
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 44,
+      "end_line": 44,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 45,
+      "end_line": 50,
+      "raw": "Modern imports always set completeSettings to false and return a warning. They\nproduce usable neutral sampled-tip presets; they do not restore a complete\nPhotoshop brush. Unsupported sections are named in warnings. A known record with\nbad lengths, invalid geometry, malformed RLE or unsupported depth/compression fails\nthe whole operation. Unknown legacy brush types may be skipped with a warning;\na collection with no usable tips fails. No partial result mutates a brush library.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 52,
+      "end_line": 58,
+      "raw": "Default limits are 256 MiB encoded input, 4096 brushes and 64 MiB total decoded\n8-bit masks. Individual tips respect the existing 4096-pixel edge and 16 MiB mask\nlimits. Callers may tighten AbrImportLimits; hard bounds cap encoded/decoded data\nat 256 MiB, brush count at 20000, name length at 4096 UTF-16 units / 8192 UTF-8\nbytes and modern sections at 4096. Counts are checked before dangerous\nallocation/arithmetic. Import IDs are stable, non-cryptographic local identifiers;\nsourceId retains a modern sample ID separately. ABR writing is not introduced.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 59,
+      "end_line": 59,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "heading",
+      "start_line": 60,
+      "end_line": 60,
+      "raw": "## Current-stamp symmetry\n",
+      "level": 2,
+      "title": "Current-stamp symmetry"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 61,
+      "end_line": 61,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "fenced_code",
+      "start_line": 62,
+      "end_line": 68,
+      "raw": "```cpp\nBrushPreset brush;\nbrush.stroke.symmetry.mode = BrushSymmetryMode::Mandala;\nbrush.stroke.symmetry.center = {512, 512};\nbrush.stroke.symmetry.segments = 16;\nbrush.stroke.symmetry.angleRadians = 0.2;\n```\n",
+      "language": "cpp",
+      "code": "BrushPreset brush;\nbrush.stroke.symmetry.mode = BrushSymmetryMode::Mandala;\nbrush.stroke.symmetry.center = {512, 512};\nbrush.stroke.symmetry.segments = 16;\nbrush.stroke.symmetry.angleRadians = 0.2;\n",
+      "closed": true
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 69,
+      "end_line": 69,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 70,
+      "end_line": 75,
+      "raw": "Modes are None, Vertical, Horizontal, DualAxis, Radial and Mandala. Center is in\ndocument pixels. Angle is radians and rotates reflection axes; the original stamp\nis always retained. Radial repeats each stamp 2–64 times. Mandala reflects and\nrotates each stamp through 2–64 sectors, producing up to 128 copies. Both remain\nwithin the common 65536-stamp per-event budget. Settings also apply to valid\nbristle, erodible and airbrush bitmap models.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 76,
+      "end_line": 76,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 77,
+      "end_line": 84,
+      "raw": "Each original scatter mark is expanded after its random/dynamics resolution.\nReplicas inherit the seed, color, Fade index, pressure-derived scales and wear.\nThey never consume extra random numbers or advance the brush's physical/input\nstate. Reflection changes the asymmetric primary tip orientation and tip-local\ntexture/dual-mask coordinates. Document/paper textures remain anchored to their\nconfigured document coordinates. Equal centers within one stamp's expansion are\nemitted once, with the first orientation retained, to avoid repeated center/axis\ndeposits. Other overlapping branches retain ordinary flow accumulation.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 85,
+      "end_line": 85,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 86,
+      "end_line": 90,
+      "raw": "applyBrushSymmetry() is also available for current BrushDabSpan values.\nappendRasterDabs() invokes it automatically. Bounds, clipping, source sampling,\npreview, commit, cancel and raster undo/redo consume the expanded stamps through\nthe existing pipeline. Invalid transformations or an exceeded budget reject the\nevent without changing RasterDabStream. No paths or coordinate histories are stored.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 91,
+      "end_line": 91,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "heading",
+      "start_line": 92,
+      "end_line": 92,
+      "raw": "## Pulled-string stabilization\n",
+      "level": 2,
+      "title": "Pulled-string stabilization"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 93,
+      "end_line": 93,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "fenced_code",
+      "start_line": 94,
+      "end_line": 103,
+      "raw": "```cpp\nbrush.stroke.smoothingEnabled = true;\nbrush.stroke.smoothing = 1.0;\nbrush.stroke.smoothingMode = BrushSmoothingMode::PulledString;\nbrush.stroke.smoothingRadius = 8.0;\nbrush.stroke.smoothingCatchUp = true;\nbrush.stroke.smoothingCatchUpRate = 12.0;\nbrush.stroke.smoothingCatchUpOnEnd = true;\n// During a pause, the application calls session.advanceTime(monotonicSeconds).\n```\n",
+      "language": "cpp",
+      "code": "brush.stroke.smoothingEnabled = true;\nbrush.stroke.smoothing = 1.0;\nbrush.stroke.smoothingMode = BrushSmoothingMode::PulledString;\nbrush.stroke.smoothingRadius = 8.0;\nbrush.stroke.smoothingCatchUp = true;\nbrush.stroke.smoothingCatchUpRate = 12.0;\nbrush.stroke.smoothingCatchUpOnEnd = true;\n// During a pause, the application calls session.advanceTime(monotonicSeconds).\n",
+      "closed": true
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 104,
+      "end_line": 104,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 105,
+      "end_line": 110,
+      "raw": "Exponential preserves the previous causal filter and remains the default.\nPulledString holds the current painted anchor within a document-space radius of\nthe pointer. Effective radius is smoothingRadius * smoothing; when the pointer\nleaves that circle, the anchor advances by the excess distance. Radius accepts\n0–4096 pixels. Straight-line endpoint placement does not depend on subdividing\nthe same movement into more pointer events.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 111,
+      "end_line": 111,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 112,
+      "end_line": 119,
+      "raw": "When smoothingCatchUp is enabled and the raw pointer target is unchanged,\nremaining lag decays by exp(-rate * elapsedSeconds). Rate accepts 0.01–1000 per\nsecond. Splitting a stationary time interval preserves the final anchor position.\nBitmapPaintSession::advanceTime() supports this mode as well as timed airbrush;\nthe engine creates no timer. Airbrush keeps its existing timed placement policy.\nsmoothingCatchUpOnEnd flushes the final pointer position before release commits.\nDisabling it preserves the filtered endpoint. Amount zero disables filtering.\nVelocity/time-driven dynamics can still differ when event timing changes.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 120,
+      "end_line": 120,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 121,
+      "end_line": 123,
+      "raw": "The stream retains one previous filtered point and one current raw target.\nIt never retains a point list, future input or replayable trajectory. Radius is\ndocument-space only; screen/zoom-dependent smoothing remains application policy.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 124,
+      "end_line": 124,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "heading",
+      "start_line": 125,
+      "end_line": 125,
+      "raw": "## Storage, ABI and validation\n",
+      "level": 2,
+      "title": "Storage, ABI and validation"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 126,
+      "end_line": 126,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 127,
+      "end_line": 131,
+      "raw": "Preset format 4 stores all symmetry/stabilization settings. Formats 1/2/3 remain\nreadable with neutral symmetry and legacy smoothing defaults. Snapshot/restore\nand document format 3 brushSources preserve the same values; the historical\npresetV2 field name stays unchanged. Older readers reject preset format 4.\nNew enum values, ranges and nonfinite settings are validated even when disabled.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 132,
+      "end_line": 132,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 133,
+      "end_line": 136,
+      "raw": "Public struct layouts changed in ABI 0.5; the current package version is 0.5.1:\nrebuild consumers. The concurrent package-release edit to 0.5.1 was preserved.\nThis task stages an installed-package consumer under build/; it does not replace\nthe active ~/.local installation or redeploy consumer applications.\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 137,
+      "end_line": 137,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "paragraph",
+      "start_line": 138,
+      "end_line": 141,
+      "raw": "iiPaintEngine requires the existing Qt-free iiFileProviderNative >=0.6 package.\nUse CMAKE_PREFIX_PATH or iiFileProviderNative_DIR when the default installation is\nolder. The local run used the already-staged Native 0.8.0 package; provider source\nand the host installation were not changed.\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 142,
+      "end_line": 142,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "paragraph",
+      "start_line": 143,
+      "end_line": 147,
+      "raw": "The new contracts test ABR versions/encoding/budgets/truncation/mutations; geometry\nand asymmetric pixel reflection; 64-sector physical-tip/time/Fade behavior;\nevent rejection; live preview/cancel/undo; endpoint/clock stabilization and\npreset/snapshot/document compatibility. The final validation record is\n[BRUSH_EXPANSION_VALIDATION.md](BRUSH_EXPANSION_VALIDATION.md).\n"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 148,
+      "end_line": 148,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 149,
+      "end_line": 150,
+      "raw": "The C++ gallery exercises 16-fold radial, 12-sector mandala and stabilized\ndual-axis strokes:\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 151,
+      "end_line": 151,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "fenced_code",
+      "start_line": 152,
+      "end_line": 156,
+      "raw": "```sh\ncmake -S Example/FileProvider -B build/file-provider-app -DCMAKE_PREFIX_PATH=\"/path/to/iiPaintEngine;/path/to/iiFileProvider\"\ncmake --build build/file-provider-app --parallel\nbuild/file-provider-app/iiPaintEngineBrushExpansionGallery Example/FileProvider/resources/brush-expansion-gallery.png\n```\n",
+      "language": "sh",
+      "code": "cmake -S Example/FileProvider -B build/file-provider-app -DCMAKE_PREFIX_PATH=\"/path/to/iiPaintEngine;/path/to/iiFileProvider\"\ncmake --build build/file-provider-app --parallel\nbuild/file-provider-app/iiPaintEngineBrushExpansionGallery Example/FileProvider/resources/brush-expansion-gallery.png\n",
+      "closed": true
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 157,
+      "end_line": 157,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "heading",
+      "start_line": 158,
+      "end_line": 158,
+      "raw": "## Remaining work toward a Photoshop-class superset\n",
+      "level": 2,
+      "title": "Remaining work toward a Photoshop-class superset"
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 159,
+      "end_line": 159,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "list",
+      "start_line": 160,
+      "end_line": 170,
+      "raw": "- Map modern ABR descriptors, sampled-tip references, embedded patterns, names,\n  groups and tool-capture semantics; add explicit loss reporting/export policy.\n- Add independently validated high-precision/color-managed paint surfaces.\n  Current pixels and imported coverage remain 8-bit.\n- Improve the existing wet/bristle/erodible models beyond their documented bitmap\n  approximations, with measured performance and real pen/physical-tip evidence.\n- Validate real, licensed user ABR collections and original-application outputs.\n  The current suite uses original synthetic files and model invariants.\n- Measure large-brush latency and validate Windows/Linux/mobile/tablet runtimes.\n  Host tests and a wider symmetry range alone do not establish full Photoshop\n  behavior, performance or ecosystem compatibility.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "Map modern ABR descriptors, sampled-tip references, embedded patterns, names,",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Add independently validated high-precision/color-managed paint surfaces.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Improve the existing wet/bristle/erodible models beyond their documented bitmap",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Validate real, licensed user ABR collections and original-application outputs.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Measure large-brush latency and validate Windows/Linux/mobile/tablet runtimes.",
+          "checked": null
+        }
+      ]
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Brush interoperability, symmetry and stabilization (0.5)",
+      "anchor": "brush-interoperability-symmetry-and-stabilization-05",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000007",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "ABR import",
+      "anchor": "abr-import",
+      "start_line": 17
+    },
+    {
+      "block_id": "b000019",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Current-stamp symmetry",
+      "anchor": "current-stamp-symmetry",
+      "start_line": 60
+    },
+    {
+      "block_id": "b000029",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Pulled-string stabilization",
+      "anchor": "pulled-string-stabilization",
+      "start_line": 92
+    },
+    {
+      "block_id": "b000039",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Storage, ABI and validation",
+      "anchor": "storage-abi-and-validation",
+      "start_line": 125
+    },
+    {
+      "block_id": "b000053",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Remaining work toward a Photoshop-class superset",
+      "anchor": "remaining-work-toward-a-photoshop-class-superset",
+      "start_line": 158
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000015",
+        "line": 46,
+        "text": "produce usable neutral sampled-tip presets; they do not restore a complete",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000025",
+        "line": 79,
+        "text": "They never consume extra random numbers or advance the brush's physical/input",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000037",
+        "line": 122,
+        "text": "It never retains a point list, future input or replayable trajectory. Radius is",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000055",
+        "line": 169,
+        "text": "Host tests and a wider symmetry range alone do not establish full Photoshop",
+        "basis": "lexical_match",
+        "context": "list"
+      }
+    ],
+    "commands": [
+      {
+        "block_id": "b000051",
+        "language": "sh",
+        "code": "cmake -S Example/FileProvider -B build/file-provider-app -DCMAKE_PREFIX_PATH=\"/path/to/iiPaintEngine;/path/to/iiFileProvider\"\ncmake --build build/file-provider-app --parallel\nbuild/file-provider-app/iiPaintEngineBrushExpansionGallery Example/FileProvider/resources/brush-expansion-gallery.png\n"
+      }
+    ],
+    "links": [
+      {
+        "block_id": "b000005",
+        "label": "brush-expansion-provenance.json",
+        "target": "brush-expansion-provenance.json",
+        "kind": "relative",
+        "line": 12
+      },
+      {
+        "block_id": "b000005",
+        "label": "symmetry documentation",
+        "target": "https://helpx.adobe.com/photoshop/desktop/apply-painting-techniques/create-fill-with-patterns/paint-symmetrical-patterns.html",
+        "kind": "external",
+        "line": 13
+      },
+      {
+        "block_id": "b000005",
+        "label": "stroke smoothing documentation",
+        "target": "https://helpx.adobe.com/photoshop/desktop/repair-retouch/clean-restore-images/create-smoother-more-polished-brush-strokes-with-stroke-smoothing.html",
+        "kind": "external",
+        "line": 14
+      },
+      {
+        "block_id": "b000047",
+        "label": "BRUSH_EXPANSION_VALIDATION.md",
+        "target": "BRUSH_EXPANSION_VALIDATION.md",
+        "kind": "relative",
+        "line": 147
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000013",
+        "columns": [
+          "Layout",
+          "Imported content",
+          "Boundaries"
+        ],
+        "rows": [
+          [
+            "ABR v1/v2",
+            "Computed tip diameter/hardness/roundness/angle/spacing; sampled mask; v2 sampled name",
+            "Legacy miscellaneous flags are not modern dynamics; anti-alias-off is reported as unsupported"
+          ],
+          [
+            "ABR v6/v7/v9/v10, subversion 1/2",
+            "Every supported sampled tip and its source ID",
+            "Modern descriptors, preset names/associations, patterns, folders and tool settings are not decoded"
+          ],
+          [
+            "Sample encoding",
+            "8/16-bit, raw and PackBits including no-op, literal and repeat packets",
+            "16-bit coverage is rounded to the engine's 8-bit mask and produces a warning"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cmath>
+#include <unordered_map>
 
 namespace {
 
@@ -156,9 +157,18 @@ void accumulateStrokeSamples(StrokeCompositeBuffer &buffer, const std::vector<Ra
             continue;
         }
 
-        PremultipliedPixel blended = sourceOver(premultiply(sample.argb), buffer.pixels[index]);
         if (sample.blendMode == RasterBlendMode::SourceOver) {
-            buffer.pixels[index] = clampPremultipliedAlpha(blended, alphaCap);
+            const auto source = clampPremultipliedAlpha(premultiply(sample.argb), alphaCap);
+            // A sample alpha already contains the stroke limit. Normalize its
+            // coverage so multiple deposits approach that limit smoothly.
+            const double remaining = 1.0 - source.alpha / alphaCap;
+            const auto previous = buffer.pixels[index];
+            buffer.pixels[index] = {
+                    source.red + previous.red * remaining,
+                    source.green + previous.green * remaining,
+                    source.blue + previous.blue * remaining,
+                    source.alpha + previous.alpha * remaining,
+            };
         }
     }
 }
@@ -270,13 +280,24 @@ void flushSourceOverSamples(RasterLayer &layer, std::vector<RasterSample> &sampl
     samples.clear();
 }
 
+void flushDestinationOutCoverage(RasterLayer &layer, std::unordered_map<std::size_t, double> &coverage)
+{
+    for (const auto &[index, alpha] : coverage) {
+        const auto mask = static_cast<std::uint32_t>(byteFromUnit(alpha)) << 24U;
+        layer.pixels[index] = destinationOut(layer.pixels[index], mask);
+    }
+    coverage.clear();
+}
+
 void paintRasterSamples(RasterLayer &layer, const std::vector<RasterSample> &samples)
 {
     std::vector<RasterSample> sourceOverSamples;
     sourceOverSamples.reserve(samples.size());
+    std::unordered_map<std::size_t, double> eraseCoverage;
 
     for (const RasterSample &sample : samples) {
         if (sample.blendMode != RasterBlendMode::DestinationOut) {
+            flushDestinationOutCoverage(layer, eraseCoverage);
             sourceOverSamples.push_back(sample);
             continue;
         }
@@ -286,11 +307,16 @@ void paintRasterSamples(RasterLayer &layer, const std::vector<RasterSample> &sam
             continue;
         }
 
-        const std::size_t index = pixelIndex(layer, sample.position);
-        layer.pixels[index] = destinationOut(layer.pixels[index], sample.argb);
+        const double cap = static_cast<double>(sample.opacityCap) / 255.0;
+        const double source = std::min(static_cast<double>(alphaOf(sample.argb)) / 255.0, cap);
+        if (source <= 0.0) continue;
+        auto &pending = eraseCoverage[pixelIndex(layer, sample.position)];
+        if (pending < cap)
+            pending = source + pending * (1.0 - source / cap);
     }
 
     flushSourceOverSamples(layer, sourceOverSamples);
+    flushDestinationOutCoverage(layer, eraseCoverage);
 }
 
 std::uint32_t rasterLayerPixelAt(const RasterLayer &layer, DevicePixelPoint position)

@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "method": "Compile a controlled Lua 5.1 closure-binding harness, replace six placeholder child prototype byte ranges by exact unmodified original numeric prototype ranges, verify combined luac -p, then execute official existing Lua 5.1.5.",
+  "originalFile": "/Volumes/Storage/Workspace/Engineering/Projects/Adobe/Lightroom/recovered/scripts/original/Contents/PlugIns/Develop.lrmodule/Contents/Resources/AgCameraRawControllerLocalizedCorrectionMethods.lua",
+  "originalSha256": "2b2bb57cfa8953bd7c4af07da970a723e424bc097fbd53788f46a94f1a77c3bc",
+  "prototypeRecords": [
+    {
+      "sourcePrototype": "main/f66",
+      "harnessSlot": "main/f0",
+      "sourceRange": [
+        51103,
+        51192
+      ],
+      "sourcePrototypeSha256": "1232d5893682ac5060e5ee26bfc7b776b10bcad49e7365513f36c04683d27d88",
+      "numUpvalues": 0,
+      "numParams": 2,
+      "exactSourceBytesPreserved": true,
+      "globalOpcodesAbsent": true
+    },
+    {
+      "sourcePrototype": "main/f67",
+      "harnessSlot": "main/f1",
+      "sourceRange": [
+        51192,
+        51330
+      ],
+      "sourcePrototypeSha256": "8f3ead72e11649c3ffecb015ec589e6c79bf07d6521f5be9a4a174c64f260acb",
+      "numUpvalues": 1,
+      "numParams": 2,
+      "exactSourceBytesPreserved": true,
+      "globalOpcodesAbsent": true
+    },
+    {
+      "sourcePrototype": "main/f68",
+      "harnessSlot": "main/f2",
+      "sourceRange": [
+        51330,
+        51529
+      ],
+      "sourcePrototypeSha256": "f7e3df884207c8f5f41eac8442e41f2f829c07bdd09fae5fa469e934e4c5e03b",
+      "numUpvalues": 1,
+      "numParams": 3,
+      "exactSourceBytesPreserved": true,
+      "globalOpcodesAbsent": true
+    },
+    {
+      "sourcePrototype": "main/f69/f0",
+      "harnessSlot": "main/f3",
+      "sourceRange": [
+        51630,
+        51702
+      ],
+      "sourcePrototypeSha256": "3eff1644a0d5c5b26d276c65af4a0fcaa04c0af7dcfed718ce8671fb3ea67c05",
+      "numUpvalues": 3,
+      "numParams": 1,
+      "exactSourceBytesPreserved": true,
+      "globalOpcodesAbsent": true
+    },
+    {
+      "sourcePrototype": "main/f70",
+      "harnessSlot": "main/f4",
+      "sourceRange": [
+        51714,
+        51824
+      ],
+      "sourcePrototypeSha256": "fdcadc01627722519652a4d409f66678567edd594b4e48889621ce71be50c4c6",
+      "numUpvalues": 0,
+      "numParams": 1,
+      "exactSourceBytesPreserved": true,
+      "globalOpcodesAbsent": true
+    },
+    {
+      "sourcePrototype": "main/f71",
+      "harnessSlot": "main/f6",
+      "sourceRange": [
+        51824,
+        51904
+      ],
+      "sourcePrototypeSha256": "c4962e28102837ec029ed43cb80d730b6cde51f5cef20bb3684e3844983f30de",
+      "numUpvalues": 2,
+      "numParams": 2,
+      "exactSourceBytesPreserved": true,
+      "globalOpcodesAbsent": true
+    }
+  ],
+  "sourceUpvalueBindings": {
+    "f67/u0": "f66",
+    "f68/u0": "f67",
+    "f69/f0/u0": "f68",
+    "f69/f0/u1": 0.3,
+    "f69/f0/u2": 16,
+    "f71/u0": "f70",
+    "f71/u1": "controlled memoization table using original f69/f0 as callback"
+  },
+  "excludedScopes": [
+    "Adobe app",
+    "original module main",
+    "f69 external cache factory",
+    "Adobe native bindings",
+    "user images/catalog/account files"
+  ],
+  "interpreter": {
+    "path": "/Volumes/Storage/Workspace/Engineering/Projects/Adobe/Lightroom/build/scripts/tools/lua-5.1.5/src/lua",
+    "sha256": "b1f0f3a2b459f9d89fb0aeb3e6c995f971bbe000571465ca2ba834e5f50090dd",
+    "version": "Lua 5.1.5  Copyright (C) 1994-2012 Lua.org, PUC-Rio",
+    "officialArchiveProvenance": "/Volumes/Storage/Workspace/Engineering/Projects/Adobe/Lightroom/evidence/scripts/lua-compiler-provenance.json"
+  },
+  "harnessSource": {
+    "path": "/Volumes/Storage/Workspace/Engineering/Projects/Adobe/build/sdk-local-processing/math-oracle/controlled-harness.lua",
+    "sha256": "8d38821f24a5a6ade98be9d00732e7ecfd8552e70497df6c0af6e7787762a45d"
+  },
+  "unmodifiedPrototypeChunks": "/Volumes/Storage/Workspace/Engineering/Projects/Adobe/build/sdk-local-processing/math-oracle/prototypes",
+  "combinedOracle": {
+    "path": "/Volumes/Storage/Workspace/Engineering/Projects/Adobe/build/sdk-local-processing/math-oracle/original-numeric-oracle.luac",
+    "sha256": "006e7f8c14403973319d6ed600f09c7c7b46fc50c30c509a90ec6374e9067867",
+    "integrityPassed": true
+  },
+  "vectorPath": "/Volumes/Storage/Workspace/Engineering/Projects/Adobe/build/sdk-local-processing/math-golden-vectors.json",
+  "vectorSha256": "f6cb9dc62ffde351ee6d17323baa18e7cd4d66444e1ad296da56ca3555da8c8f",
+  "vectorCount": 21,
+  "exitCode": 0,
+  "stderrEmpty": true,
+  "numericOnly": true,
+  "appExecution": false,
+  "initialStandaloneAttempt": "Lua 5.1 debug.setupvalue cannot access stripped debug upvalue names; abandoned without modifying target bytes or interpreter. Controlled compiler-created closure bindings solve this."
+}

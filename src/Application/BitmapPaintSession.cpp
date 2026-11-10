@@ -108,12 +108,14 @@ BitmapPaintUpdate BitmapPaintSession::appendPoint(const StrokePoint &point,bool 
     RasterSourceSampler sampler{&m_file.pixels(),[](const void *context,DevicePixelPoint p) {
         return rasterLayerPixelAt(*static_cast<const RasterLayer *>(context),p);
     },{},m_file.width(),m_file.height()};
-    const auto samples = projectBrushDabs(dabs,m_activeBrush.rasterizer,{},sampler,m_activeBrush.material);
+    auto samples = projectBrushDabs(dabs,m_activeBrush.rasterizer,{},sampler,m_activeBrush.material);
+    const bool erase = m_activeBrush.rasterizer.blendMode == RasterBlendMode::DestinationOut;
+    if (erase)
+        for (auto &sample : samples) sample.blendMode = RasterBlendMode::SourceOver;
     const auto bounds = intersectDevicePixelRects({{},m_file.width(),m_file.height()},
             deviceBoundsForBrushDabsUnion(dabs,m_activeBrush.rasterizer,{}));
     accumulateStrokeSamples(m_pending,samples);
-    copyStrokePreviewSamplePixels(m_preview,m_file.pixels(),m_pending,samples,
-                                 m_activeBrush.rasterizer.blendMode == RasterBlendMode::DestinationOut);
+    copyStrokePreviewSamplePixels(m_preview,m_file.pixels(),m_pending,samples,erase);
     if (!samples.empty()) m_dirty = uniteDevicePixelRects(m_dirty,bounds);
     m_stream = std::move(stream);
     BitmapPaintUpdate result{true,false,m_stream.active,bounds,{}};

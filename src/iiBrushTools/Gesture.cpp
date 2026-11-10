@@ -147,6 +147,18 @@ std::expected<RenderedStroke, Error> renderGesture(std::span<const StrokePoint> 
 std::expected<RenderedStroke, Error> renderGestureWithPreset(std::span<const StrokePoint> inputs,
     Tool tool,const Controls& controls,const BrushPreset& base,const RenderTarget& target,const Limits& limits)
 {
+    auto brush=resolveWithPreset(tool,controls,base,target.argb,target.seed,target.dynamics);
+    if(!brush) return std::unexpected(brush.error());
+    return renderGestureWithResolvedBrush(inputs,*brush,controls,target,limits);
+}
+
+std::expected<RenderedStroke, Error> renderGestureWithResolvedBrush(std::span<const StrokePoint> inputs,
+    const ResolvedBrush& resolved,const Controls& controls,const RenderTarget& target,const Limits& limits)
+{
+    const auto* brush=&resolved;
+    if(brush->state.rasterizer.blendMode!=RasterBlendMode::SourceOver &&
+       !(brush->eraser && brush->state.rasterizer.blendMode==RasterBlendMode::DestinationOut))
+        return std::unexpected(Error{ErrorCode::InvalidControls,"only source-over and eraser brushes are supported"});
     const auto& clip=target.clip;
     if(clip.width<=0 || clip.height<=0 || std::abs(static_cast<std::int64_t>(clip.origin.x))>1000000000
         || std::abs(static_cast<std::int64_t>(clip.origin.y))>1000000000
@@ -155,13 +167,33 @@ std::expected<RenderedStroke, Error> renderGestureWithPreset(std::span<const Str
         return std::unexpected(Error{ErrorCode::InvalidInput,"render clip is outside the supported coordinate range"});
     if(target.source.sampleArgb && (target.source.width<=0 || target.source.height<=0))
         return std::unexpected(Error{ErrorCode::InvalidInput,"a source sampler requires positive bounds"});
-    auto brush=resolveWithPreset(tool,controls,base,target.argb,target.seed,target.dynamics);
-    if(!brush) return std::unexpected(brush.error());
     auto gesture=prepareGesture(inputs,controls,limits);
     if(!gesture) return std::unexpected(gesture.error());
+    // The streaming brush may smooth the input trajectory. Its dab distances
+    // are measured along that trajectory, so calculate the same full length
+    // before applying fractional taper instead of using the raw pointer path.
+    double renderedLength = gesture->length;
+    if (brush->state.rasterizer.smoothingEnabled && brush->state.rasterizer.smoothing > 0) {
+        RasterDabStream measureStream;
+        std::size_t measuredDabs = 0;
+        try {
+            for (std::size_t i = 0; i < gesture->points.size(); ++i) {
+                auto dabs = appendRasterDabs(measureStream, gesture->points[i], brush->state,
+                                             i + 1 == gesture->points.size());
+                if (dabs.size() > limits.maxDabs - measuredDabs)
+                    return std::unexpected(Error{ErrorCode::BudgetExceeded,"gesture exceeds dab budget"});
+                measuredDabs += dabs.size();
+            }
+        } catch (const std::length_error& error) {
+            return std::unexpected(Error{ErrorCode::BudgetExceeded,error.what()});
+        } catch (const std::invalid_argument& error) {
+            return std::unexpected(Error{ErrorCode::InvalidInput,error.what()});
+        }
+        renderedLength = measureStream.traveledDistance;
+    }
     std::map<std::pair<int,int>,TileStorage> tiles;
     std::size_t projected=0,touched=0;
-    RenderedStroke result;result.length=gesture->length;
+    RenderedStroke result;result.length=renderedLength;
     RasterDabStream stream;
     auto sampler=target.source;
     if(!sampler.sampleArgb) sampler={nullptr,[](const void*,DevicePixelPoint){return std::uint32_t{0};},
@@ -174,7 +206,7 @@ std::expected<RenderedStroke, Error> renderGestureWithPreset(std::span<const Str
                 return std::unexpected(Error{ErrorCode::BudgetExceeded,"gesture exceeds dab budget"});
             result.dabCount+=dabs.size();
             for(auto& dab:dabs) {
-                dab.scale*=taperSize(brush->taper,dab.strokeDistance,gesture->length);
+                dab.scale*=taperSize(brush->taper,dab.strokeDistance,renderedLength);
                 if(dab.scale<=0) continue;
                 if(brush->hairline) dab.ellipseScaleY=1/std::max(1e-9,brush->state.rasterizer.brushSize*dab.scale);
                 const auto bounds=deviceBoundsForBrushDab(dab,brush->state.rasterizer,{});

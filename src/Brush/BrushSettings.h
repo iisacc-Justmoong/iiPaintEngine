@@ -16,6 +16,11 @@ struct BrushSymmetrySettings {
     std::uint32_t segments = 6; // Radial: 2..64 copies; Mandala: 2..64 mirrored sectors.
 };
 
+// Independent material controls, expressed in document pixels and normalized ratios.
+struct BrushNoiseOptions { Types::Scalar size = 1.0; bool monochrome = true; };
+struct BrushWetEdgeOptions { Types::Scalar width = 3.0; Types::Scalar diffusion = 0.5; };
+struct BrushBuildUpOptions { bool enabled = false; Types::Scalar rate = 1.0; Types::Scalar opacityLimit = 1.0; bool timeBased = false; };
+
 struct BrushStrokeSettings {
     Types::Scalar spacing = 0.0; // Positive absolute document spacing overrides the ratio.
     Types::Scalar spacingRatio = 0.1;
@@ -34,6 +39,9 @@ struct BrushStrokeSettings {
     Types::Scalar noiseStrength = 0.5;
     bool wetEdgesEnabled = false;
     Types::Scalar wetEdgesStrength = 0.5;
+    BrushNoiseOptions noise;
+    BrushWetEdgeOptions wetEdges;
+    BrushBuildUpOptions buildUp;
     bool smoothingEnabled = false;
     Types::Scalar smoothing = 0.5; // Causal position filter; never retains a point list.
     bool protectTexture = false; // Preserve pattern and scale when selecting another preset.
