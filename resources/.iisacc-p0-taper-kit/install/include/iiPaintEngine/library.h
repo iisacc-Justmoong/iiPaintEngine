@@ -1,6 +1,0 @@
-#ifndef IIPAINTENGINE_LIBRARY_H
-#define IIPAINTENGINE_LIBRARY_H
-
-void hello();
-
-#endif //IIPAINTENGINE_LIBRARY_H

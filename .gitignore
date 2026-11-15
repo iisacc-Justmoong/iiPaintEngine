@@ -42,3 +42,4 @@ build*
 /resources/.recovery/
 /resources/.state/
 /resources/.t/
+resources/
