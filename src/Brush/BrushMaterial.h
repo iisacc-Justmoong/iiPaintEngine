@@ -129,6 +129,7 @@ struct BristleSimulation {
     Types::Scalar stiffness = 1.0;
     Types::Scalar thickness = 1.0; // Relative width of the 2D footprint, (0,1].
     Types::Scalar angleRadians = 0.0;
+    Types::Scalar spread = 0.0; // Additional radial footprint expansion, [0,1].
 };
 
 // Bitmap approximations. These do not reproduce Adobe's native physical tip simulation.

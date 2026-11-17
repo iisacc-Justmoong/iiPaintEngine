@@ -225,6 +225,11 @@ int main()
     p.stroke.wetEdges.width = .1; p.stroke.wetEdges.diffusion = .1; const auto narrow = stamp(p);
     p.stroke.wetEdges.width = .9; p.stroke.wetEdges.diffusion = .9; const auto wide = stamp(p);
     CHECK(alphaAt(narrow, 44, 40) != alphaAt(wide, 44, 40));
+    p.stroke.wetEdges.diffusion = 0;
+    p.stroke.wetEdges.width = 1; const auto onePixelEdge = stamp(p);
+    p.stroke.wetEdges.width = 6; const auto sixPixelEdge = stamp(p);
+    CHECK(alphaAt(onePixelEdge, 44, 40) != alphaAt(sixPixelEdge, 44, 40));
+    p.stroke.wetEdges.width = .9; p.stroke.wetEdges.diffusion = .9;
     p.stroke.buildUp.enabled = true; p.stroke.buildUp.opacityLimit = .4; p.stroke.buildUp.rate = .3;
     const auto buildup = resolveBrushPreset(p);
     CHECK(buildup.brush && near(buildup.brush->rasterizer.buildUp.opacityLimit, .4));
@@ -247,6 +252,16 @@ int main()
     // Tip extensions produce distinct bitmap footprints and expose scalar wear.
     p = {}; p.material.bristle.enabled = true; p.material.bristle.thickness = .2;
     CHECK(alphaAt(stamp(p), 40, 46) == 0);
+    p.material.bristle.thickness = 1;
+    const auto closedBristles = stamp(p);
+    p.material.bristle.spread = 1;
+    CHECK(stamp(p).size() > closedBristles.size());
+    p.material.bristle.spread = 1.01;
+    CHECK(!resolveBrushPreset(p).brush);
+    p = {}; p.size = 20; p.material.bristle.enabled = true; p.material.bristle.length = 6;
+    p.material.bristle.stiffness = 1; const auto stiffBristles = stamp(p);
+    p.material.bristle.stiffness = 0; const auto flexibleBristles = stamp(p);
+    CHECK(stiffBristles.size() != flexibleBristles.size());
     p = {}; p.material.erodible.enabled = true; p.material.erodible.softness = 1;
     p.stroke.spacing = 4;
     resolved = resolveBrushPreset(p);
@@ -307,6 +322,7 @@ int main()
     p.material.dualBrush.scatter.count = 3; p.material.dualBrush.scatter.radius = 2;
     p.material.simulation.load = .4;
     p.material.bristle.angleRadians = .2; p.material.bristle.thickness = .3;
+    p.material.bristle.spread = .7;
     p.material.erodible.enabled = true; p.material.erodible.wear = .6;
     p.material.airbrushTip.spatter = .6; p.material.airbrushTip.spatterSize = 4;
     p.stroke.noiseEnabled = true; p.stroke.wetEdgesEnabled = true;
@@ -329,6 +345,7 @@ int main()
     const auto payload = serializeBrushPreset(p);
     CHECK(payload.find("formatVersion\t4\n") != std::string::npos);
     CHECK(serializeBrushPreset(deserializeBrushPreset(payload)) == payload);
+    CHECK(std::abs(deserializeBrushPreset(payload).material.bristle.spread - .7) < 1e-8);
     CHECK(serializeBrushPreset(restoreBrushPreset(snapshotBrushPreset(p))) == payload);
     DocumentArchive archive;
     archive.brushSources.push_back(snapshotBrushPreset(p));
@@ -339,6 +356,7 @@ int main()
     auto old = readBrushPreset(legacy);
     CHECK(old.preset && !old.preset->stroke.noiseEnabled && !old.preset->dynamics.pose.enabled);
     CHECK(old.preset->material.texture.depth == 1 && old.preset->material.bristle.thickness == 1);
+    CHECK(old.preset->material.bristle.spread == 0);
 
     // Validation applies even to disabled fields so invalid state cannot leak through storage.
     p.dynamics.sizeVariation.fadeSteps = 0;

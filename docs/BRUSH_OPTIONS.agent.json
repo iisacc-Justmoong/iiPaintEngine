@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/BRUSH_OPTIONS.md",
-    "sha256": "46ff15c7bcdbc5408ff439b50a0e89a86abb315735483ccc89a951701d077b22",
-    "bytes": 16888,
-    "line_count": 276,
+    "sha256": "492d1badd4581d5538af4e489af52a43df61c2c5602ba34536ae30939bcf9de5",
+    "bytes": 17471,
+    "line_count": 285,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -545,66 +545,96 @@
       "raw": "\n"
     },
     {
+      "id": "b000088",
+      "kind": "heading",
+      "start_line": 171,
+      "end_line": 171,
+      "raw": "### 붓모 벌어짐\n",
+      "level": 3,
+      "title": "붓모 벌어짐"
+    },
+    {
+      "id": "b000089",
+      "kind": "blank",
+      "start_line": 172,
+      "end_line": 172,
+      "raw": "\n"
+    },
+    {
+      "id": "b000090",
+      "kind": "paragraph",
+      "start_line": 173,
+      "end_line": 178,
+      "raw": "`material.bristle.spread`는 0부터 1까지의 붓모 벌어짐이다. 활성 붓모의\n자국 폭과 높이에 `1 + 0.5 × spread`를 곱하며 기존 두께와 동역학도 함께\n적용한다. 기본값 0은 기존 자국과 동일하다. 프리셋과 문서 스냅샷에 값을\n기록하고 해당 키가 없는 이전 파일은 0으로 읽는다. 범위 밖 값과 비유한 값은\n프리셋 검증에서 거부한다. 둥근 붓모의 강성도 자국의 세로 폭에 반영한다.\n공개 구조체가 변경되므로 소비자를 다시 빌드한다.\n"
+    },
+    {
+      "id": "b000091",
+      "kind": "blank",
+      "start_line": 179,
+      "end_line": 179,
+      "raw": "\n"
+    },
+    {
       "id": "b000055",
       "kind": "paragraph",
-      "start_line": 171,
-      "end_line": 173,
+      "start_line": 180,
+      "end_line": 182,
       "raw": "`material.bristle.thickness` defaults to 1 and accepts [0.001,1]. It scales\nthe existing 2D footprint width. `angleRadians` defaults to 0 and accepts\n[-1024,1024]. Existing count, length, stiffness and shape remain in use.\n"
     },
     {
       "id": "b000056",
       "kind": "blank",
-      "start_line": 174,
-      "end_line": 174,
+      "start_line": 183,
+      "end_line": 183,
       "raw": "\n"
     },
     {
       "id": "b000057",
       "kind": "paragraph",
-      "start_line": 175,
-      "end_line": 184,
+      "start_line": 184,
+      "end_line": 193,
       "raw": "`material.erodible` defaults to disabled, softness 0.5 and wear 0. Softness\nand wear are [0,1]. For a mark at accumulated distance `d`, wear is\n`clamp(initialWear + softness*d/(max(1,brushSize)*100),0,1)`. The footprint\nwidens by `1+wear/2` and hardness decreases by `1-0.8*wear`. Its shape remains\nthe existing procedural/image tip. `BrushDab::tipWear` and\n`RasterDabStream::tipWear` expose the scalar result. Core callers may copy the\nresult to the next preset; `sharpenErodibleTip()` sets wear to zero.\n`BitmapPaintSession` carries wear after a successful pixel commit, but cancelled\nstrokes and a preset changed during a stroke do not overwrite the selected\nbrush's wear.\n"
     },
     {
       "id": "b000058",
       "kind": "blank",
-      "start_line": 185,
-      "end_line": 185,
+      "start_line": 194,
+      "end_line": 194,
       "raw": "\n"
     },
     {
       "id": "b000059",
       "kind": "paragraph",
-      "start_line": 186,
-      "end_line": 191,
+      "start_line": 195,
+      "end_line": 200,
       "raw": "`material.airbrushTip` defaults to disabled. Granularity, spatter and\ndistortion are [0,1], default 0. SpatterSize is [0.01,4096] document pixels,\ndefault 1. Granularity modulates pixel coverage with deterministic grain;\nspatter removes seeded pattern cells of the configured size; distortion\ncompresses the footprint with tilt. Existing size/hardness/spacing and optional\ntime-based airbrush control placement. This is not a 3D conical fluid model.\n"
     },
     {
       "id": "b000060",
       "kind": "blank",
-      "start_line": 192,
-      "end_line": 192,
+      "start_line": 201,
+      "end_line": 201,
       "raw": "\n"
     },
     {
       "id": "b000061",
       "kind": "paragraph",
-      "start_line": 193,
-      "end_line": 197,
+      "start_line": 202,
+      "end_line": 206,
       "raw": "`material.simulation.load` is [0,1], default 1, and multiplies the existing\nwet/mixer bitmap pigment contribution. Zero deposits no pixels. Named mixing\nvariation and the new `BrushDynamicsTarget::Mix` scale `mixStrength` during\nsource-pixel color mixing. Existing models sample bitmap pixels rather than\nmaintaining a fluid simulation or a multi-color reservoir.\n"
     },
     {
       "id": "b000062",
       "kind": "blank",
-      "start_line": 198,
-      "end_line": 198,
+      "start_line": 207,
+      "end_line": 207,
       "raw": "\n"
     },
     {
       "id": "b000063",
       "kind": "heading",
-      "start_line": 199,
-      "end_line": 199,
+      "start_line": 208,
+      "end_line": 208,
       "raw": "## Effects, smoothing and preset selection\n",
       "level": 2,
       "title": "Effects, smoothing and preset selection"
@@ -612,57 +642,57 @@
     {
       "id": "b000064",
       "kind": "blank",
-      "start_line": 200,
-      "end_line": 200,
+      "start_line": 209,
+      "end_line": 209,
       "raw": "\n"
     },
     {
       "id": "b000065",
       "kind": "paragraph",
-      "start_line": 201,
-      "end_line": 205,
+      "start_line": 210,
+      "end_line": 214,
       "raw": "`stroke.noiseEnabled` and `wetEdgesEnabled` default to false. Their strengths\ndefault to 0.5 and accept [0,1]. Noise modulates coverage using document-position,\nseed and mark-index values. Wet edges reduce dense coverage relative to soft\nedges; for coverage `a`, its multiplier is `1-strength*a`. It works on the\nbitmap tip mask without reconstructing an entire stroke contour.\n"
     },
     {
       "id": "b000066",
       "kind": "blank",
-      "start_line": 206,
-      "end_line": 206,
+      "start_line": 215,
+      "end_line": 215,
       "raw": "\n"
     },
     {
       "id": "b000067",
       "kind": "paragraph",
-      "start_line": 207,
-      "end_line": 211,
+      "start_line": 216,
+      "end_line": 220,
       "raw": "`stroke.smoothingEnabled` defaults to false; smoothing defaults to 0.5 in\n[0,1]. Each incoming position is filtered immediately against the preceding\nfiltered position with weight `1-0.95*smoothing`. It never queues points,\nreplays a path, requires future input, or snaps to a predicted endpoint. This\nis a causal position filter, not Photoshop's pulled-string/catch-up modes.\n"
     },
     {
       "id": "b000068",
       "kind": "blank",
-      "start_line": 212,
-      "end_line": 212,
+      "start_line": 221,
+      "end_line": 221,
       "raw": "\n"
     },
     {
       "id": "b000069",
       "kind": "paragraph",
-      "start_line": 213,
-      "end_line": 222,
+      "start_line": 222,
+      "end_line": 231,
       "raw": "`stroke.protectTexture` defaults to false.\n`selectBrushPreset(current,replacement)` preserves the current pattern bytes,\ndimensions, asset-cache identity and scale when this flag is set; replacement\ntone/depth/modes and other settings remain editable. The returned preset keeps\nprotection enabled. Pass `false` as its third argument to bypass protection.\n`BitmapPaintSession::setBrushPreset(preset, preserveProtectedTexture=true)` and\n`setBrushPresetData(payload, preserveProtectedTexture=true)` use this same\npolicy. Explicit false allows disabling protection or replacing a protected\npattern. Invalid replacements fail before mutation, even when their texture\nwould otherwise be replaced by protection.\n"
     },
     {
       "id": "b000070",
       "kind": "blank",
-      "start_line": 223,
-      "end_line": 223,
+      "start_line": 232,
+      "end_line": 232,
       "raw": "\n"
     },
     {
       "id": "b000071",
       "kind": "heading",
-      "start_line": 224,
-      "end_line": 224,
+      "start_line": 233,
+      "end_line": 233,
       "raw": "## Storage, validation and test boundaries\n",
       "level": 2,
       "title": "Storage, validation and test boundaries"
@@ -670,71 +700,71 @@
     {
       "id": "b000072",
       "kind": "blank",
-      "start_line": 225,
-      "end_line": 225,
+      "start_line": 234,
+      "end_line": 234,
       "raw": "\n"
     },
     {
       "id": "b000073",
       "kind": "paragraph",
-      "start_line": 226,
-      "end_line": 230,
+      "start_line": 235,
+      "end_line": 239,
       "raw": "The 0.4 extension introduced preset format **3**; current output is format **4**.\nVersions 1, 2 and 3 remain readable and acquire neutral defaults for missing options.\nValidation rejects invalid enum values,\nnonfinite/out-of-range numbers and zero/excessive Fade steps, including disabled\nsettings. Snapshot/restore copy all nested settings.\n"
     },
     {
       "id": "b000074",
       "kind": "blank",
-      "start_line": 231,
-      "end_line": 231,
+      "start_line": 240,
+      "end_line": 240,
       "raw": "\n"
     },
     {
       "id": "b000075",
       "kind": "paragraph",
-      "start_line": 232,
-      "end_line": 236,
+      "start_line": 241,
+      "end_line": 245,
       "raw": "Document format remains 3. The historically named `presetV2` field embeds the\nversioned payload and now carries preset format 4. Its key remains stable;\nthe embedded `formatVersion` is authoritative. Older engines reject the new\npreset version instead of silently dropping these options. Public structs have\nchanged layout in 0.4 and again in 0.5, so SDK consumers must be rebuilt for 0.5.\n"
     },
     {
       "id": "b000076",
-      "kind": "blank",
-      "start_line": 237,
-      "end_line": 237,
-      "raw": "\n"
-    },
-    {
-      "id": "b000077",
-      "kind": "paragraph",
-      "start_line": 238,
-      "end_line": 245,
-      "raw": "`BrushOptionsContractTest` checks controls, pose, initial direction, color,\ntexture/depth/modes, secondary reflection/count/zoom, noise/wet-edge coverage,\ntip extensions, mixer sampling, smoothing, Protect Texture, invalid values,\nlegacy loading, and full preset/snapshot/document round trips.\n`BitmapPaintSessionContractTest` covers real bitmap commits, serialized option\napplication, persistent wear, cancellation, mid-stroke preset replacement,\nand protected/unprotected selection. The existing architecture tests continue\nto prohibit retained trajectories and enforce dependency direction.\n"
-    },
-    {
-      "id": "b000078",
       "kind": "blank",
       "start_line": 246,
       "end_line": 246,
       "raw": "\n"
     },
     {
-      "id": "b000079",
+      "id": "b000077",
       "kind": "paragraph",
       "start_line": 247,
+      "end_line": 254,
+      "raw": "`BrushOptionsContractTest` checks controls, pose, initial direction, color,\ntexture/depth/modes, secondary reflection/count/zoom, noise/wet-edge coverage,\ntip extensions, mixer sampling, smoothing, Protect Texture, invalid values,\nlegacy loading, and full preset/snapshot/document round trips.\n`BitmapPaintSessionContractTest` covers real bitmap commits, serialized option\napplication, persistent wear, cancellation, mid-stroke preset replacement,\nand protected/unprotected selection. The existing architecture tests continue\nto prohibit retained trajectories and enforce dependency direction.\n"
+    },
+    {
+      "id": "b000078",
+      "kind": "blank",
+      "start_line": 255,
       "end_line": 255,
+      "raw": "\n"
+    },
+    {
+      "id": "b000079",
+      "kind": "paragraph",
+      "start_line": 256,
+      "end_line": 264,
       "raw": "Observed UI controls not implemented as shared brush options here include\nper-panel preset locks/capture policies, multi-layer sampling/clean-after-stroke tool policy,\nhealing/clone/selection/remove algorithms, and native menu enum mappings.\nThey are retained in the investigation ledger rather than stored as ineffective\nrenderer toggles. Native physical formulas, ABR codec compatibility, complete\nPhotoshop brush-source recovery and Adobe pixel parity remain unverified.\nSymmetry and independent pulled-string/catch-up models are now implemented in\n0.5. ABR tip extraction is bounded as described in BRUSH_EXPANSION.md and does not\nrestore modern full brush settings.\n"
     },
     {
       "id": "b000080",
       "kind": "blank",
-      "start_line": 256,
-      "end_line": 256,
+      "start_line": 265,
+      "end_line": 265,
       "raw": "\n"
     },
     {
       "id": "b000081",
       "kind": "heading",
-      "start_line": 257,
-      "end_line": 257,
+      "start_line": 266,
+      "end_line": 266,
       "raw": "### Noise, wet edges and build-up controls\n",
       "level": 3,
       "title": "Noise, wet edges and build-up controls"
@@ -742,29 +772,29 @@
     {
       "id": "b000082",
       "kind": "blank",
-      "start_line": 258,
-      "end_line": 258,
+      "start_line": 267,
+      "end_line": 267,
       "raw": "\n"
     },
     {
       "id": "b000083",
       "kind": "paragraph",
-      "start_line": 259,
-      "end_line": 267,
+      "start_line": 268,
+      "end_line": 276,
       "raw": "`BrushNoiseOptions.size` controls the spatial noise cell in document pixels. The\nwet-edge object has an edge width in document pixels and normalized diffusion;\nits strength remains the separate `wetEdgesStrength` setting. Build-up has an\nindependent enabled flag, per-deposit accumulation multiplier, opacity ceiling,\nand optional time-based placement. Time-based placement uses the existing\ncaller-supplied monotonic input clock and airbrush rate; no timer or input path\nis retained by the engine. The options are stored in the brush preset with\nbackward-compatible defaults. A disabled build-up preserves existing opacity and\nflow. The options are also copied into the resolved rasterizer state.\n"
     },
     {
       "id": "b000084",
       "kind": "blank",
-      "start_line": 268,
-      "end_line": 268,
+      "start_line": 277,
+      "end_line": 277,
       "raw": "\n"
     },
     {
       "id": "b000085",
       "kind": "heading",
-      "start_line": 269,
-      "end_line": 269,
+      "start_line": 278,
+      "end_line": 278,
       "raw": "## Color noise\n",
       "level": 2,
       "title": "Color noise"
@@ -772,15 +802,15 @@
     {
       "id": "b000086",
       "kind": "blank",
-      "start_line": 270,
-      "end_line": 270,
+      "start_line": 279,
+      "end_line": 279,
       "raw": "\n"
     },
     {
       "id": "b000087",
       "kind": "paragraph",
-      "start_line": 271,
-      "end_line": 276,
+      "start_line": 280,
+      "end_line": 285,
       "raw": "`BrushNoiseOptions.monochrome` defaults to true: noise changes coverage while\npreserving the original color. When false, the engine also varies RGB channels\nindependently using the same document coordinates, grain size, and stroke seed.\nThe choice does not alter alpha coverage or the defaults of existing brushes and\nis saved in the preset. The preview and committed stroke use the same noise\ncalculation for the same inputs and seed.\n"
     }
   ],
@@ -834,12 +864,20 @@
       "start_line": 169
     },
     {
+      "block_id": "b000088",
+      "parent_id": "b000053",
+      "level": 3,
+      "title": "붓모 벌어짐",
+      "anchor": "붓모-벌어짐",
+      "start_line": 171
+    },
+    {
       "block_id": "b000063",
       "parent_id": "b000001",
       "level": 2,
       "title": "Effects, smoothing and preset selection",
       "anchor": "effects-smoothing-and-preset-selection",
-      "start_line": 199
+      "start_line": 208
     },
     {
       "block_id": "b000071",
@@ -847,7 +885,7 @@
       "level": 2,
       "title": "Storage, validation and test boundaries",
       "anchor": "storage-validation-and-test-boundaries",
-      "start_line": 224
+      "start_line": 233
     },
     {
       "block_id": "b000081",
@@ -855,7 +893,7 @@
       "level": 3,
       "title": "Noise, wet edges and build-up controls",
       "anchor": "noise-wet-edges-and-build-up-controls",
-      "start_line": 257
+      "start_line": 266
     },
     {
       "block_id": "b000085",
@@ -863,7 +901,7 @@
       "level": 2,
       "title": "Color noise",
       "anchor": "color-noise",
-      "start_line": 269
+      "start_line": 278
     }
   ],
   "indexes": {
@@ -884,21 +922,21 @@
       },
       {
         "block_id": "b000057",
-        "line": 183,
+        "line": 192,
         "text": "strokes and a preset changed during a stroke do not overwrite the selected",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000067",
-        "line": 209,
+        "line": 218,
         "text": "filtered position with weight `1-0.95*smoothing`. It never queues points,",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000075",
-        "line": 236,
+        "line": 245,
         "text": "changed layout in 0.4 and again in 0.5, so SDK consumers must be rebuilt for 0.5.",
         "basis": "lexical_match",
         "context": "paragraph"

@@ -178,6 +178,7 @@ std::vector<std::string> validateBrushPreset(const BrushPreset &p)
     v.range("bristle.stiffness", m.bristle.stiffness, 0, 1);
     v.range("bristle.thickness", m.bristle.thickness, .001, 1);
     v.range("bristle.angleRadians", m.bristle.angleRadians, -1024, 1024);
+    v.range("bristle.spread", m.bristle.spread, 0, 1);
     v.range("erodible.softness", m.erodible.softness, 0, 1); v.range("erodible.wear", m.erodible.wear, 0, 1);
     v.range("airbrushTip.granularity", m.airbrushTip.granularity, 0, 1);
     v.range("airbrushTip.spatter", m.airbrushTip.spatter, 0, 1);

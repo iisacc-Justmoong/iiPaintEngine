@@ -1295,7 +1295,7 @@ Types::Scalar bristleEllipseScaleY(const BristleSimulation &bristle, Types::Scal
         case BristleShape::Fan:
             return std::max<Types::Scalar>(0.2, 0.95 - (1.0 - stiffness) * 0.55 * spread);
         case BristleShape::Round:
-            return 1.0;
+            return std::max<Types::Scalar>(0.5, 1.0 - (1.0 - stiffness) * 0.25 * spread);
     }
     return 1.0;
 }
@@ -1399,7 +1399,11 @@ BrushDab makeBrushDab(const StrokePoint &sample,
             * bristleEllipseScaleX(material.bristle, dynamicsResult.bristleSpreadScale);
     dab.ellipseScaleY = rasterizer.shape.roundness * std::max(0.01, dynamicsResult.roundnessScale) * dynamicsResult.ellipseScaleY
             * bristleEllipseScaleY(material.bristle, dynamicsResult.bristleSpreadScale);
-    if (material.bristle.enabled) dab.ellipseScaleY *= material.bristle.thickness;
+    if (material.bristle.enabled) {
+        const auto spread = 1.0 + .5 * clamp01(material.bristle.spread);
+        dab.ellipseScaleX *= spread;
+        dab.ellipseScaleY *= spread * material.bristle.thickness;
+    }
     if (material.airbrushTip.enabled) dab.ellipseScaleY *= std::max(.05, 1 - material.airbrushTip.distortion * std::min(1.0, std::hypot(tiltX, tiltY)));
     dab.textureDirectionRadians = textureDirection;
     dab.grain = clamp01(dynamicsResult.grain

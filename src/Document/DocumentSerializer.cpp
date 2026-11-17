@@ -743,6 +743,7 @@ void writeBrushMaterial(std::ostringstream &output,
     writeLine(output, prefix + ".bristle.count", numberText(material.bristle.count));
     writeLine(output, prefix + ".bristle.length", numberText(material.bristle.length));
     writeLine(output, prefix + ".bristle.stiffness", numberText(material.bristle.stiffness));
+    writeLine(output, prefix + ".bristle.spread", numberText(material.bristle.spread));
 }
 
 BrushMaterial readBrushMaterial(const std::map<std::string, std::string> &values,
@@ -781,6 +782,7 @@ BrushMaterial readBrushMaterial(const std::map<std::string, std::string> &values
     material.bristle.count = readNumber<std::uint32_t>(values, prefix + ".bristle.count");
     material.bristle.length = readNumber<Types::Scalar>(values, prefix + ".bristle.length");
     material.bristle.stiffness = readNumber<Types::Scalar>(values, prefix + ".bristle.stiffness", 1.0);
+    material.bristle.spread = readNumber<Types::Scalar>(values, prefix + ".bristle.spread", 0.0);
     return material;
 }
 

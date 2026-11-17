@@ -508,6 +508,7 @@ void writeMaterial(std::ostringstream &output, const BrushMaterial &material)
     writeLine(output, "material.simulation.load", numberText(material.simulation.load));
     writeLine(output, "material.bristle.thickness", numberText(material.bristle.thickness));
     writeLine(output, "material.bristle.angleRadians", numberText(material.bristle.angleRadians));
+    writeLine(output, "material.bristle.spread", numberText(material.bristle.spread));
     writeLine(output, "material.erodible.enabled", boolText(material.erodible.enabled));
     writeLine(output, "material.erodible.softness", numberText(material.erodible.softness));
     writeLine(output, "material.erodible.wear", numberText(material.erodible.wear));
@@ -564,6 +565,7 @@ BrushMaterial readMaterial(const std::map<std::string, std::string> &values)
     material.simulation.load = readNumber<double>(values, "material.simulation.load", material.simulation.load);
     material.bristle.thickness = readNumber<double>(values, "material.bristle.thickness", material.bristle.thickness);
     material.bristle.angleRadians = readNumber<double>(values, "material.bristle.angleRadians", material.bristle.angleRadians);
+    material.bristle.spread = readNumber<double>(values, "material.bristle.spread", material.bristle.spread);
     material.erodible.enabled = readBool(values, "material.erodible.enabled", material.erodible.enabled);
     material.erodible.softness = readNumber<double>(values, "material.erodible.softness", material.erodible.softness);
     material.erodible.wear = readNumber<double>(values, "material.erodible.wear", material.erodible.wear);

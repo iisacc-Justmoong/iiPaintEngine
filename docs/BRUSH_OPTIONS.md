@@ -168,6 +168,15 @@ LinearBurn and HardMix. Existing enum values retain their numeric order.
 
 ## Bristle, erodible, airbrush and mixing bitmap models
 
+### 붓모 벌어짐
+
+`material.bristle.spread`는 0부터 1까지의 붓모 벌어짐이다. 활성 붓모의
+자국 폭과 높이에 `1 + 0.5 × spread`를 곱하며 기존 두께와 동역학도 함께
+적용한다. 기본값 0은 기존 자국과 동일하다. 프리셋과 문서 스냅샷에 값을
+기록하고 해당 키가 없는 이전 파일은 0으로 읽는다. 범위 밖 값과 비유한 값은
+프리셋 검증에서 거부한다. 둥근 붓모의 강성도 자국의 세로 폭에 반영한다.
+공개 구조체가 변경되므로 소비자를 다시 빌드한다.
+
 `material.bristle.thickness` defaults to 1 and accepts [0.001,1]. It scales
 the existing 2D footprint width. `angleRadians` defaults to 0 and accepts
 [-1024,1024]. Existing count, length, stiffness and shape remain in use.
