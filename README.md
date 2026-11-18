@@ -154,7 +154,7 @@ All examples produce bitmap files and require no windowing runtime. The preset g
 
 ## Dependencies and validation
 
-The bundled stb files are pinned to commit `2c980bb59875b0d32144a71867fbdebb2f77cd20` of [nothings/stb](https://github.com/nothings/stb). [Provenance and SHA-256 hashes](third_party/stb/provenance.json) and the selected [MIT license](third_party/stb/LICENSE) accompany the package. No separate C source, assembly, Objective-C, scripting runtime, or GUI library is compiled. iiPaintEngine itself retains its [MIT license](LICENSE).
+The bundled stb files are pinned to commit `2c980bb59875b0d32144a71867fbdebb2f77cd20` of [nothings/stb](https://github.com/nothings/stb). [Provenance and SHA-256 hashes](third_party/stb/provenance.json) and the selected [MIT license](third_party/stb/LICENSE) accompany the package. No separate C source, assembly, Objective-C, scripting runtime, or GUI library is compiled. iiPaintEngine itself is licensed under the [Apache License, Version 2.0](LICENSE).
 
 Contract tests cover source/dependency boundaries, public C++23 headers, codec round trips and failure preservation, immediate preview versus commit, cancel, undo/redo, input normalization, brush options/materials, serialization, document/layer operations, and installing then compiling/running a separate C++ consumer. Sanitizer builds are available with `-DIIPAINTENGINE_SANITIZE=ON`. Host tests do not prove physical pen input or runtime operation on other platforms.
 
@@ -162,11 +162,20 @@ Layer composition supports 27 pixel-layer blend modes, reproducible Dissolve sam
 
 ## License
 
-SPDX-License-Identifier: MIT
+SPDX-License-Identifier: Apache-2.0
 
-The original code and documentation in this repository are licensed under the
-[MIT License](LICENSE). Third-party code, libraries, fonts, tools, and model
-weights retain their respective licenses.
+iiPaintEngine, an iiSDK module, is licensed under the
+[Apache License, Version 2.0](LICENSE) (SPDX `Apache-2.0`).
+The copyright notice is `Copyright (c) 2026 iisacc`. Attribution for this
+distribution is in [NOTICE](NOTICE). The Korean statement of the same policy
+is [docs/License.md](docs/License.md).
+
+iisacc products are licensed under the GNU Affero General Public License,
+version 3 or later (SPDX `AGPL-3.0-or-later`).
+
+Third-party and vendored code, libraries, fonts, tools, and model weights
+keep their original licenses. The bundled stb image codec remains under its
+selected [MIT license](third_party/stb/LICENSE).
 
 <!-- workspace-docs:readme:start -->
 ## Documentation entry points

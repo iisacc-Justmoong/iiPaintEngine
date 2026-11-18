@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/README.md",
-    "sha256": "799d1b7905e09b419277b4d75dc01ac6f45ae3c33a93a90536d919761699e999",
-    "bytes": 2265,
-    "line_count": 32,
+    "sha256": "3bd9d75761b0822faab08f554e91f1059f7ea87984f334c017917513838b8449",
+    "bytes": 2330,
+    "line_count": 33,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -79,8 +79,8 @@
       "id": "b000008",
       "kind": "table",
       "start_line": 8,
-      "end_line": 31,
-      "raw": "| Document | Agent JSON |\n| --- | --- |\n| [`AGENT.md`](../AGENT.md) | [JSON](entrypoints/AGENT.agent.json) |\n| [`README.md`](../README.md) | [JSON](entrypoints/README.agent.json) |\n| [`docs/BRUSHES.md`](BRUSHES.md) | [JSON](BRUSHES.agent.json) |\n| [`docs/BRUSH_EXPANSION.md`](BRUSH_EXPANSION.md) | [JSON](BRUSH_EXPANSION.agent.json) |\n| [`docs/BRUSH_EXPANSION_VALIDATION.md`](BRUSH_EXPANSION_VALIDATION.md) | [JSON](BRUSH_EXPANSION_VALIDATION.agent.json) |\n| [`docs/BRUSH_OPTIONS.md`](BRUSH_OPTIONS.md) | [JSON](BRUSH_OPTIONS.agent.json) |\n| [`docs/BrushTools.md`](BrushTools.md) | [JSON](BrushTools.agent.json) |\n| [`docs/BuildLayout.md`](BuildLayout.md) | [JSON](BuildLayout.agent.json) |\n| [`docs/CXX23_MIGRATION.md`](CXX23_MIGRATION.md) | [JSON](CXX23_MIGRATION.agent.json) |\n| [`docs/DynamicLinking.md`](DynamicLinking.md) | [JSON](DynamicLinking.agent.json) |\n| [`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md) | [JSON](FILE_PROVIDER.agent.json) |\n| [`docs/LAYER_COMPOSITING.md`](LAYER_COMPOSITING.md) | [JSON](LAYER_COMPOSITING.agent.json) |\n| [`docs/LOCALIZED_BRUSH_MATH.md`](LOCALIZED_BRUSH_MATH.md) | [JSON](LOCALIZED_BRUSH_MATH.agent.json) |\n| [`docs/LOCAL_MASK_BRUSH.md`](LOCAL_MASK_BRUSH.md) | [JSON](LOCAL_MASK_BRUSH.agent.json) |\n| [`docs/PERFORMANCE.md`](PERFORMANCE.md) | [JSON](PERFORMANCE.agent.json) |\n| [`docs/PHOTOSHOP_BRUSH_ACCUMULATION.md`](PHOTOSHOP_BRUSH_ACCUMULATION.md) | [JSON](PHOTOSHOP_BRUSH_ACCUMULATION.agent.json) |\n| [`docs/RASTER_HISTORY.md`](RASTER_HISTORY.md) | [JSON](RASTER_HISTORY.agent.json) |\n| [`docs/SELECTION_RASTER_EDIT.md`](SELECTION_RASTER_EDIT.md) | [JSON](SELECTION_RASTER_EDIT.agent.json) |\n| [`docs/WET_BRUSH_SAMPLING.md`](WET_BRUSH_SAMPLING.md) | [JSON](WET_BRUSH_SAMPLING.agent.json) |\n| [`docs/WindowsBuildAndRun.md`](WindowsBuildAndRun.md) | [JSON](WindowsBuildAndRun.agent.json) |\n| [`docs/bitmap-io.md`](bitmap-io.md) | [JSON](bitmap-io.agent.json) |\n| [`docs/documentation-structure.md`](documentation-structure.md) | [JSON](documentation-structure.agent.json) |\n",
+      "end_line": 32,
+      "raw": "| Document | Agent JSON |\n| --- | --- |\n| [`AGENT.md`](../AGENT.md) | [JSON](entrypoints/AGENT.agent.json) |\n| [`README.md`](../README.md) | [JSON](entrypoints/README.agent.json) |\n| [`docs/BRUSHES.md`](BRUSHES.md) | [JSON](BRUSHES.agent.json) |\n| [`docs/BRUSH_EXPANSION.md`](BRUSH_EXPANSION.md) | [JSON](BRUSH_EXPANSION.agent.json) |\n| [`docs/BRUSH_EXPANSION_VALIDATION.md`](BRUSH_EXPANSION_VALIDATION.md) | [JSON](BRUSH_EXPANSION_VALIDATION.agent.json) |\n| [`docs/BRUSH_OPTIONS.md`](BRUSH_OPTIONS.md) | [JSON](BRUSH_OPTIONS.agent.json) |\n| [`docs/BrushTools.md`](BrushTools.md) | [JSON](BrushTools.agent.json) |\n| [`docs/BuildLayout.md`](BuildLayout.md) | [JSON](BuildLayout.agent.json) |\n| [`docs/CXX23_MIGRATION.md`](CXX23_MIGRATION.md) | [JSON](CXX23_MIGRATION.agent.json) |\n| [`docs/DynamicLinking.md`](DynamicLinking.md) | [JSON](DynamicLinking.agent.json) |\n| [`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md) | [JSON](FILE_PROVIDER.agent.json) |\n| [`docs/LAYER_COMPOSITING.md`](LAYER_COMPOSITING.md) | [JSON](LAYER_COMPOSITING.agent.json) |\n| [`docs/LOCALIZED_BRUSH_MATH.md`](LOCALIZED_BRUSH_MATH.md) | [JSON](LOCALIZED_BRUSH_MATH.agent.json) |\n| [`docs/LOCAL_MASK_BRUSH.md`](LOCAL_MASK_BRUSH.md) | [JSON](LOCAL_MASK_BRUSH.agent.json) |\n| [`docs/License.md`](License.md) | [JSON](License.agent.json) |\n| [`docs/PERFORMANCE.md`](PERFORMANCE.md) | [JSON](PERFORMANCE.agent.json) |\n| [`docs/PHOTOSHOP_BRUSH_ACCUMULATION.md`](PHOTOSHOP_BRUSH_ACCUMULATION.md) | [JSON](PHOTOSHOP_BRUSH_ACCUMULATION.agent.json) |\n| [`docs/RASTER_HISTORY.md`](RASTER_HISTORY.md) | [JSON](RASTER_HISTORY.agent.json) |\n| [`docs/SELECTION_RASTER_EDIT.md`](SELECTION_RASTER_EDIT.md) | [JSON](SELECTION_RASTER_EDIT.agent.json) |\n| [`docs/WET_BRUSH_SAMPLING.md`](WET_BRUSH_SAMPLING.md) | [JSON](WET_BRUSH_SAMPLING.agent.json) |\n| [`docs/WindowsBuildAndRun.md`](WindowsBuildAndRun.md) | [JSON](WindowsBuildAndRun.agent.json) |\n| [`docs/bitmap-io.md`](bitmap-io.md) | [JSON](bitmap-io.agent.json) |\n| [`docs/documentation-structure.md`](documentation-structure.md) | [JSON](documentation-structure.agent.json) |\n",
       "columns": [
         "Document",
         "Agent JSON"
@@ -143,6 +143,10 @@
           "[JSON](LOCAL_MASK_BRUSH.agent.json)"
         ],
         [
+          "[`docs/License.md`](License.md)",
+          "[JSON](License.agent.json)"
+        ],
+        [
           "[`docs/PERFORMANCE.md`](PERFORMANCE.md)",
           "[JSON](PERFORMANCE.agent.json)"
         ],
@@ -179,8 +183,8 @@
     {
       "id": "b000009",
       "kind": "html",
-      "start_line": 32,
-      "end_line": 32,
+      "start_line": 33,
+      "end_line": 33,
       "raw": "<!-- workspace-docs:document-map:end -->\n"
     }
   ],
@@ -404,115 +408,129 @@
       },
       {
         "block_id": "b000008",
+        "label": "`docs/License.md`",
+        "target": "License.md",
+        "kind": "relative",
+        "line": 24
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "License.agent.json",
+        "kind": "relative",
+        "line": 24
+      },
+      {
+        "block_id": "b000008",
         "label": "`docs/PERFORMANCE.md`",
         "target": "PERFORMANCE.md",
         "kind": "relative",
-        "line": 24
+        "line": 25
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "PERFORMANCE.agent.json",
         "kind": "relative",
-        "line": 24
+        "line": 25
       },
       {
         "block_id": "b000008",
         "label": "`docs/PHOTOSHOP_BRUSH_ACCUMULATION.md`",
         "target": "PHOTOSHOP_BRUSH_ACCUMULATION.md",
         "kind": "relative",
-        "line": 25
+        "line": 26
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "PHOTOSHOP_BRUSH_ACCUMULATION.agent.json",
         "kind": "relative",
-        "line": 25
+        "line": 26
       },
       {
         "block_id": "b000008",
         "label": "`docs/RASTER_HISTORY.md`",
         "target": "RASTER_HISTORY.md",
         "kind": "relative",
-        "line": 26
+        "line": 27
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "RASTER_HISTORY.agent.json",
         "kind": "relative",
-        "line": 26
+        "line": 27
       },
       {
         "block_id": "b000008",
         "label": "`docs/SELECTION_RASTER_EDIT.md`",
         "target": "SELECTION_RASTER_EDIT.md",
         "kind": "relative",
-        "line": 27
+        "line": 28
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "SELECTION_RASTER_EDIT.agent.json",
         "kind": "relative",
-        "line": 27
+        "line": 28
       },
       {
         "block_id": "b000008",
         "label": "`docs/WET_BRUSH_SAMPLING.md`",
         "target": "WET_BRUSH_SAMPLING.md",
         "kind": "relative",
-        "line": 28
+        "line": 29
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "WET_BRUSH_SAMPLING.agent.json",
         "kind": "relative",
-        "line": 28
+        "line": 29
       },
       {
         "block_id": "b000008",
         "label": "`docs/WindowsBuildAndRun.md`",
         "target": "WindowsBuildAndRun.md",
         "kind": "relative",
-        "line": 29
+        "line": 30
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "WindowsBuildAndRun.agent.json",
         "kind": "relative",
-        "line": 29
+        "line": 30
       },
       {
         "block_id": "b000008",
         "label": "`docs/bitmap-io.md`",
         "target": "bitmap-io.md",
         "kind": "relative",
-        "line": 30
+        "line": 31
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "bitmap-io.agent.json",
         "kind": "relative",
-        "line": 30
+        "line": 31
       },
       {
         "block_id": "b000008",
         "label": "`docs/documentation-structure.md`",
         "target": "documentation-structure.md",
         "kind": "relative",
-        "line": 31
+        "line": 32
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "documentation-structure.agent.json",
         "kind": "relative",
-        "line": 31
+        "line": 32
       }
     ],
     "tables": [
@@ -578,6 +596,10 @@
           [
             "[`docs/LOCAL_MASK_BRUSH.md`](LOCAL_MASK_BRUSH.md)",
             "[JSON](LOCAL_MASK_BRUSH.agent.json)"
+          ],
+          [
+            "[`docs/License.md`](License.md)",
+            "[JSON](License.agent.json)"
           ],
           [
             "[`docs/PERFORMANCE.md`](PERFORMANCE.md)",
