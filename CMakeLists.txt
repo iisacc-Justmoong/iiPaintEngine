@@ -124,8 +124,8 @@ install(FILES docs/RASTER_HISTORY.md DESTINATION ${CMAKE_INSTALL_DATADIR}/iiPain
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/iiPaintEngine/docs
     FILES_MATCHING PATTERN "*.md" PATTERN "*.json" PATTERN "*.iisacc.json" EXCLUDE
     PATTERN ".*.iisacc-preview" EXCLUDE PATTERN ".iisacc-temporary.lock" EXCLUDE)
-install(FILES AGENT.md LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/iiPaintEngine)
-install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/iiPaintEngine)
+install(FILES AGENT.md LICENSE NOTICE DESTINATION ${CMAKE_INSTALL_DATADIR}/iiPaintEngine)
+install(FILES LICENSE NOTICE DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/iiPaintEngine)
 install(FILES third_party/stb/LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/iiPaintEngine/stb)
 install(FILES third_party/stb/provenance.json DESTINATION ${CMAKE_INSTALL_DATADIR}/iiPaintEngine)
 install(EXPORT iiPaintEngineTargets FILE iiPaintEngineTargets.cmake NAMESPACE iiPaintEngine::

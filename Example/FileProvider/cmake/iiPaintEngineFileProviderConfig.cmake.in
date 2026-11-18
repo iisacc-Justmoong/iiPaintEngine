@@ -1,4 +1,5 @@
 @PACKAGE_INIT@
+set(iiPaintEngineFileProvider_SPDX_LICENSE "Apache-2.0")
 include(CMakeFindDependencyMacro)
 find_dependency(iiPaintEngine 0.5 CONFIG)
 find_dependency(iiFileProviderNative 0.8 CONFIG)

@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "README.md",
-    "sha256": "fc211ec98712d818e4ea7694876eb30e0876fef3498cfabde4ef10eb2bbe7d0f",
-    "bytes": 12978,
-    "line_count": 178,
+    "sha256": "9a1197d9ecb3912a41d1fbbd2e8c755d742fb848948b87efdd5f3fd6f89a02df",
+    "bytes": 13440,
+    "line_count": 187,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -637,7 +637,7 @@
       "kind": "paragraph",
       "start_line": 157,
       "end_line": 157,
-      "raw": "The bundled stb files are pinned to commit `2c980bb59875b0d32144a71867fbdebb2f77cd20` of [nothings/stb](https://github.com/nothings/stb). [Provenance and SHA-256 hashes](third_party/stb/provenance.json) and the selected [MIT license](third_party/stb/LICENSE) accompany the package. No separate C source, assembly, Objective-C, scripting runtime, or GUI library is compiled. iiPaintEngine itself retains its [MIT license](LICENSE).\n"
+      "raw": "The bundled stb files are pinned to commit `2c980bb59875b0d32144a71867fbdebb2f77cd20` of [nothings/stb](https://github.com/nothings/stb). [Provenance and SHA-256 hashes](third_party/stb/provenance.json) and the selected [MIT license](third_party/stb/LICENSE) accompany the package. No separate C source, assembly, Objective-C, scripting runtime, or GUI library is compiled. iiPaintEngine itself is licensed under the [Apache License, Version 2.0](LICENSE).\n"
     },
     {
       "id": "b000082",
@@ -695,7 +695,7 @@
       "kind": "paragraph",
       "start_line": 165,
       "end_line": 165,
-      "raw": "SPDX-License-Identifier: MIT\n"
+      "raw": "SPDX-License-Identifier: Apache-2.0\n"
     },
     {
       "id": "b000090",
@@ -708,44 +708,72 @@
       "id": "b000091",
       "kind": "paragraph",
       "start_line": 167,
-      "end_line": 169,
-      "raw": "The original code and documentation in this repository are licensed under the\n[MIT License](LICENSE). Third-party code, libraries, fonts, tools, and model\nweights retain their respective licenses.\n"
+      "end_line": 171,
+      "raw": "iiPaintEngine, an iiSDK module, is licensed under the\n[Apache License, Version 2.0](LICENSE) (SPDX `Apache-2.0`).\nThe copyright notice is `Copyright (c) 2026 iisacc`. Attribution for this\ndistribution is in [NOTICE](NOTICE). The Korean statement of the same policy\nis [docs/License.md](docs/License.md).\n"
     },
     {
       "id": "b000092",
       "kind": "blank",
-      "start_line": 170,
-      "end_line": 170,
+      "start_line": 172,
+      "end_line": 172,
       "raw": "\n"
     },
     {
       "id": "b000093",
-      "kind": "html",
-      "start_line": 171,
-      "end_line": 171,
-      "raw": "<!-- workspace-docs:readme:start -->\n"
+      "kind": "paragraph",
+      "start_line": 173,
+      "end_line": 174,
+      "raw": "iisacc products are licensed under the GNU Affero General Public License,\nversion 3 or later (SPDX `AGPL-3.0-or-later`).\n"
     },
     {
       "id": "b000094",
+      "kind": "blank",
+      "start_line": 175,
+      "end_line": 175,
+      "raw": "\n"
+    },
+    {
+      "id": "b000095",
+      "kind": "paragraph",
+      "start_line": 176,
+      "end_line": 178,
+      "raw": "Third-party and vendored code, libraries, fonts, tools, and model weights\nkeep their original licenses. The bundled stb image codec remains under its\nselected [MIT license](third_party/stb/LICENSE).\n"
+    },
+    {
+      "id": "b000096",
+      "kind": "blank",
+      "start_line": 179,
+      "end_line": 179,
+      "raw": "\n"
+    },
+    {
+      "id": "b000097",
+      "kind": "html",
+      "start_line": 180,
+      "end_line": 180,
+      "raw": "<!-- workspace-docs:readme:start -->\n"
+    },
+    {
+      "id": "b000098",
       "kind": "heading",
-      "start_line": 172,
-      "end_line": 172,
+      "start_line": 181,
+      "end_line": 181,
       "raw": "## Documentation entry points\n",
       "level": 2,
       "title": "Documentation entry points"
     },
     {
-      "id": "b000095",
+      "id": "b000099",
       "kind": "blank",
-      "start_line": 173,
-      "end_line": 173,
+      "start_line": 182,
+      "end_line": 182,
       "raw": "\n"
     },
     {
-      "id": "b000096",
+      "id": "b000100",
       "kind": "list",
-      "start_line": 174,
-      "end_line": 177,
+      "start_line": 183,
+      "end_line": 186,
       "raw": "- Human overview: this English `README.md`.\n- Agent instructions: [AGENT.md](AGENT.md).\n- Human documentation: [documentation index](docs/README.md).\n- Structured agent documentation: [agent index](docs/agent-index.json).\n",
       "items": [
         {
@@ -771,10 +799,10 @@
       ]
     },
     {
-      "id": "b000097",
+      "id": "b000101",
       "kind": "html",
-      "start_line": 178,
-      "end_line": 178,
+      "start_line": 187,
+      "end_line": 187,
       "raw": "<!-- workspace-docs:readme:end -->\n"
     }
   ],
@@ -860,12 +888,12 @@
       "start_line": 163
     },
     {
-      "block_id": "b000094",
+      "block_id": "b000098",
       "parent_id": "b000001",
       "level": 2,
       "title": "Documentation entry points",
       "anchor": "documentation-entry-points",
-      "start_line": 172
+      "start_line": 181
     }
   ],
   "indexes": {
@@ -1075,7 +1103,7 @@
       },
       {
         "block_id": "b000081",
-        "label": "MIT license",
+        "label": "Apache License, Version 2.0",
         "target": "LICENSE",
         "kind": "relative",
         "line": 157
@@ -1089,31 +1117,52 @@
       },
       {
         "block_id": "b000091",
-        "label": "MIT License",
+        "label": "Apache License, Version 2.0",
         "target": "LICENSE",
         "kind": "relative",
         "line": 168
       },
       {
-        "block_id": "b000096",
+        "block_id": "b000091",
+        "label": "NOTICE",
+        "target": "NOTICE",
+        "kind": "relative",
+        "line": 170
+      },
+      {
+        "block_id": "b000091",
+        "label": "docs/License.md",
+        "target": "docs/License.md",
+        "kind": "relative",
+        "line": 171
+      },
+      {
+        "block_id": "b000095",
+        "label": "MIT license",
+        "target": "third_party/stb/LICENSE",
+        "kind": "relative",
+        "line": 178
+      },
+      {
+        "block_id": "b000100",
         "label": "AGENT.md",
         "target": "AGENT.md",
         "kind": "relative",
-        "line": 175
+        "line": 184
       },
       {
-        "block_id": "b000096",
+        "block_id": "b000100",
         "label": "documentation index",
         "target": "docs/README.md",
         "kind": "relative",
-        "line": 176
+        "line": 185
       },
       {
-        "block_id": "b000096",
+        "block_id": "b000100",
         "label": "agent index",
         "target": "docs/agent-index.json",
         "kind": "relative",
-        "line": 177
+        "line": 186
       }
     ],
     "tables": [

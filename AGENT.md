@@ -32,6 +32,14 @@ NativeDependencyContract와 DependencyBoundary는 언어·프레임워크·계�
 
 공개 API나 구조체 배치 변경 시 소비자를 재빌드한다. 소스 빌드·설치·실행 증거를 구별하고 실제 펜 및 다른 플랫폼 검증 여부를 명시한다. 기존 작업과 사용자 데이터를 보존한다.
 
+## 라이선스
+
+이 저장소의 iiPaintEngine 모듈은 Apache License 2.0이다. 자사 소스, 문서, 도구, 테스트가 포함된다. 저작권 표시는 `Copyright (c) 2026 iisacc`이고 고지는 루트 `NOTICE`에 있다. 사람용 한국어 설명은 [docs/License.md](docs/License.md)이다.
+
+iisacc 제품은 GNU Affero General Public License(AGPL-3.0-or-later)이다. iiSDK 모듈은 Apache-2.0이다.
+
+제3자와 벤더 코드는 원래 라이선스를 유지한다. 포함한 stb 이미지 코덱은 MIT 라이선스이다. 문서 재편 중에도 그 라이선스와 외부 원본은 보존한다.
+
 <!-- workspace-docs:agent:start -->
 ## 문서 구조와 에이전트 탐색
 

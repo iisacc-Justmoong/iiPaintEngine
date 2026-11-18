@@ -21,6 +21,7 @@ Markdown is the maintained human source. Agent JSON is a structured, source-trac
 | [`docs/LAYER_COMPOSITING.md`](LAYER_COMPOSITING.md) | [JSON](LAYER_COMPOSITING.agent.json) |
 | [`docs/LOCALIZED_BRUSH_MATH.md`](LOCALIZED_BRUSH_MATH.md) | [JSON](LOCALIZED_BRUSH_MATH.agent.json) |
 | [`docs/LOCAL_MASK_BRUSH.md`](LOCAL_MASK_BRUSH.md) | [JSON](LOCAL_MASK_BRUSH.agent.json) |
+| [`docs/License.md`](License.md) | [JSON](License.agent.json) |
 | [`docs/PERFORMANCE.md`](PERFORMANCE.md) | [JSON](PERFORMANCE.agent.json) |
 | [`docs/PHOTOSHOP_BRUSH_ACCUMULATION.md`](PHOTOSHOP_BRUSH_ACCUMULATION.md) | [JSON](PHOTOSHOP_BRUSH_ACCUMULATION.agent.json) |
 | [`docs/RASTER_HISTORY.md`](RASTER_HISTORY.md) | [JSON](RASTER_HISTORY.agent.json) |
