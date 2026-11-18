@@ -1,0 +1,14 @@
+#pragma once
+
+// C++ public entry for iiPaintEngine; the linked components select the API.
+#if defined(IISDK_IMPORT_IIPAINTENGINE_CORE)
+#include <PaintEngine.h>
+#endif
+
+#if defined(IISDK_IMPORT_IIPAINTENGINE_BRUSH)
+#include <iiBrushTools/Controls.h>
+#include <iiBrushTools/FrozenRender.h>
+#include <iiBrushTools/FrozenSource.h>
+#include <iiBrushTools/Gesture.h>
+#include <iiBrushTools/PreviewQueue.h>
+#endif

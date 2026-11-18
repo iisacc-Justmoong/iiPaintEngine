@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.31)
 project(iiPaintEngine VERSION 0.5.4 LANGUAGES CXX)
+include(./cmake/ModuleImports.cmake)
 
 
 
