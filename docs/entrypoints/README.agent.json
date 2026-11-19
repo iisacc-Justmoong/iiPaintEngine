@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "README.md",
-    "sha256": "fc211ec98712d818e4ea7694876eb30e0876fef3498cfabde4ef10eb2bbe7d0f",
-    "bytes": 12978,
+    "sha256": "cf8d5ab02292a0dae5d26437803ebf88f1cebeba06c7e963346172bef72c702a",
+    "bytes": 13009,
     "line_count": 178,
     "encoding": "utf-8",
     "language": "en"
@@ -637,7 +637,7 @@
       "kind": "paragraph",
       "start_line": 157,
       "end_line": 157,
-      "raw": "The bundled stb files are pinned to commit `2c980bb59875b0d32144a71867fbdebb2f77cd20` of [nothings/stb](https://github.com/nothings/stb). [Provenance and SHA-256 hashes](third_party/stb/provenance.json) and the selected [MIT license](third_party/stb/LICENSE) accompany the package. No separate C source, assembly, Objective-C, scripting runtime, or GUI library is compiled. iiPaintEngine itself retains its [MIT license](LICENSE).\n"
+      "raw": "The bundled stb files are pinned to commit `2c980bb59875b0d32144a71867fbdebb2f77cd20` of [nothings/stb](https://github.com/nothings/stb). [Provenance and SHA-256 hashes](third_party/stb/provenance.json) and the selected [MIT license](third_party/stb/LICENSE) accompany the package. No separate C source, assembly, Objective-C, scripting runtime, or GUI library is compiled. iiPaintEngine itself is licensed under the [Apache License 2.0](LICENSE).\n"
     },
     {
       "id": "b000082",
@@ -695,7 +695,7 @@
       "kind": "paragraph",
       "start_line": 165,
       "end_line": 165,
-      "raw": "SPDX-License-Identifier: MIT\n"
+      "raw": "SPDX-License-Identifier: Apache-2.0\n"
     },
     {
       "id": "b000090",
@@ -709,7 +709,7 @@
       "kind": "paragraph",
       "start_line": 167,
       "end_line": 169,
-      "raw": "The original code and documentation in this repository are licensed under the\n[MIT License](LICENSE). Third-party code, libraries, fonts, tools, and model\nweights retain their respective licenses.\n"
+      "raw": "The original code and documentation in this repository are licensed under the\n[Apache License 2.0](LICENSE). Third-party code, libraries, fonts, tools, and model\nweights retain their respective licenses.\n"
     },
     {
       "id": "b000092",
@@ -1075,7 +1075,7 @@
       },
       {
         "block_id": "b000081",
-        "label": "MIT license",
+        "label": "Apache License 2.0",
         "target": "LICENSE",
         "kind": "relative",
         "line": 157
@@ -1089,7 +1089,7 @@
       },
       {
         "block_id": "b000091",
-        "label": "MIT License",
+        "label": "Apache License 2.0",
         "target": "LICENSE",
         "kind": "relative",
         "line": 168
