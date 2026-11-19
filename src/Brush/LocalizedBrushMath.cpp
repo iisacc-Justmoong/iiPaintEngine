@@ -1,6 +1,11 @@
 #include "LocalizedBrushMath.h"
 
+#include <cfenv>
 #include <cmath>
+
+#ifdef IIPAINTENGINE_COUNT_LOCALIZED_BRUSH_ROOT_SOLVES
+void countLocalizedBrushRootSolve() noexcept;
+#endif
 
 namespace {
 bool normalized(double value) { return std::isfinite(value) && value >= 0 && value <= 1; }
@@ -27,6 +32,9 @@ double profile(double radius, double weight) {
     return t2 * (weighted + weight);
 }
 double radiusAtThirtyPercent(double weight) {
+#ifdef IIPAINTENGINE_COUNT_LOCALIZED_BRUSH_ROOT_SOLVES
+    countLocalizedBrushRootSolve();
+#endif
     // Original f68/L149: sixteen bisections and interpolation of the final pair.
     double upperRadius = 1, upperValue = 0, lowerRadius = 0, lowerValue = 1;
     constexpr double target = .3;
@@ -42,6 +50,38 @@ double radiusAtThirtyPercent(double weight) {
     const double denominator = lowerValue - upperValue;
     return upperRadius + numerator / denominator;
 }
+
+// 반경과 독립적인 정규화 결과를 함께 보관한다.
+struct FeatherNormalization {
+    double root = 0;
+    double centerWeight = 0;
+};
+
+// 검증이 끝난 feather를 원래 연산 순서로 변환한다.
+FeatherNormalization computeFeatherNormalization(double feather)
+{
+    double weight = 1 - feather;
+    for (int i = 0; i < 3; ++i) weight = (weight * .5) * (1 + weight); // Original f70.
+    return {radiusAtThirtyPercent(weight), weight};
+}
+
+// 같은 스레드의 마지막 feather만 기억한다. 반올림 모드가 바뀌면 새 모드에서 계산한다.
+FeatherNormalization normalizationForFeather(double feather)
+{
+    const int rounding = std::fegetround();
+    if (rounding < 0) return computeFeatherNormalization(feather);
+
+    struct CachedFeather {
+        double feather = -1;
+        int rounding = -1;
+        FeatherNormalization normalization;
+    };
+    static thread_local CachedFeather cached{};
+    if (cached.feather != feather || cached.rounding != rounding) {
+        cached = {feather, rounding, computeFeatherNormalization(feather)};
+    }
+    return cached.normalization;
+}
 } // namespace
 
 std::expected<LocalizedBrushDabParameters, LocalizedBrushMathError>
@@ -49,10 +89,8 @@ localizedBrushDabParameters(double radius, double feather) {
     if (!std::isfinite(radius) || radius < 0)
         return std::unexpected(LocalizedBrushMathError::InvalidRadius);
     if (!normalized(feather)) return std::unexpected(LocalizedBrushMathError::InvalidFeather);
-    double weight = 1 - feather;
-    for (int i = 0; i < 3; ++i) weight = (weight * .5) * (1 + weight); // Original f70.
-    const double normalizedRadius = radiusAtThirtyPercent(weight);
-    const double result = radius / normalizedRadius; // Original f71.
+    const auto [root, weight] = normalizationForFeather(feather);
+    const double result = radius / root; // Original f71. Preserve division after warm lookups.
     if (!std::isfinite(result)) return std::unexpected(LocalizedBrushMathError::NonFiniteResult);
     return LocalizedBrushDabParameters{result, weight};
 }

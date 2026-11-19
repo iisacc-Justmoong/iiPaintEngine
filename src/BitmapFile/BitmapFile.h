@@ -17,6 +17,9 @@ inline constexpr std::uint64_t maxBitmapPixelCount = 64ULL * 1024 * 1024;
 inline constexpr int maxBitmapDimension = 16384;
 inline constexpr std::uint64_t maxBitmapEncodedBytes = 256ULL * 1024 * 1024;
 
+class BitmapPaintSession;
+class BitmapPixelDelta;
+
 struct BitmapFileWriteOptions {
     int quality = -1;
     std::uint32_t backgroundArgb = 0xFFFFFFFFU;
@@ -72,6 +75,10 @@ public:
     bool applyStrokePixels(const StrokeCompositeBuffer &stroke, bool destinationOut);
 
 private:
+    friend class BitmapPaintSession;
+    // A session applies an encoded edit only to the file from which it was recorded.
+    bool applyPixelDelta(const BitmapPixelDelta &delta) noexcept;
+
     std::filesystem::path m_filePath;
     std::string m_fileFormat;
     std::string m_lastError;

@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "AGENT.md",
-    "sha256": "2a392f44632ca0255a4eeb2bbcee1eabe881a996e3d19cb845b8110dc20e2f31",
-    "bytes": 6111,
+    "sha256": "c3429de50ecef6d026da69f08cd0ad501c01d702ef1cf7f95398dd6bfb119ae6",
+    "bytes": 6139,
     "line_count": 51,
     "encoding": "utf-8",
     "language": "ko"
@@ -173,7 +173,7 @@
       "kind": "paragraph",
       "start_line": 25,
       "end_line": 25,
-      "raw": "프리셋 버전 3의 확장 옵션과 버전 1/2 읽기를 유지한다. 문서 버전 3은 픽셀·메타데이터·마스크·브러시·asset·raster history를 저장하고 호환 가능한 버전 2 단일 표면을 이관한다. presetV2라는 역사적 필드명 안의 formatVersion이 실제 프리셋 버전을 결정한다. 무효·미래 버전은 거부한다. 옵션 계약은 docs/BRUSH_OPTIONS.md, API 이관 계약은 docs/CXX23_MIGRATION.md에 따른다.\n"
+      "raw": "프리셋 버전 4의 확장 옵션과 버전 1/2/3 읽기를 유지한다. 문서 버전 4는 픽셀과 바이트 배열을 길이 접두 바이너리 청크에 저장하고 버전 3 및 호환 가능한 단일 표면 문서를 읽는다. presetV2라는 역사적 필드명 안의 formatVersion이 실제 프리셋 버전을 결정한다. 무효·미래 버전은 거부한다. 옵션 계약은 docs/BRUSH_OPTIONS.md, API 이관과 바이너리 포맷 계약은 docs/CXX23_MIGRATION.md에 따른다.\n"
     },
     {
       "id": "b000022",

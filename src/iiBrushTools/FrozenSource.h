@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -29,6 +30,7 @@ private:
     explicit FrozenSource(std::shared_ptr<const Data> data) noexcept : data_(std::move(data)) {}
     std::shared_ptr<const Data> data_;
     friend class FrozenSourceBuilder;
+    friend class FrozenSourceSampler;
 };
 // Owner-thread builder. The reader is called only while adding tiles and must
 // return nullopt on unavailable data. A failed add publishes no partial tiles.
@@ -59,12 +61,16 @@ public:
     FrozenSourceSampler(const FrozenSourceSampler&)=delete;
     FrozenSourceSampler& operator=(const FrozenSourceSampler&)=delete;
     [[nodiscard]] RasterSourceSampler sampler() noexcept;
+    // sampler().context로부터 원본 내부의 한 행을 복사하고, 누락된 타일은 작업의 누락 목록에 기록한다.
+    static void readRow(const void* context, DevicePixelPoint start, std::span<std::uint32_t> destination) noexcept;
     [[nodiscard]] bool complete() const noexcept { return !missing_.load(std::memory_order_relaxed); }
     [[nodiscard]] bool reportComplete() const noexcept { return !reportIncomplete_.load(std::memory_order_relaxed) && !reportAllocationFailure_.load(std::memory_order_relaxed); }
     [[nodiscard]] bool reportAllocationFailure() const noexcept { return reportAllocationFailure_.load(std::memory_order_relaxed); }
     [[nodiscard]] std::vector<DevicePixelRect> missingTiles() const;
 private:
     static std::uint32_t read(const void*,DevicePixelPoint) noexcept;
+    // 픽셀·행 접근이 같은 정렬된 누락 목록과 보고 예산을 공유한다.
+    void recordMissing(std::pair<std::int64_t, std::int64_t> key) const noexcept;
     FrozenSource source_;
     std::size_t maxMissingTiles_;
     mutable std::set<std::pair<std::int64_t,std::int64_t>> missingTiles_; // row, column

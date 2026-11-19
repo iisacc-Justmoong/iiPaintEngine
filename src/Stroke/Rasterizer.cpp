@@ -12,6 +12,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <stdexcept>
 
 namespace {
@@ -215,9 +216,9 @@ Types::Scalar applyMaskHardness(Types::Scalar maskAlpha, Types::Scalar hardness)
 
 Types::Scalar circleMaskAlpha(const Rasterizer &rasterizer,
                               const BrushDab &dab,
-                              Types::Pixel centerX,
-                              Types::Pixel centerY,
-                              Types::Pixel radius,
+                              Types::Scalar centerX,
+                              Types::Scalar centerY,
+                              Types::Scalar radius,
                               Types::Pixel x,
                               Types::Pixel y)
 {
@@ -225,10 +226,10 @@ Types::Scalar circleMaskAlpha(const Rasterizer &rasterizer,
         return x == centerX && y == centerY ? 1.0 : 0.0;
     }
 
-    const Types::Scalar dx = static_cast<Types::Scalar>(x - centerX);
-    const Types::Scalar dy = static_cast<Types::Scalar>(y - centerY);
+    const Types::Scalar dx = x - centerX;
+    const Types::Scalar dy = y - centerY;
     const Types::Scalar distance = std::hypot(dx, dy);
-    const Types::Scalar coverage = clamp01(static_cast<Types::Scalar>(radius) + 0.5 - distance);
+    const Types::Scalar coverage = clamp01(radius + 0.5 - distance);
     const Types::Scalar hardness = rasterizer.hardnessEnabled
             ? rasterizer.hardness * dab.hardnessScale
             : 1.0;
@@ -236,22 +237,21 @@ Types::Scalar circleMaskAlpha(const Rasterizer &rasterizer,
 }
 
 void appendCircle(std::vector<RasterSample> &samples,
-                  Types::Pixel centerX,
-                  Types::Pixel centerY,
-                  Types::Pixel radius,
+                  Types::Scalar centerX,
+                  Types::Scalar centerY,
+                  Types::Scalar radius,
                   const BrushDab &dab,
                   const Rasterizer &rasterizer,
-                  const ProjectionContext &context)
+                  const ProjectionContext &context,
+                  DevicePixelRect bounds)
 {
-    const Types::Pixel clampedRadius = std::max<Types::Pixel>(0, radius);
-
-    for (Types::Pixel y = centerY - clampedRadius; y <= centerY + clampedRadius; ++y) {
-        for (Types::Pixel x = centerX - clampedRadius; x <= centerX + clampedRadius; ++x) {
+    for (auto y = bounds.origin.y; y < bounds.origin.y + bounds.height; ++y) {
+        for (auto x = bounds.origin.x; x < bounds.origin.x + bounds.width; ++x) {
             const Types::Scalar circleAlpha = circleMaskAlpha(rasterizer,
                                                               dab,
                                                               centerX,
                                                               centerY,
-                                                              clampedRadius,
+                                                              radius,
                                                               x,
                                                               y);
             if (circleAlpha <= 0.0) {
@@ -299,11 +299,6 @@ BrushMaskView brushMask(const Rasterizer &r, const BrushDab &dab)
 bool hasBrushImage(const Rasterizer &rasterizer, const BrushDab &dab)
 {
     return brushMask(rasterizer, dab).alpha != nullptr;
-}
-
-Types::Pixel roundedPixel(Types::Scalar value)
-{
-    return static_cast<Types::Pixel>(std::lround(value));
 }
 
 Types::Pixel floorPixel(Types::Scalar value)
@@ -520,19 +515,19 @@ void includePoint(Types::Scalar x,
 
 Types::Scalar circleRadius(const BrushDab &dab, const Rasterizer &rasterizer)
 {
-    return std::max<Types::Scalar>(0.0, std::lround(static_cast<Types::Scalar>(rasterizer.radius) * dab.scale));
+    return std::max(0.0, std::round(rasterizer.radius * dab.scale));
 }
 
 ScalarBounds circleBoundsForDab(const BrushDab &dab, const Rasterizer &rasterizer)
 {
-    const Types::Pixel centerX = roundedPixel(dab.position.x);
-    const Types::Pixel centerY = roundedPixel(dab.position.y);
+    const auto centerX = std::round(dab.position.x);
+    const auto centerY = std::round(dab.position.y);
     const Types::Scalar radius = circleRadius(dab, rasterizer);
     return ScalarBounds{
-            static_cast<Types::Scalar>(centerX) - radius,
-            static_cast<Types::Scalar>(centerY) - radius,
-            static_cast<Types::Scalar>(centerX) + radius,
-            static_cast<Types::Scalar>(centerY) + radius,
+            centerX - radius,
+            centerY - radius,
+            centerX + radius,
+            centerY + radius,
     };
 }
 
@@ -582,15 +577,14 @@ ScalarBounds proceduralBounds(const BrushDab &dab, const Rasterizer &r)
 }
 
 void appendProceduralTip(std::vector<RasterSample> &samples, const BrushDab &dab,
-                         const Rasterizer &r, const ProjectionContext &context)
+                         const Rasterizer &r, const ProjectionContext &context, DevicePixelRect bounds)
 {
-    const auto bounds = proceduralBounds(dab, r);
     const auto rx = std::max(0.01, r.radius * dab.scale * dab.ellipseScaleX);
     const auto ry = std::max(0.01, r.radius * dab.scale * dab.ellipseScaleY);
     const auto c = std::cos(dab.rotationRadians), t = std::sin(dab.rotationRadians);
     const auto hardness = r.hardnessEnabled ? clamp01(r.hardness * dab.hardnessScale) : 1.0;
-    for (auto y = floorPixel(bounds.top); y <= ceilPixel(bounds.bottom); ++y) {
-        for (auto x = floorPixel(bounds.left); x <= ceilPixel(bounds.right); ++x) {
+    for (auto y = bounds.origin.y; y < bounds.origin.y + bounds.height; ++y) {
+        for (auto x = bounds.origin.x; x < bounds.origin.x + bounds.width; ++x) {
             const auto dx = x - dab.position.x, dy = y - dab.position.y;
             const auto u = std::abs((dx*c + dy*t) / rx), v = std::abs((-dx*t + dy*c) / ry);
             const auto distance = r.shape.kind == BrushTipShape::Square ? std::max(u, v)
@@ -667,46 +661,19 @@ std::size_t projectedSampleCapacity(BrushDabSpan dabs,
 void appendBrushImage(std::vector<RasterSample> &samples,
                       const BrushDab &dab,
                       const Rasterizer &rasterizer,
-                      const ProjectionContext &context)
+                      const ProjectionContext &context,
+                      DevicePixelRect bounds)
 {
     const auto mask = brushMask(rasterizer, dab);
     const Types::Scalar centerOffsetX = static_cast<Types::Scalar>(mask.width - 1) * 0.5;
     const Types::Scalar centerOffsetY = static_cast<Types::Scalar>(mask.height - 1) * 0.5;
-    const Types::Scalar sourceLeft = -centerOffsetX - 0.5;
-    const Types::Scalar sourceRight = static_cast<Types::Scalar>(mask.width - 1) - centerOffsetX + 0.5;
-    const Types::Scalar sourceTop = -centerOffsetY - 0.5;
-    const Types::Scalar sourceBottom = static_cast<Types::Scalar>(mask.height - 1) - centerOffsetY + 0.5;
     const Types::Scalar scaleX = std::max<Types::Scalar>(1e-9, dab.scale * dab.ellipseScaleX);
     const Types::Scalar scaleY = std::max<Types::Scalar>(1e-9, dab.scale * dab.ellipseScaleY);
     const Types::Scalar cosTheta = std::cos(dab.rotationRadians);
     const Types::Scalar sinTheta = std::sin(dab.rotationRadians);
 
-    Types::Scalar left = dab.position.x;
-    Types::Scalar top = dab.position.y;
-    Types::Scalar right = dab.position.x;
-    Types::Scalar bottom = dab.position.y;
-
-    const std::array<DocumentPoint, 4> sourceCorners{{
-                 {sourceLeft, sourceTop},
-                 {sourceRight, sourceTop},
-                 {sourceRight, sourceBottom},
-                 {sourceLeft, sourceBottom},
-    }};
-    for (const DocumentPoint sourceCorner : sourceCorners) {
-        const Types::Scalar localX = sourceCorner.x * scaleX;
-        const Types::Scalar localY = sourceCorner.y * scaleY;
-        const Types::Scalar rotatedX = localX * cosTheta - localY * sinTheta;
-        const Types::Scalar rotatedY = localX * sinTheta + localY * cosTheta;
-        includePoint(dab.position.x + rotatedX, dab.position.y + rotatedY, left, top, right, bottom);
-    }
-
-    const Types::Pixel minX = static_cast<Types::Pixel>(std::floor(left));
-    const Types::Pixel minY = static_cast<Types::Pixel>(std::floor(top));
-    const Types::Pixel maxX = static_cast<Types::Pixel>(std::ceil(right));
-    const Types::Pixel maxY = static_cast<Types::Pixel>(std::ceil(bottom));
-
-    for (Types::Pixel y = minY; y <= maxY; ++y) {
-        for (Types::Pixel x = minX; x <= maxX; ++x) {
+    for (auto y = bounds.origin.y; y < bounds.origin.y + bounds.height; ++y) {
+        for (auto x = bounds.origin.x; x < bounds.origin.x + bounds.width; ++x) {
             const Types::Scalar maskAlpha = projectedBrushMaskAt(rasterizer,
                                                                  dab,
                                                                  x,
@@ -743,23 +710,30 @@ void appendBrushImage(std::vector<RasterSample> &samples,
     }
 }
 
-void appendBrushProjection(std::vector<RasterSample> &samples,
-                           const BrushDab &dab,
-                           const Rasterizer &rasterizer,
-                           const ProjectionContext &context)
+// All tip renderers traverse the same bounds used to charge the clipped projection budget.
+void appendBrushProjectionInBounds(std::vector<RasterSample> &samples,
+                                   const BrushDab &dab,
+                                   const Rasterizer &rasterizer,
+                                   const ProjectionContext &context,
+                                   DevicePixelRect bounds)
+{
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+    if (hasBrushImage(rasterizer, dab)) {
+        appendBrushImage(samples, dab, rasterizer, context, bounds);
+    } else if (rasterizer.proceduralTip) {
+        appendProceduralTip(samples, dab, rasterizer, context, bounds);
+    } else {
+        appendCircle(samples, std::round(dab.position.x), std::round(dab.position.y),
+                     circleRadius(dab, rasterizer), dab, rasterizer, context, bounds);
+    }
+}
+
+// Retain the unrestricted projection contract for callers that do their own work budgeting.
+void appendBrushProjection(std::vector<RasterSample> &samples, const BrushDab &dab,
+                           const Rasterizer &rasterizer, const ProjectionContext &context)
 {
     if (dab.scale <= 0 || dab.alpha <= 0) return;
-    const Types::Pixel centerX = roundedPixel(dab.position.x);
-    const Types::Pixel centerY = roundedPixel(dab.position.y);
-    if (hasBrushImage(rasterizer, dab)) {
-        appendBrushImage(samples, dab, rasterizer, context);
-    } else if (rasterizer.proceduralTip) {
-        appendProceduralTip(samples, dab, rasterizer, context);
-    } else {
-        const auto radius = static_cast<Types::Pixel>(
-                std::max<Types::Scalar>(0.0, std::lround(static_cast<Types::Scalar>(rasterizer.radius) * dab.scale)));
-        appendCircle(samples, centerX, centerY, radius, dab, rasterizer, context);
-    }
+    appendBrushProjectionInBounds(samples, dab, rasterizer, context, deviceRectFromBounds(boundsForDab(dab, rasterizer)));
 }
 
 StrokePoint interpolateSample(const StrokePoint &start, const StrokePoint &end, Types::Scalar t)
@@ -783,10 +757,11 @@ StrokePoint interpolateSample(const StrokePoint &start, const StrokePoint &end, 
 }
 
 Types::Scalar effectiveSpacing(const Rasterizer &rasterizer,
-                               const BrushDynamics &dynamics,
+                               const BrushDynamicsEvaluator &evaluator,
                                const BrushDynamicsInput &input)
 {
-    const auto resolved = resolveBrushDynamics(dynamics, input);
+    const auto &dynamics = evaluator.settings();
+    const auto resolved = evaluator.evaluate(input);
     const auto density = std::max(0.01, rasterizer.density);
     const auto velocity = dynamics.velocityInputEnabled ? std::max(0.0, input.velocity) : 0.0;
     const auto base = !rasterizer.spacingEnabled ? 0.0
@@ -1303,7 +1278,7 @@ Types::Scalar bristleEllipseScaleY(const BristleSimulation &bristle, Types::Scal
 BrushDab makeBrushDab(const StrokePoint &sample,
                       Types::Scalar tangentRadians,
                       const Rasterizer &rasterizer,
-                      const BrushDynamics &dynamics,
+                      const BrushDynamicsEvaluator &evaluator,
                       const BrushMaterial &material,
                       Types::Scalar distanceOnTrajectory,
                       Types::Scalar elapsedTime,
@@ -1311,6 +1286,7 @@ BrushDab makeBrushDab(const StrokePoint &sample,
                       std::uint32_t sequenceIndex,
                       Types::Scalar initialDirection)
 {
+    const auto &dynamics = evaluator.settings();
     const auto input = applyBrushPose(dynamics.pose, dynamicsInput(sample, tangentRadians, distanceOnTrajectory,
                                     elapsedTime, randomSeed, sequenceIndex, initialDirection));
     const Types::Scalar pressure = dynamics.pressureInputEnabled ? clamp01(input.pressure) : 1.0;
@@ -1320,7 +1296,7 @@ BrushDab makeBrushDab(const StrokePoint &sample,
     const Types::Scalar tiltX = dynamics.tiltInputEnabled ? input.tiltX : 0.0;
     const Types::Scalar tiltY = dynamics.tiltInputEnabled ? input.tiltY : 0.0;
     const bool hasTilt = tiltX != 0.0 || tiltY != 0.0;
-    const auto dynamicsResult = resolveBrushDynamics(dynamics, input);
+    const auto dynamicsResult = evaluator.evaluate(input);
     const Types::Scalar rasterizerJitter = dynamics.randomInputEnabled
             ? deterministicSigned(randomSeed, sequenceIndex) * rasterizer.rotationJitter
             : 0.0;
@@ -1448,19 +1424,24 @@ BrushDab makeBrushDab(const StrokePoint &sample,
     return dab;
 }
 
+// Charge scatter copies before producing them. Limit geometric growth to the caller's maximum.
 void appendPlacement(std::vector<BrushDab> &dabs, RasterDabStream &stream,
-                     const StrokePoint &sample, double direction, double distance, const BrushState &brush)
+                     const StrokePoint &sample, double direction, double distance, const BrushState &brush,
+                     const BrushDynamicsEvaluator &evaluator, std::size_t maxDabs)
 {
     const auto input = dynamicsInput(sample, direction, distance, std::max(0.0, sample.time-stream.startTime),
                                      brush.randomSeed, stream.sequenceIndex, stream.initialDirection);
-    const auto resolved = resolveBrushDynamics(brush.dynamics, input);
+    const auto resolved = evaluator.evaluate(input);
     const auto &scatter = brush.material.scatter;
     const auto jitter = brush.dynamics.randomInputEnabled
             ? 1.0 - scatter.countJitter * deterministicUnit(brush.randomSeed + 0x71E3U, stream.placementIndex) : 1.0;
     const auto count = scatter.enabled ? static_cast<unsigned int>(std::clamp(std::round(scatter.count * resolved.scatterCountScale * jitter), 0.0, 256.0)) : 1U;
-    if (dabs.size() + count > 65536) throw std::length_error("brush event exceeds 65536 dabs");
+    if (count > maxDabs - dabs.size()) throw std::length_error("brush scatter exceeds the event dab budget");
+    if (const auto required = dabs.size() + count; required > dabs.capacity()) {
+        dabs.reserve(std::min(maxDabs, std::max(required, dabs.capacity() * 2)));
+    }
     for (unsigned int i = 0; i < count; ++i) {
-        dabs.push_back(makeBrushDab(sample, direction, brush.rasterizer, brush.dynamics, brush.material,
+        dabs.push_back(makeBrushDab(sample, direction, brush.rasterizer, evaluator, brush.material,
                                     distance, input.elapsedTime, brush.randomSeed, stream.sequenceIndex++, stream.initialDirection));
         if (brush.rasterizer.color.enabled && brush.rasterizer.color.perStroke) {
             if (!stream.strokeColorSet) {
@@ -1479,6 +1460,12 @@ void appendPlacement(std::vector<BrushDab> &dabs, RasterDabStream &stream,
 std::vector<BrushDab> appendRasterDabs(RasterDabStream &state, const StrokePoint &point,
                                      const BrushState &brush, bool finishStroke)
 {
+    return appendRasterDabsWithLimit(state, point, brush, maxRasterDabsPerEvent, finishStroke);
+}
+
+std::vector<BrushDab> appendRasterDabsWithLimit(RasterDabStream &state, const StrokePoint &point,
+                                              const BrushState &brush, std::size_t maxDabs, bool finishStroke)
+{
     if (!std::isfinite(point.position.x) || !std::isfinite(point.position.y)
             || !std::isfinite(point.time) || std::abs(point.time) > 1e12 || !std::isfinite(point.pressure)
             || !std::isfinite(point.tiltX) || !std::isfinite(point.tiltY)
@@ -1486,8 +1473,18 @@ std::vector<BrushDab> appendRasterDabs(RasterDabStream &state, const StrokePoint
             || std::abs(point.position.x) > 1e9 || std::abs(point.position.y) > 1e9
             || std::any_of(point.custom.begin(), point.custom.end(), [](double v) { return !std::isfinite(v); }))
         throw std::invalid_argument("brush input must be finite and within the document coordinate range");
+    // 공개 BrushState는 이벤트 사이에 편집할 수 있다. 이벤트의 모든 배치가 한 번의 검증을 공유한다.
+    const BrushDynamicsEvaluator evaluator(brush.dynamics);
     RasterDabStream stream = state; // Rejected events leave the caller's state unchanged.
     std::vector<BrushDab> dabs;
+    maxDabs = std::min(maxDabs, maxRasterDabsPerEvent);
+    auto remainingPlacements = maxDabs;
+    // Charge even a placement with no emitted dabs so zero-count scatter cannot extend the loop.
+    const auto place = [&](const StrokePoint &sample, double direction, double distance) {
+        if (remainingPlacements == 0) throw std::length_error("brush event exceeds the dab budget");
+        --remainingPlacements;
+        appendPlacement(dabs, stream, sample, direction, distance, brush, evaluator, maxDabs);
+    };
     StrokePoint next = point;
     const auto interval = 1.0 / std::clamp(brush.rasterizer.airbrushRate, 0.1, 1000.0);
     if (!stream.active) {
@@ -1496,8 +1493,8 @@ std::vector<BrushDab> appendRasterDabs(RasterDabStream &state, const StrokePoint
         stream.active = true; stream.startTime = next.time;
         stream.smoothingTarget = point.position;
         stream.previousPoint = next; stream.nextDabTime = next.time + interval;
-        appendPlacement(dabs, stream, next, 0, 0, brush);
-        stream.nextDabDistance = effectiveSpacing(brush.rasterizer, brush.dynamics,
+        place(next, 0, 0);
+        stream.nextDabDistance = effectiveSpacing(brush.rasterizer, evaluator,
                 dynamicsInput(next, 0, 0, 0, brush.randomSeed, stream.sequenceIndex));
     } else {
         const auto start = stream.previousPoint;
@@ -1529,33 +1526,31 @@ std::vector<BrushDab> appendRasterDabs(RasterDabStream &state, const StrokePoint
         }
         constexpr double epsilon = 1e-6;
         if (brush.rasterizer.airbrushEnabled || (brush.rasterizer.buildUp.enabled && brush.rasterizer.buildUp.timeBased)) {
-            if (duration / interval > 65536) throw std::length_error("airbrush event exceeds time budget");
+            if (duration / interval > maxRasterDabsPerEvent) throw std::length_error("airbrush event exceeds time budget");
             while (stream.nextDabTime <= next.time + 1e-9 && duration > 0) {
                 const auto t = std::clamp((stream.nextDabTime-start.time)/duration,0.0,1.0);
                 const auto sample = interpolateSample(start,next,t);
-                appendPlacement(dabs,stream,sample,direction,stream.traveledDistance+length*t,brush);
+                place(sample, direction, stream.traveledDistance + length * t);
                 stream.nextDabTime += interval;
             }
         } else if (length > 0) {
-            unsigned int placements = 0;
             while (stream.nextDabDistance <= next.arcLength+epsilon) {
-                if (++placements > 65536) throw std::length_error("brush event exceeds spacing budget");
                 const auto t = std::clamp((stream.nextDabDistance-stream.traveledDistance)/length,0.0,1.0);
                 const auto sample = interpolateSample(start,next,t);
-                appendPlacement(dabs,stream,sample,direction,stream.nextDabDistance,brush);
-                stream.nextDabDistance += effectiveSpacing(brush.rasterizer,brush.dynamics,
+                place(sample, direction, stream.nextDabDistance);
+                stream.nextDabDistance += effectiveSpacing(brush.rasterizer,evaluator,
                         dynamicsInput(sample,direction,stream.nextDabDistance,sample.time-stream.startTime,
                                        brush.randomSeed,stream.sequenceIndex,stream.initialDirection));
             }
             if (finishStroke && next.arcLength-stream.lastDabDistance > epsilon)
-                appendPlacement(dabs,stream,next,direction,next.arcLength,brush);
+                place(next, direction, next.arcLength);
         }
         stream.traveledDistance = next.arcLength; stream.previousPoint = next; stream.lastDirection = direction;
         stream.smoothingTarget = point.position;
     }
     if (finishStroke) stream.active = false;
     if (brush.rasterizer.symmetry.mode != BrushSymmetryMode::None)
-        dabs = applyBrushSymmetry(BrushDabSpan{dabs},brush.rasterizer.symmetry);
+        dabs = applyBrushSymmetryWithLimit(BrushDabSpan{dabs}, brush.rasterizer.symmetry, maxDabs);
     state = stream;
     return dabs;
 }
@@ -1563,6 +1558,68 @@ std::vector<BrushDab> appendRasterDabs(RasterDabStream &state, const StrokePoint
 void resetRasterDabStream(RasterDabStream &stream)
 {
     stream = {};
+}
+
+DevicePixelRect clippedDeviceBoundsForBrushDab(const BrushDab &dab, const Rasterizer &rasterizer,
+                                                DevicePixelRect clip)
+{
+    if (clip.width <= 0 || clip.height <= 0 || dab.scale <= 0 || dab.alpha <= 0) return {};
+    const double clipRight = static_cast<double>(clip.origin.x) + clip.width;
+    const double clipBottom = static_cast<double>(clip.origin.y) + clip.height;
+    if (clipRight > std::numeric_limits<Types::Pixel>::max()
+            || clipBottom > std::numeric_limits<Types::Pixel>::max()) {
+        throw std::invalid_argument("Brush projection clip exceeds the device coordinate range.");
+    }
+    if (!std::isfinite(dab.position.x) || !std::isfinite(dab.position.y)
+            || !std::isfinite(dab.scale) || !std::isfinite(dab.alpha) || !std::isfinite(dab.rotationRadians)
+            || !std::isfinite(dab.ellipseScaleX) || !std::isfinite(dab.ellipseScaleY)) {
+        throw std::invalid_argument("Brush projection requires finite dab geometry and alpha.");
+    }
+    const auto bounds = boundsForDab(dab, rasterizer);
+    if (!std::isfinite(bounds.left) || !std::isfinite(bounds.top)
+            || !std::isfinite(bounds.right) || !std::isfinite(bounds.bottom)) {
+        throw std::invalid_argument("Brush projection bounds are not finite.");
+    }
+
+    // Convert only after clipping. Even a far-offscreen dab may have bounds outside the integer range.
+    const auto left = std::max(std::floor(bounds.left), static_cast<double>(clip.origin.x));
+    const auto top = std::max(std::floor(bounds.top), static_cast<double>(clip.origin.y));
+    const auto right = std::min(std::ceil(bounds.right) + 1, clipRight);
+    const auto bottom = std::min(std::ceil(bounds.bottom) + 1, clipBottom);
+    if (left >= right || top >= bottom) return {};
+    return {{static_cast<Types::Pixel>(left), static_cast<Types::Pixel>(top)},
+            static_cast<Types::Pixel>(right - left), static_cast<Types::Pixel>(bottom - top)};
+}
+
+std::size_t checkedProjectedPixelCount(BrushDabSpan dabs, const Rasterizer &rasterizer,
+                                       DevicePixelRect clip, std::size_t maxProjectedPixels)
+{
+    maxProjectedPixels = std::min(maxProjectedPixels, maxRasterProjectedPixelsPerEvent);
+    std::size_t visits = 0;
+    for (const auto &dab : dabs) {
+        const auto bounds = clippedDeviceBoundsForBrushDab(dab, rasterizer, clip);
+        const auto area = static_cast<std::uint64_t>(bounds.width) * bounds.height;
+        if (area > maxProjectedPixels - visits) {
+            throw std::length_error("Brush event exceeds the projected pixel budget.");
+        }
+        visits += static_cast<std::size_t>(area);
+    }
+    return visits;
+}
+
+std::vector<RasterSample> projectClippedBrushDabs(BrushDabSpan dabs, const Rasterizer &rasterizer,
+                                               DevicePixelRect clip, std::size_t maxProjectedPixels,
+                                               const RasterSourceSampler &source, const BrushMaterial &material)
+{
+    const auto visits = checkedProjectedPixelCount(dabs, rasterizer, clip, maxProjectedPixels);
+    std::vector<RasterSample> samples;
+    samples.reserve(visits);
+    const ProjectionContext context{&source, &material, {}};
+    for (const auto &dab : dabs) {
+        const auto bounds = clippedDeviceBoundsForBrushDab(dab, rasterizer, clip);
+        appendBrushProjectionInBounds(samples, dab, rasterizer, context, bounds);
+    }
+    return samples;
 }
 
 std::vector<RasterSample> projectBrushDabs(const std::vector<BrushDab> &dabs, const Rasterizer &rasterizer)

@@ -4,6 +4,9 @@
 #include "Layer/LayerStack.h"
 #include "Render/Compositor.h"
 
+#include <cmath>
+#include <iostream>
+
 namespace {
 
 Layer makeSolidLayer(Types::Pixel width, Types::Pixel height, std::uint32_t argb)
@@ -18,6 +21,31 @@ std::uint32_t pixelAt(const RasterLayer &layer, Types::Pixel x, Types::Pixel y)
     return rasterLayerPixelAt(layer, {x, y});
 }
 
+// Exhaust all byte values for one channel and both alpha endpoints. The
+// other channels use different input values to check channel packing too.
+bool opaqueBackdropSourceOver()
+{
+    for (std::uint32_t alpha = 0; alpha < 256; ++alpha) {
+        const double coverage = alpha / 255.0;
+        const auto reference = [coverage](std::uint32_t source, std::uint32_t backdrop) {
+            return static_cast<std::uint32_t>(std::lround(source * coverage + backdrop * (1 - coverage)));
+        };
+        for (std::uint32_t s = 0; s < 256; ++s) {
+            for (std::uint32_t b = 0; b < 256; ++b) {
+                const auto source = (alpha << 24) | (s << 16) | ((255 - s) << 8) | b;
+                const auto backdrop = 0xff000000U | (b << 16) | (s << 8) | (255 - b);
+                const auto expected = 0xff000000U | (reference(s, b) << 16) |
+                    (reference(255 - s, s) << 8) | reference(b, 255 - b);
+                if (compositeRasterPixel(source, backdrop, RasterBlendMode::SourceOver) != expected) {
+                    std::cerr << "Source-over changed an opaque-backdrop result\n";
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 int main()
@@ -25,6 +53,7 @@ int main()
     static_assert(RasterBlendMode::SourceOver != RasterBlendMode::Multiply);
     static_assert(RasterBlendMode::Multiply != RasterBlendMode::Screen);
     static_assert(RasterBlendMode::Screen != RasterBlendMode::Overlay);
+    if (!opaqueBackdropSourceOver()) return 1;
 
     LayerStack multiplyStack;
     multiplyStack.layers.push_back(makeSolidLayer(1, 1, 0xFF0000FFU));

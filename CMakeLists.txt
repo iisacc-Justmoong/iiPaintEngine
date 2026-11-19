@@ -52,6 +52,10 @@ if(MSVC)
 else()
     set_source_files_properties(src/Brush/LocalizedBrushMath.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math;-ffp-contract=off")
 endif()
+if(NOT MSVC AND CMAKE_CXX_COMPILER_ID MATCHES "^(AppleClang|Clang|GNU)$")
+    # 마스크 행의 제곱 거리 루트는 정의역 오류가 없으며 errno 없이 벡터화할 수 있다.
+    set_property(SOURCE src/Application/MaskPaintSession.cpp APPEND PROPERTY COMPILE_OPTIONS -fno-math-errno)
+endif()
 add_library(iiPaintEngine ${IIPAINTENGINE_LIBRARY_TYPE} ${IIPAINTENGINE_SOURCES})
 iipaint_configure_shared(iiPaintEngine)
 add_library(iiPaintEngine::iiPaintEngine ALIAS iiPaintEngine)
@@ -168,6 +172,23 @@ if(BUILD_TESTING)
         foreach(_case Controls Taper Correction Parameters Input Tiles)
             add_test(NAME iiPaintEngine.BrushTools.${_case} COMMAND iiPaintEngineBrushToolsTests ${_case})
         endforeach()
+        # Route Gesture.cpp's dab-generation calls through the test counter without instrumenting the library.
+        add_executable(iiPaintEngineSmoothedTaperTests tests/BrushTools/SmoothedTaperTest.cpp
+            src/iiBrushTools/Gesture.cpp src/iiBrushTools/Controls.cpp src/iiBrushTools/PreviewQueue.cpp)
+        target_compile_definitions(iiPaintEngineSmoothedTaperTests PRIVATE appendRasterDabs=countedAppendRasterDabs)
+        target_link_libraries(iiPaintEngineSmoothedTaperTests PRIVATE iiPaintEngine)
+        add_test(NAME iiPaintEngine.BrushTools.SmoothedTaper COMMAND iiPaintEngineSmoothedTaperTests)
+        # 타일 탐색 계측을 테스트용 Gesture.cpp에만 포함한다.
+        add_executable(iiPaintEngineGestureTileAccessTests tests/BrushTools/GestureTileAccessTest.cpp
+            src/iiBrushTools/Gesture.cpp src/iiBrushTools/Controls.cpp src/iiBrushTools/PreviewQueue.cpp)
+        target_compile_definitions(iiPaintEngineGestureTileAccessTests PRIVATE IIPAINTENGINE_COUNT_TILE_LOOKUPS)
+        target_link_libraries(iiPaintEngineGestureTileAccessTests PRIVATE iiPaintEngine)
+        add_test(NAME iiPaintEngine.BrushTools.GestureTileAccess COMMAND iiPaintEngineGestureTileAccessTests)
+        # 제스처 준비를 실행 파일 안에서 빌드해 DLL 경계와 관계없이 할당을 계측한다.
+        add_executable(iiPaintEngineGestureCorrectionTests tests/BrushTools/GestureCorrectionTest.cpp
+            src/iiBrushTools/Gesture.cpp src/iiBrushTools/Controls.cpp src/iiBrushTools/PreviewQueue.cpp)
+        target_link_libraries(iiPaintEngineGestureCorrectionTests PRIVATE iiPaintEngine)
+        add_test(NAME iiPaintEngine.BrushTools.GestureCorrection COMMAND iiPaintEngineGestureCorrectionTests)
         foreach(_contract PresetContract PresetAvailability PreviewQueueContract PreviewQueueAllocation FrozenSource)
             add_executable(iiPaintEngine${_contract}Tests "tests/BrushTools/${_contract}Test.cpp")
             target_link_libraries(iiPaintEngine${_contract}Tests PRIVATE iiPaintEngine::BrushTools)
@@ -190,6 +211,19 @@ if(BUILD_TESTING)
         set(target "iiPaintEngine${name}Tests")
         add_executable(${target} "${source}")
         target_link_libraries(${target} PRIVATE iiPaintEngine)
+        if(name STREQUAL "BitmapCodecOptimization")
+            # 코덱의 임시 할당과 pinned stb 스칼라 기준을 같은 테스트에서 비교한다.
+            target_sources(${target} PRIVATE src/BitmapFile/BitmapCodec.cpp)
+            target_include_directories(${target} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb")
+        elseif(name STREQUAL "LocalizedBrushMemoization")
+            # 원래 수치 플래그를 그대로 사용하고 테스트에만 반경 탐색 계측을 넣는다.
+            target_sources(${target} PRIVATE src/Brush/LocalizedBrushMath.cpp)
+            target_compile_definitions(${target} PRIVATE IIPAINTENGINE_COUNT_LOCALIZED_BRUSH_ROOT_SOLVES)
+        elseif(name STREQUAL "MaskDabRaster")
+            # 마스크 적용 코드에서 실제 dirty 사각형 병합 호출을 계측한다.
+            target_sources(${target} PRIVATE src/Application/MaskPaintSession.cpp)
+            target_compile_definitions(${target} PRIVATE uniteDevicePixelRects=countedUniteDevicePixelRects)
+        endif()
         target_compile_definitions(${target} PRIVATE
             IIPAINTENGINE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
             IIPAINTENGINE_BINARY_DIR="${CMAKE_CURRENT_BINARY_DIR}")

@@ -1,11 +1,14 @@
 #include "Brush/AbrBrushImporter.h"
 #include "Brush/BrushResolve.h"
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <cmath>
 #include <limits>
 #include <new>
 #include <numbers>
+#include <set>
+#include <string_view>
 #include <utility>
 
 namespace {
@@ -29,11 +32,10 @@ public:
     std::uint16_t u16() { const auto high=u8();return static_cast<std::uint16_t>((high<<8)|u8()); }
     std::uint32_t u32() { const auto high=u16();return (std::uint32_t(high)<<16)|u16(); }
     std::int32_t i32() { return std::bit_cast<std::int32_t>(u32()); }
-    std::string text(std::size_t count) {
+    // 서명과 섹션 태그는 입력 바이트를 빌려 읽는다. 저장할 ID는 호출자가 복사한다.
+    std::string_view text(std::size_t count) {
         const auto data=take(count);
-        std::string result; result.reserve(count);
-        for(auto value:data) result.push_back(static_cast<char>(std::to_integer<unsigned char>(value)));
-        return result;
+        return {reinterpret_cast<const char *>(data.data()),data.size()};
     }
 private:
     std::span<const std::byte> bytes_;
@@ -100,10 +102,19 @@ PaintUuid identifier(std::span<const std::byte> record, std::size_t ordinal)
     return id;
 }
 
+// 브러시마다 발생할 수 있는 공통 진단을 파일 단위로 기록한다.
+enum class Warning { RoundedCoverage, LegacyFlags, AntiAliasOff, LegacyTrailingData, Count };
+
 struct Decoder {
     const AbrImportLimits &limits;
     AbrBrushImport output;
     std::size_t decodedBytes=0;
+    std::array<bool,static_cast<std::size_t>(Warning::Count)> emittedWarnings{};
+
+    // 중복일 때는 경고 문자열도 조립하지 않는다.
+    bool firstWarning(Warning warning) noexcept {
+        return !std::exchange(emittedWarnings[static_cast<std::size_t>(warning)],true);
+    }
 
     void append(AbrImportedBrush brush, std::span<const std::byte> record, std::size_t offset) {
         if(output.brushes.size()>=limits.maxBrushes)
@@ -128,8 +139,11 @@ struct Decoder {
             fail(Code::UnsupportedDepth,reader.offset(),"ABR tip depth must be 8 or 16 bits.");
         const auto compression=reader.u8();
         if(compression>1) fail(Code::UnsupportedCompression,reader.offset(),"ABR tip compression must be raw or PackBits.");
-        const auto stride=static_cast<std::size_t>(width)*(brush.sourceDepth/8);
+        const auto columns=static_cast<std::size_t>(width);
         const auto rows=static_cast<std::size_t>(height);
+        const auto bytesPerSample=static_cast<std::size_t>(brush.sourceDepth)/8;
+        const auto stride=columns*bytesPerSample;
+        const bool sixteenBit=bytesPerSample==2;
         if(compression==0 && stride*rows>reader.remaining())
             fail(Code::TruncatedData,reader.offset(),"Truncated raw ABR tip pixels.");
         std::vector<std::uint16_t> rowLengths;
@@ -141,7 +155,7 @@ struct Decoder {
         }
         auto &tip=brush.preset.tip;
         tip.width=static_cast<int>(width); tip.height=static_cast<int>(height); tip.mask.resize(pixels);
-        std::vector<std::byte> unpacked(stride);
+        std::vector<std::byte> unpacked(compression==1 ? stride : 0);
         for(std::size_t y=0;y<rows;++y) {
             std::span<const std::byte> row;
             if(compression==0) row=reader.take(stride);
@@ -166,28 +180,35 @@ struct Decoder {
                 if(written!=stride) fail(Code::InvalidData,packed.offset(),"ABR PackBits row is shorter than its scanline.");
                 row=unpacked;
             }
-            for(std::size_t x=0;x<static_cast<std::size_t>(width);++x) {
-                unsigned value=std::to_integer<unsigned>(row[x*(brush.sourceDepth/8)]);
-                if(brush.sourceDepth==16)
-                    value=(((value<<8)|std::to_integer<unsigned>(row[x*2+1]))+128U)/257U;
-                tip.mask[y*static_cast<std::size_t>(width)+x]=std::byte(value);
+            auto *destination=tip.mask.data()+y*columns;
+            if(sixteenBit) {
+                // ABR의 big-endian 16비트 커버리지를 가장 가까운 8비트 값으로 반올림한다.
+                for(std::size_t x=0;x<columns;++x) {
+                    const auto high=std::to_integer<unsigned>(row[2*x]);
+                    const auto low=std::to_integer<unsigned>(row[2*x+1]);
+                    destination[x]=std::byte((((high<<8)|low)+128U)/257U);
+                }
+            } else {
+                std::ranges::copy(row,destination);
             }
         }
         decodedBytes+=pixels;
         brush.preset.size=static_cast<float>(std::max(width,height));
         brush.preset.shape.angleMode=BrushAngleMode::Fixed;
-        if(brush.sourceDepth==16)
+        if(sixteenBit && firstWarning(Warning::RoundedCoverage))
             output.warnings.push_back("16-bit ABR tip coverage was rounded to the engine's 8-bit mask.");
     }
 
     void legacy(Reader &reader) {
         const auto count=reader.u16();
         if(count>limits.maxBrushes) fail(Code::ResourceLimit,reader.offset(),"ABR brush count exceeds the configured limit.");
+        std::set<std::uint16_t> skippedTypes;
         for(std::size_t i=0;i<count;++i) {
             const auto type=reader.u16();const auto length=reader.u32();const auto start=reader.offset();
             const auto record=reader.take(length);Reader body(record,start);
             if(type!=1 && type!=2) {
-                output.warnings.push_back("Unsupported legacy ABR brush type "+std::to_string(type)+" was skipped.");
+                if(skippedTypes.insert(type).second)
+                    output.warnings.push_back("Unsupported legacy ABR brush type "+std::to_string(type)+" was skipped.");
                 continue;
             }
             AbrImportedBrush brush;
@@ -197,7 +218,8 @@ struct Decoder {
             brush.preset.stroke.spacingRatio=spacing/100.0;
             brush.preset.name="ABR brush "+std::to_string(i+1);
             brush.completeSettings=misc==0;
-            if(misc) output.warnings.push_back("Nonzero legacy ABR miscellaneous flags were not mapped.");
+            if(misc && firstWarning(Warning::LegacyFlags))
+                output.warnings.push_back("Nonzero legacy ABR miscellaneous flags were not mapped.");
             if(type==1) {
                 brush.preset.size=body.u16();brush.preset.shape.roundness=body.u16()/100.0;
                 brush.preset.shape.angleRadians=std::bit_cast<std::int16_t>(body.u16())*std::numbers::pi/180;
@@ -208,14 +230,16 @@ struct Decoder {
                 }
                 if(!body.u8()) {
                     brush.completeSettings=false;
-                    output.warnings.push_back("Legacy ABR anti-alias-off is not represented by the current mask sampler.");
+                    if(firstWarning(Warning::AntiAliasOff))
+                        output.warnings.push_back("Legacy ABR anti-alias-off is not represented by the current mask sampler.");
                 }
                 body.take(8); // Superseded short bounds.
                 sampled(body,brush);
             }
             if(body.remaining()) {
                 brush.completeSettings=false;
-                output.warnings.push_back("Unused trailing bytes in legacy ABR brush "+std::to_string(i+1)+".");
+                if(firstWarning(Warning::LegacyTrailingData))
+                    output.warnings.push_back("Unused trailing bytes in legacy ABR brush "+std::to_string(i+1)+".");
             }
             append(std::move(brush),record,start);
         }
@@ -247,6 +271,7 @@ struct Decoder {
         if(output.subversion!=1 && output.subversion!=2)
             fail(Code::UnsupportedVersion,reader.offset(),"ABR sample subversion must be 1 or 2.");
         output.warnings.push_back("Modern ABR import extracts sampled tips only; preset descriptors, patterns and folders are not restored.");
+        std::set<std::string_view> skippedSections;
         unsigned sections=0;
         while(reader.remaining()) {
             if(++sections>4096) fail(Code::ResourceLimit,reader.offset(),"ABR exceeds 4096 sections.");
@@ -255,7 +280,8 @@ struct Decoder {
             const auto length=reader.u32();const auto start=reader.offset();
             Reader section(reader.take(length),start);
             if(key=="samp") samples(section);
-            else output.warnings.push_back("ABR section "+key+" was not imported.");
+            else if(skippedSections.insert(key).second)
+                output.warnings.push_back("ABR section "+std::string(key)+" was not imported.");
             reader.take((4-length%4)%4);
         }
     }

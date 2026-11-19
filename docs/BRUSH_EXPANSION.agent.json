@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/BRUSH_EXPANSION.md",
-    "sha256": "6a283e092065bd650748d1d41cf12adba77ec343a7a8074b652e4d126c160012",
-    "bytes": 9776,
-    "line_count": 170,
+    "sha256": "0e0e4c82bb6a2559e80e7659427c35180c0efd4b99a867eab701206bbd2aa4dc",
+    "bytes": 10228,
+    "line_count": 176,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -153,35 +153,35 @@
       "id": "b000015",
       "kind": "paragraph",
       "start_line": 45,
-      "end_line": 50,
-      "raw": "Modern imports always set completeSettings to false and return a warning. They\nproduce usable neutral sampled-tip presets; they do not restore a complete\nPhotoshop brush. Unsupported sections are named in warnings. A known record with\nbad lengths, invalid geometry, malformed RLE or unsupported depth/compression fails\nthe whole operation. Unknown legacy brush types may be skipped with a warning;\na collection with no usable tips fails. No partial result mutates a brush library.\n"
+      "end_line": 53,
+      "raw": "Modern imports always set completeSettings to false and return a warning. They\nproduce usable neutral sampled-tip presets; they do not restore a complete\nPhotoshop brush. Unsupported sections are named in warnings. A known record with\nbad lengths, invalid geometry, malformed RLE or unsupported depth/compression fails\nthe whole operation. Unknown legacy brush types may be skipped with a warning;\na collection with no usable tips fails. No partial result mutates a brush library.\nWarnings follow first occurrence order. Each common diagnostic and each distinct\nskipped section tag or legacy brush type is reported once per file. The legacy\ntrailing-bytes warning includes the first affected brush's record number.\n"
     },
     {
       "id": "b000016",
       "kind": "blank",
-      "start_line": 51,
-      "end_line": 51,
+      "start_line": 54,
+      "end_line": 54,
       "raw": "\n"
     },
     {
       "id": "b000017",
       "kind": "paragraph",
-      "start_line": 52,
-      "end_line": 58,
-      "raw": "Default limits are 256 MiB encoded input, 4096 brushes and 64 MiB total decoded\n8-bit masks. Individual tips respect the existing 4096-pixel edge and 16 MiB mask\nlimits. Callers may tighten AbrImportLimits; hard bounds cap encoded/decoded data\nat 256 MiB, brush count at 20000, name length at 4096 UTF-16 units / 8192 UTF-8\nbytes and modern sections at 4096. Counts are checked before dangerous\nallocation/arithmetic. Import IDs are stable, non-cryptographic local identifiers;\nsourceId retains a modern sample ID separately. ABR writing is not introduced.\n"
+      "start_line": 55,
+      "end_line": 64,
+      "raw": "Default limits are 256 MiB encoded input, 4096 brushes and 64 MiB total decoded\n8-bit masks. Individual tips respect the existing 4096-pixel edge and 16 MiB mask\nlimits. Callers may tighten AbrImportLimits; hard bounds cap encoded/decoded data\nat 256 MiB, brush count at 20000, name length at 4096 UTF-16 units / 8192 UTF-8\nbytes and modern sections at 4096. Counts are checked before dangerous\nallocation/arithmetic. Import IDs are stable, non-cryptographic local identifiers;\nsourceId retains a modern sample ID separately. ABR writing is not introduced.\nRaw scanlines use the input bytes directly. PackBits reuses one scanline buffer.\nThe decoder copies 8-bit rows in bulk and rounds big-endian 16-bit coverage with\nthe same `(sample + 128) / 257` conversion.\n"
     },
     {
       "id": "b000018",
       "kind": "blank",
-      "start_line": 59,
-      "end_line": 59,
+      "start_line": 65,
+      "end_line": 65,
       "raw": "\n"
     },
     {
       "id": "b000019",
       "kind": "heading",
-      "start_line": 60,
-      "end_line": 60,
+      "start_line": 66,
+      "end_line": 66,
       "raw": "## Current-stamp symmetry\n",
       "level": 2,
       "title": "Current-stamp symmetry"
@@ -189,15 +189,15 @@
     {
       "id": "b000020",
       "kind": "blank",
-      "start_line": 61,
-      "end_line": 61,
+      "start_line": 67,
+      "end_line": 67,
       "raw": "\n"
     },
     {
       "id": "b000021",
       "kind": "fenced_code",
-      "start_line": 62,
-      "end_line": 68,
+      "start_line": 68,
+      "end_line": 74,
       "raw": "```cpp\nBrushPreset brush;\nbrush.stroke.symmetry.mode = BrushSymmetryMode::Mandala;\nbrush.stroke.symmetry.center = {512, 512};\nbrush.stroke.symmetry.segments = 16;\nbrush.stroke.symmetry.angleRadians = 0.2;\n```\n",
       "language": "cpp",
       "code": "BrushPreset brush;\nbrush.stroke.symmetry.mode = BrushSymmetryMode::Mandala;\nbrush.stroke.symmetry.center = {512, 512};\nbrush.stroke.symmetry.segments = 16;\nbrush.stroke.symmetry.angleRadians = 0.2;\n",
@@ -206,57 +206,57 @@
     {
       "id": "b000022",
       "kind": "blank",
-      "start_line": 69,
-      "end_line": 69,
+      "start_line": 75,
+      "end_line": 75,
       "raw": "\n"
     },
     {
       "id": "b000023",
       "kind": "paragraph",
-      "start_line": 70,
-      "end_line": 75,
+      "start_line": 76,
+      "end_line": 81,
       "raw": "Modes are None, Vertical, Horizontal, DualAxis, Radial and Mandala. Center is in\ndocument pixels. Angle is radians and rotates reflection axes; the original stamp\nis always retained. Radial repeats each stamp 2–64 times. Mandala reflects and\nrotates each stamp through 2–64 sectors, producing up to 128 copies. Both remain\nwithin the common 65536-stamp per-event budget. Settings also apply to valid\nbristle, erodible and airbrush bitmap models.\n"
     },
     {
       "id": "b000024",
       "kind": "blank",
-      "start_line": 76,
-      "end_line": 76,
+      "start_line": 82,
+      "end_line": 82,
       "raw": "\n"
     },
     {
       "id": "b000025",
       "kind": "paragraph",
-      "start_line": 77,
-      "end_line": 84,
+      "start_line": 83,
+      "end_line": 90,
       "raw": "Each original scatter mark is expanded after its random/dynamics resolution.\nReplicas inherit the seed, color, Fade index, pressure-derived scales and wear.\nThey never consume extra random numbers or advance the brush's physical/input\nstate. Reflection changes the asymmetric primary tip orientation and tip-local\ntexture/dual-mask coordinates. Document/paper textures remain anchored to their\nconfigured document coordinates. Equal centers within one stamp's expansion are\nemitted once, with the first orientation retained, to avoid repeated center/axis\ndeposits. Other overlapping branches retain ordinary flow accumulation.\n"
     },
     {
       "id": "b000026",
-      "kind": "blank",
-      "start_line": 85,
-      "end_line": 85,
-      "raw": "\n"
-    },
-    {
-      "id": "b000027",
-      "kind": "paragraph",
-      "start_line": 86,
-      "end_line": 90,
-      "raw": "applyBrushSymmetry() is also available for current BrushDabSpan values.\nappendRasterDabs() invokes it automatically. Bounds, clipping, source sampling,\npreview, commit, cancel and raster undo/redo consume the expanded stamps through\nthe existing pipeline. Invalid transformations or an exceeded budget reject the\nevent without changing RasterDabStream. No paths or coordinate histories are stored.\n"
-    },
-    {
-      "id": "b000028",
       "kind": "blank",
       "start_line": 91,
       "end_line": 91,
       "raw": "\n"
     },
     {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 92,
+      "end_line": 96,
+      "raw": "applyBrushSymmetry() is also available for current BrushDabSpan values.\nappendRasterDabs() invokes it automatically. Bounds, clipping, source sampling,\npreview, commit, cancel and raster undo/redo consume the expanded stamps through\nthe existing pipeline. Invalid transformations or an exceeded budget reject the\nevent without changing RasterDabStream. No paths or coordinate histories are stored.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 97,
+      "end_line": 97,
+      "raw": "\n"
+    },
+    {
       "id": "b000029",
       "kind": "heading",
-      "start_line": 92,
-      "end_line": 92,
+      "start_line": 98,
+      "end_line": 98,
       "raw": "## Pulled-string stabilization\n",
       "level": 2,
       "title": "Pulled-string stabilization"
@@ -264,15 +264,15 @@
     {
       "id": "b000030",
       "kind": "blank",
-      "start_line": 93,
-      "end_line": 93,
+      "start_line": 99,
+      "end_line": 99,
       "raw": "\n"
     },
     {
       "id": "b000031",
       "kind": "fenced_code",
-      "start_line": 94,
-      "end_line": 103,
+      "start_line": 100,
+      "end_line": 109,
       "raw": "```cpp\nbrush.stroke.smoothingEnabled = true;\nbrush.stroke.smoothing = 1.0;\nbrush.stroke.smoothingMode = BrushSmoothingMode::PulledString;\nbrush.stroke.smoothingRadius = 8.0;\nbrush.stroke.smoothingCatchUp = true;\nbrush.stroke.smoothingCatchUpRate = 12.0;\nbrush.stroke.smoothingCatchUpOnEnd = true;\n// During a pause, the application calls session.advanceTime(monotonicSeconds).\n```\n",
       "language": "cpp",
       "code": "brush.stroke.smoothingEnabled = true;\nbrush.stroke.smoothing = 1.0;\nbrush.stroke.smoothingMode = BrushSmoothingMode::PulledString;\nbrush.stroke.smoothingRadius = 8.0;\nbrush.stroke.smoothingCatchUp = true;\nbrush.stroke.smoothingCatchUpRate = 12.0;\nbrush.stroke.smoothingCatchUpOnEnd = true;\n// During a pause, the application calls session.advanceTime(monotonicSeconds).\n",
@@ -281,57 +281,57 @@
     {
       "id": "b000032",
       "kind": "blank",
-      "start_line": 104,
-      "end_line": 104,
+      "start_line": 110,
+      "end_line": 110,
       "raw": "\n"
     },
     {
       "id": "b000033",
       "kind": "paragraph",
-      "start_line": 105,
-      "end_line": 110,
+      "start_line": 111,
+      "end_line": 116,
       "raw": "Exponential preserves the previous causal filter and remains the default.\nPulledString holds the current painted anchor within a document-space radius of\nthe pointer. Effective radius is smoothingRadius * smoothing; when the pointer\nleaves that circle, the anchor advances by the excess distance. Radius accepts\n0–4096 pixels. Straight-line endpoint placement does not depend on subdividing\nthe same movement into more pointer events.\n"
     },
     {
       "id": "b000034",
       "kind": "blank",
-      "start_line": 111,
-      "end_line": 111,
+      "start_line": 117,
+      "end_line": 117,
       "raw": "\n"
     },
     {
       "id": "b000035",
       "kind": "paragraph",
-      "start_line": 112,
-      "end_line": 119,
+      "start_line": 118,
+      "end_line": 125,
       "raw": "When smoothingCatchUp is enabled and the raw pointer target is unchanged,\nremaining lag decays by exp(-rate * elapsedSeconds). Rate accepts 0.01–1000 per\nsecond. Splitting a stationary time interval preserves the final anchor position.\nBitmapPaintSession::advanceTime() supports this mode as well as timed airbrush;\nthe engine creates no timer. Airbrush keeps its existing timed placement policy.\nsmoothingCatchUpOnEnd flushes the final pointer position before release commits.\nDisabling it preserves the filtered endpoint. Amount zero disables filtering.\nVelocity/time-driven dynamics can still differ when event timing changes.\n"
     },
     {
       "id": "b000036",
       "kind": "blank",
-      "start_line": 120,
-      "end_line": 120,
+      "start_line": 126,
+      "end_line": 126,
       "raw": "\n"
     },
     {
       "id": "b000037",
       "kind": "paragraph",
-      "start_line": 121,
-      "end_line": 123,
+      "start_line": 127,
+      "end_line": 129,
       "raw": "The stream retains one previous filtered point and one current raw target.\nIt never retains a point list, future input or replayable trajectory. Radius is\ndocument-space only; screen/zoom-dependent smoothing remains application policy.\n"
     },
     {
       "id": "b000038",
       "kind": "blank",
-      "start_line": 124,
-      "end_line": 124,
+      "start_line": 130,
+      "end_line": 130,
       "raw": "\n"
     },
     {
       "id": "b000039",
       "kind": "heading",
-      "start_line": 125,
-      "end_line": 125,
+      "start_line": 131,
+      "end_line": 131,
       "raw": "## Storage, ABI and validation\n",
       "level": 2,
       "title": "Storage, ABI and validation"
@@ -339,85 +339,85 @@
     {
       "id": "b000040",
       "kind": "blank",
-      "start_line": 126,
-      "end_line": 126,
-      "raw": "\n"
-    },
-    {
-      "id": "b000041",
-      "kind": "paragraph",
-      "start_line": 127,
-      "end_line": 131,
-      "raw": "Preset format 4 stores all symmetry/stabilization settings. Formats 1/2/3 remain\nreadable with neutral symmetry and legacy smoothing defaults. Snapshot/restore\nand document format 3 brushSources preserve the same values; the historical\npresetV2 field name stays unchanged. Older readers reject preset format 4.\nNew enum values, ranges and nonfinite settings are validated even when disabled.\n"
-    },
-    {
-      "id": "b000042",
-      "kind": "blank",
       "start_line": 132,
       "end_line": 132,
       "raw": "\n"
     },
     {
-      "id": "b000043",
+      "id": "b000041",
       "kind": "paragraph",
       "start_line": 133,
-      "end_line": 136,
+      "end_line": 137,
+      "raw": "Preset format 4 stores all symmetry/stabilization settings. Formats 1/2/3 remain\nreadable with neutral symmetry and legacy smoothing defaults. Snapshot/restore\nand `brushSources` in document formats 3 and 4 preserve the same values. The historical\npresetV2 field name stays unchanged. Older readers reject preset format 4.\nNew enum values, ranges and nonfinite settings are validated even when disabled.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 138,
+      "end_line": 138,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 139,
+      "end_line": 142,
       "raw": "Public struct layouts changed in ABI 0.5; the current package version is 0.5.1:\nrebuild consumers. The concurrent package-release edit to 0.5.1 was preserved.\nThis task stages an installed-package consumer under build/; it does not replace\nthe active ~/.local installation or redeploy consumer applications.\n"
     },
     {
       "id": "b000044",
       "kind": "blank",
-      "start_line": 137,
-      "end_line": 137,
+      "start_line": 143,
+      "end_line": 143,
       "raw": "\n"
     },
     {
       "id": "b000045",
       "kind": "paragraph",
-      "start_line": 138,
-      "end_line": 141,
+      "start_line": 144,
+      "end_line": 147,
       "raw": "iiPaintEngine requires the existing Qt-free iiFileProviderNative >=0.6 package.\nUse CMAKE_PREFIX_PATH or iiFileProviderNative_DIR when the default installation is\nolder. The local run used the already-staged Native 0.8.0 package; provider source\nand the host installation were not changed.\n"
     },
     {
       "id": "b000046",
-      "kind": "blank",
-      "start_line": 142,
-      "end_line": 142,
-      "raw": "\n"
-    },
-    {
-      "id": "b000047",
-      "kind": "paragraph",
-      "start_line": 143,
-      "end_line": 147,
-      "raw": "The new contracts test ABR versions/encoding/budgets/truncation/mutations; geometry\nand asymmetric pixel reflection; 64-sector physical-tip/time/Fade behavior;\nevent rejection; live preview/cancel/undo; endpoint/clock stabilization and\npreset/snapshot/document compatibility. The final validation record is\n[BRUSH_EXPANSION_VALIDATION.md](BRUSH_EXPANSION_VALIDATION.md).\n"
-    },
-    {
-      "id": "b000048",
       "kind": "blank",
       "start_line": 148,
       "end_line": 148,
       "raw": "\n"
     },
     {
-      "id": "b000049",
+      "id": "b000047",
       "kind": "paragraph",
       "start_line": 149,
-      "end_line": 150,
+      "end_line": 153,
+      "raw": "The new contracts test ABR versions/encoding/budgets/truncation/mutations; geometry\nand asymmetric pixel reflection; 64-sector physical-tip/time/Fade behavior;\nevent rejection; live preview/cancel/undo; endpoint/clock stabilization and\npreset/snapshot/document compatibility. The final validation record is\n[BRUSH_EXPANSION_VALIDATION.md](BRUSH_EXPANSION_VALIDATION.md).\n"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 154,
+      "end_line": 154,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 155,
+      "end_line": 156,
       "raw": "The C++ gallery exercises 16-fold radial, 12-sector mandala and stabilized\ndual-axis strokes:\n"
     },
     {
       "id": "b000050",
       "kind": "blank",
-      "start_line": 151,
-      "end_line": 151,
+      "start_line": 157,
+      "end_line": 157,
       "raw": "\n"
     },
     {
       "id": "b000051",
       "kind": "fenced_code",
-      "start_line": 152,
-      "end_line": 156,
+      "start_line": 158,
+      "end_line": 162,
       "raw": "```sh\ncmake -S Example/FileProvider -B build/file-provider-app -DCMAKE_PREFIX_PATH=\"/path/to/iiPaintEngine;/path/to/iiFileProvider\"\ncmake --build build/file-provider-app --parallel\nbuild/file-provider-app/iiPaintEngineBrushExpansionGallery Example/FileProvider/resources/brush-expansion-gallery.png\n```\n",
       "language": "sh",
       "code": "cmake -S Example/FileProvider -B build/file-provider-app -DCMAKE_PREFIX_PATH=\"/path/to/iiPaintEngine;/path/to/iiFileProvider\"\ncmake --build build/file-provider-app --parallel\nbuild/file-provider-app/iiPaintEngineBrushExpansionGallery Example/FileProvider/resources/brush-expansion-gallery.png\n",
@@ -426,15 +426,15 @@
     {
       "id": "b000052",
       "kind": "blank",
-      "start_line": 157,
-      "end_line": 157,
+      "start_line": 163,
+      "end_line": 163,
       "raw": "\n"
     },
     {
       "id": "b000053",
       "kind": "heading",
-      "start_line": 158,
-      "end_line": 158,
+      "start_line": 164,
+      "end_line": 164,
       "raw": "## Remaining work toward a Photoshop-class superset\n",
       "level": 2,
       "title": "Remaining work toward a Photoshop-class superset"
@@ -442,15 +442,15 @@
     {
       "id": "b000054",
       "kind": "blank",
-      "start_line": 159,
-      "end_line": 159,
+      "start_line": 165,
+      "end_line": 165,
       "raw": "\n"
     },
     {
       "id": "b000055",
       "kind": "list",
-      "start_line": 160,
-      "end_line": 170,
+      "start_line": 166,
+      "end_line": 176,
       "raw": "- Map modern ABR descriptors, sampled-tip references, embedded patterns, names,\n  groups and tool-capture semantics; add explicit loss reporting/export policy.\n- Add independently validated high-precision/color-managed paint surfaces.\n  Current pixels and imported coverage remain 8-bit.\n- Improve the existing wet/bristle/erodible models beyond their documented bitmap\n  approximations, with measured performance and real pen/physical-tip evidence.\n- Validate real, licensed user ABR collections and original-application outputs.\n  The current suite uses original synthetic files and model invariants.\n- Measure large-brush latency and validate Windows/Linux/mobile/tablet runtimes.\n  Host tests and a wider symmetry range alone do not establish full Photoshop\n  behavior, performance or ecosystem compatibility.\n",
       "items": [
         {
@@ -504,7 +504,7 @@
       "level": 2,
       "title": "Current-stamp symmetry",
       "anchor": "current-stamp-symmetry",
-      "start_line": 60
+      "start_line": 66
     },
     {
       "block_id": "b000029",
@@ -512,7 +512,7 @@
       "level": 2,
       "title": "Pulled-string stabilization",
       "anchor": "pulled-string-stabilization",
-      "start_line": 92
+      "start_line": 98
     },
     {
       "block_id": "b000039",
@@ -520,7 +520,7 @@
       "level": 2,
       "title": "Storage, ABI and validation",
       "anchor": "storage-abi-and-validation",
-      "start_line": 125
+      "start_line": 131
     },
     {
       "block_id": "b000053",
@@ -528,7 +528,7 @@
       "level": 2,
       "title": "Remaining work toward a Photoshop-class superset",
       "anchor": "remaining-work-toward-a-photoshop-class-superset",
-      "start_line": 158
+      "start_line": 164
     }
   ],
   "indexes": {
@@ -542,21 +542,21 @@
       },
       {
         "block_id": "b000025",
-        "line": 79,
+        "line": 85,
         "text": "They never consume extra random numbers or advance the brush's physical/input",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000037",
-        "line": 122,
+        "line": 128,
         "text": "It never retains a point list, future input or replayable trajectory. Radius is",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000055",
-        "line": 169,
+        "line": 175,
         "text": "Host tests and a wider symmetry range alone do not establish full Photoshop",
         "basis": "lexical_match",
         "context": "list"
@@ -596,7 +596,7 @@
         "label": "BRUSH_EXPANSION_VALIDATION.md",
         "target": "BRUSH_EXPANSION_VALIDATION.md",
         "kind": "relative",
-        "line": 147
+        "line": 153
       }
     ],
     "tables": [

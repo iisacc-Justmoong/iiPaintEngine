@@ -48,6 +48,9 @@ Photoshop brush. Unsupported sections are named in warnings. A known record with
 bad lengths, invalid geometry, malformed RLE or unsupported depth/compression fails
 the whole operation. Unknown legacy brush types may be skipped with a warning;
 a collection with no usable tips fails. No partial result mutates a brush library.
+Warnings follow first occurrence order. Each common diagnostic and each distinct
+skipped section tag or legacy brush type is reported once per file. The legacy
+trailing-bytes warning includes the first affected brush's record number.
 
 Default limits are 256 MiB encoded input, 4096 brushes and 64 MiB total decoded
 8-bit masks. Individual tips respect the existing 4096-pixel edge and 16 MiB mask
@@ -56,6 +59,9 @@ at 256 MiB, brush count at 20000, name length at 4096 UTF-16 units / 8192 UTF-8
 bytes and modern sections at 4096. Counts are checked before dangerous
 allocation/arithmetic. Import IDs are stable, non-cryptographic local identifiers;
 sourceId retains a modern sample ID separately. ABR writing is not introduced.
+Raw scanlines use the input bytes directly. PackBits reuses one scanline buffer.
+The decoder copies 8-bit rows in bulk and rounds big-endian 16-bit coverage with
+the same `(sample + 128) / 257` conversion.
 
 ## Current-stamp symmetry
 
@@ -126,7 +132,7 @@ document-space only; screen/zoom-dependent smoothing remains application policy.
 
 Preset format 4 stores all symmetry/stabilization settings. Formats 1/2/3 remain
 readable with neutral symmetry and legacy smoothing defaults. Snapshot/restore
-and document format 3 brushSources preserve the same values; the historical
+and `brushSources` in document formats 3 and 4 preserve the same values. The historical
 presetV2 field name stays unchanged. Older readers reject preset format 4.
 New enum values, ranges and nonfinite settings are validated even when disabled.
 

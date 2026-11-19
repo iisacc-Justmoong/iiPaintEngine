@@ -14,28 +14,28 @@
       "document_id": "urn:iisacc:document:2db40cab51a84cc1895cc7b78b80185b5b766c242df66dfcdf25fab383c3f934",
       "source": "AGENT.md",
       "agent_json": "docs/entrypoints/AGENT.agent.json",
-      "source_sha256": "2a392f44632ca0255a4eeb2bbcee1eabe881a996e3d19cb845b8110dc20e2f31",
+      "source_sha256": "c3429de50ecef6d026da69f08cd0ad501c01d702ef1cf7f95398dd6bfb119ae6",
       "role": "instructions"
     },
     {
       "document_id": "urn:iisacc:document:f69301d14f06921c3457ef5bbbe123ee2efb3617d009c4aa379f78902af1e9e7",
       "source": "README.md",
       "agent_json": "docs/entrypoints/README.agent.json",
-      "source_sha256": "fc211ec98712d818e4ea7694876eb30e0876fef3498cfabde4ef10eb2bbe7d0f",
+      "source_sha256": "499f0f7c7ab45e8fd7404d5dd111c25255c4fb83bd7a152cb346652ad3178f17",
       "role": "overview"
     },
     {
       "document_id": "urn:iisacc:document:cb1fc2021309162027d73b4f9400a72f4beb20fd6df4d2644ce4bf90597843b2",
       "source": "docs/BRUSHES.md",
       "agent_json": "docs/BRUSHES.agent.json",
-      "source_sha256": "76a9ce76b039e0a0d181d26150c2968bc858ad5ea949203c15b81a28df7b2d7a",
+      "source_sha256": "3f4e53ab3db75e812d910db4f2de04584f99918e6dcac4f97629bfa9836734e7",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:5514ccc99608e66b2a4aa61f342d13e07cc97eb2d00d35f2445f10e5bc77c33a",
       "source": "docs/BRUSH_EXPANSION.md",
       "agent_json": "docs/BRUSH_EXPANSION.agent.json",
-      "source_sha256": "6a283e092065bd650748d1d41cf12adba77ec343a7a8074b652e4d126c160012",
+      "source_sha256": "0e0e4c82bb6a2559e80e7659427c35180c0efd4b99a867eab701206bbd2aa4dc",
       "role": "guide"
     },
     {
@@ -56,7 +56,7 @@
       "document_id": "urn:iisacc:document:dbc67197af90b412a47fcd374b22b498b2f78a0f6ef263645f038b823b84b9ca",
       "source": "docs/BrushTools.md",
       "agent_json": "docs/BrushTools.agent.json",
-      "source_sha256": "a175fe4ac998211d0e6321875feaa7a81543c07172a9bd8d7738a0ef661838d2",
+      "source_sha256": "8bc752a06b3f7c86b2d6ff07a0e4869737978105657670f6be427951f13d1ed0",
       "role": "guide"
     },
     {
@@ -70,7 +70,7 @@
       "document_id": "urn:iisacc:document:d767624446fcacea4c31e68328a045175d25a0e89f77e68350bb0c741c702036",
       "source": "docs/CXX23_MIGRATION.md",
       "agent_json": "docs/CXX23_MIGRATION.agent.json",
-      "source_sha256": "281ed6a86a890f8035a789df1ed03eedca3144dcfd9ab78ea4dbc397def62121",
+      "source_sha256": "62186628cb22b80f5665838b42ed81e6e1ec0f7edd33726481fc1042358ecbe9",
       "role": "guide"
     },
     {
@@ -91,28 +91,28 @@
       "document_id": "urn:iisacc:document:01e78b687b0b9ce1a7f6809a697c0e913b860dfd7c11039f92bb848a4ff624ec",
       "source": "docs/LAYER_COMPOSITING.md",
       "agent_json": "docs/LAYER_COMPOSITING.agent.json",
-      "source_sha256": "e3b87b8982f507e587852b72e97c2b45a46ca76b5a94dfe2e9dbbf9c44969e6a",
+      "source_sha256": "6b11589e1c80b61ebac95645cd1e6463fdf197263f452929fbe45c277b5063e5",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:a0fa86b1bdabaedda4109aca21f39135de4c7c48142f331efb9772e826695a14",
       "source": "docs/LOCALIZED_BRUSH_MATH.md",
       "agent_json": "docs/LOCALIZED_BRUSH_MATH.agent.json",
-      "source_sha256": "25fe18b47634b68ca857b9160ab3bc45c0c6af2195af37aff36f06fa9bbccbf7",
+      "source_sha256": "db2c08326002c9c06c560ca50382a14495e62ec962dad10335509c7be9afa3f3",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:bbe804b6c03e13a673f92213932adfc07c30901b945b97e22460804bf99733c6",
       "source": "docs/LOCAL_MASK_BRUSH.md",
       "agent_json": "docs/LOCAL_MASK_BRUSH.agent.json",
-      "source_sha256": "387052a35f94eec75d22c6f8401486c1629f07587557f0c47a935a39fb978cf3",
+      "source_sha256": "bd10786c0a6d92ada62bbb3a2355d871b9100c32876ba1b944ab297084959ba5",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:ab2a9e558f3d50a886f0940558b66b5ab74f3438142755f84eefaa0c5035f269",
       "source": "docs/PERFORMANCE.md",
       "agent_json": "docs/PERFORMANCE.agent.json",
-      "source_sha256": "c26abf473f9e14e75bea4b87fc8b99b1902bf12e8dec54f008e939b674b7c940",
+      "source_sha256": "71c42a403d01752de0b807460f81fba8385abdcf0587ad31104bbe37b1495d6c",
       "role": "guide"
     },
     {

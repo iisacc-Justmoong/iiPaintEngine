@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 namespace {
 
@@ -43,12 +44,45 @@ Types::Scalar interpolate(Types::Scalar lhs, Types::Scalar rhs, Types::Scalar am
     return lhs + (rhs - lhs) * amount;
 }
 
+// 공개 벡터의 매듭을 평가 전에 확인한다. 정렬 검사에 센서 입력값은 관여하지 않는다.
+void validateCurveKnots(const BrushDynamicsResponseCurve &curve)
+{
+    Types::Scalar previous = -1.0;
+    for (const auto &point : curve.points) {
+        if (!(point.input >= 0.0 && point.input <= 1.0 && point.input > previous)
+                || !std::isfinite(point.output)) {
+            throw std::invalid_argument("Brush response curve requires finite knots with strictly increasing inputs in [0,1].");
+        }
+        previous = point.input;
+    }
+}
+
+// 첫 입력 이상인 오른쪽 매듭을 찾고 기존 구간의 보간과 끝값 처리를 재사용한다.
+Types::Scalar evaluateOrderedCurve(const BrushDynamicsResponseCurve &curve, Types::Scalar input)
+{
+    const auto t = clamp01(input);
+    const auto &points = curve.points;
+    if (!points.empty()) {
+        if (t <= points.front().input) return points.front().output;
+        const auto upper = std::lower_bound(points.begin() + 1, points.end(), t,
+                [](const BrushCurvePoint &point, Types::Scalar value) { return point.input < value; });
+        if (upper == points.end()) return points.back().output;
+
+        const auto &lower = *(upper - 1);
+        return interpolate(lower.output, upper->output,
+                           easedValue(curve.easing, (t - lower.input) / (upper->input - lower.input)));
+    }
+    return t < 0.5
+            ? interpolate(curve.min, curve.center, easedValue(curve.easing, t * 2.0))
+            : interpolate(curve.center, curve.max, easedValue(curve.easing, (t - 0.5) * 2.0));
+}
+
 Types::Scalar resolveCurve(const BrushDynamicsResponseCurve &curve,
                            Types::Scalar input,
                            Types::Scalar randomJitter,
                            bool randomEnabled)
 {
-    Types::Scalar value = evaluateBrushResponseCurve(curve, input);
+    Types::Scalar value = evaluateOrderedCurve(curve, input);
     if (randomEnabled && curve.jitter != 0.0) {
         value += randomJitter * curve.jitter;
     }
@@ -201,25 +235,36 @@ BrushDynamicsInput applyBrushPose(const BrushPoseSettings &pose, const BrushDyna
 
 Types::Scalar evaluateBrushResponseCurve(const BrushDynamicsResponseCurve &curve, Types::Scalar input)
 {
-    const auto t = clamp01(input);
-    if (!curve.points.empty()) {
-        if (t <= curve.points.front().input) return curve.points.front().output;
-        for (std::size_t i = 1; i < curve.points.size(); ++i) {
-            const auto &a = curve.points[i - 1];
-            const auto &b = curve.points[i];
-            if (t <= b.input && b.input > a.input)
-                return interpolate(a.output, b.output, easedValue(curve.easing, (t - a.input) / (b.input - a.input)));
+    validateCurveKnots(curve);
+    return evaluateOrderedCurve(curve, input);
+}
+
+BrushDynamicsEvaluator::BrushDynamicsEvaluator(const BrushDynamics &dynamics)
+    : dynamics_(dynamics)
+{
+    for (const auto *response : {&dynamics.sizeResponse, &dynamics.flowResponse, &dynamics.opacityResponse,
+                                &dynamics.spacingResponse, &dynamics.scatterResponse, &dynamics.rotationResponse,
+                                &dynamics.textureDepthResponse, &dynamics.wetnessResponse, &dynamics.dryOutResponse,
+                                &dynamics.bristleSpreadResponse}) {
+        if (!response->enabled) continue;
+        for (const auto *curve : {&response->pressure, &response->velocity, &response->tilt, &response->random}) {
+            if (curve->enabled) validateCurveKnots(*curve);
         }
-        return curve.points.back().output;
     }
-    return t < 0.5
-            ? interpolate(curve.min, curve.center, easedValue(curve.easing, t * 2.0))
-            : interpolate(curve.center, curve.max, easedValue(curve.easing, (t - 0.5) * 2.0));
+    for (const auto &binding : dynamics.bindings) {
+        if (binding.enabled && binding.curve.enabled) validateCurveKnots(binding.curve);
+    }
 }
 
 BrushDynamicsResult resolveBrushDynamics(const BrushDynamics &dynamics,
-                                         const BrushDynamicsInput &rawInput)
+                                         const BrushDynamicsInput &input)
 {
+    return BrushDynamicsEvaluator(dynamics).evaluate(input);
+}
+
+BrushDynamicsResult BrushDynamicsEvaluator::evaluate(const BrushDynamicsInput &rawInput) const
+{
+    const auto &dynamics = dynamics_;
     const auto input = applyBrushPose(dynamics.pose, rawInput);
     const Types::Scalar pressure = dynamics.pressureInputEnabled ? clamp01(input.pressure) : 1.0;
     const Types::Scalar velocity = dynamics.velocityInputEnabled ? std::max<Types::Scalar>(0.0, input.velocity) : 0.0;

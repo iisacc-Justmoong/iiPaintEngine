@@ -197,9 +197,29 @@ struct BrushDynamicsResult {
     bool flipY = false;
 };
 
+// 직접 편집한 곡선을 검증한다. 순서·범위 또는 유한성에 문제가 있으면 std::invalid_argument를 던진다.
 Types::Scalar evaluateBrushResponseCurve(const BrushDynamicsResponseCurve &curve, Types::Scalar input);
+
+// 속성별 곡선과 바인딩을 한 번 검증해 여러 센서 입력을 같은 설정으로 평가한다.
+// 호출자가 소유한 BrushDynamics를 빌리므로 객체의 수명 동안 설정을 변경할 수 없다.
+class BrushDynamicsEvaluator final {
+public:
+    // 활성 곡선의 매듭을 검증한다. 잘못된 매듭은 std::invalid_argument로 보고한다.
+    explicit BrushDynamicsEvaluator(const BrushDynamics &dynamics);
+    BrushDynamicsEvaluator(const BrushDynamics &&) = delete;
+
+    // 검증된 설정으로 현재 입력을 평가한다. P개 매듭의 구간 선택은 O(log P)이다.
+    [[nodiscard]] BrushDynamicsResult evaluate(const BrushDynamicsInput &input) const;
+
+    // 검증에 사용한 설정을 반환한다.
+    [[nodiscard]] const BrushDynamics &settings() const noexcept { return dynamics_; }
+
+private:
+    const BrushDynamics &dynamics_;
+};
 
 BrushDynamicsInput applyBrushPose(const BrushPoseSettings &pose, const BrushDynamicsInput &input);
 
+// 편집 가능한 설정을 받아 단일 입력을 검증하고 평가한다.
 BrushDynamicsResult resolveBrushDynamics(const BrushDynamics &dynamics,
                                          const BrushDynamicsInput &input);

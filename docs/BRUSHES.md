@@ -62,7 +62,21 @@ auto pixels = projectBrushDabs(dabs, resolved.brush->rasterizer, {}, resolved.br
 
 `inputMinimum`과 `inputMaximum`은 원래 입력의 단위로 지정한다. 예를 들어 `Velocity`의 0–1200, `Time`의 0–2, `Rotation`의 0–6.283을 각각 곡선의 0–1로 정규화할 수 있다. 범위 밖 입력은 끝값에 고정한다. Time은 획 시작 후 경과 시간, Distance는 시작 후 누적 거리이다.
 
-곡선은 최대 64개의 `(input, output)` 매듭을 받으며 input은 `[0,1]`에서 엄격하게 증가해야 한다. 각 구간에 Linear/EaseIn/EaseOut/EaseInOut을 적용한다. 매듭이 비어 있으면 기존 min/center/max 세 점을 사용한다. 입력 궤적을 보존하는 곡선이 아니라 스칼라 파라미터의 전달 함수이다.
+프리셋의 각 곡선은 최대 64개의 `(input, output)` 매듭을 받는다. 입력 좌표는 `[0,1]`에서
+엄격하게 증가해야 한다. 프리셋 로드와 해석은 역순·중복·비유한 매듭을 거부한다. 각 구간에는
+Linear, EaseIn, EaseOut, EaseInOut을 적용한다. 매듭이 비어 있으면 `min/center/max` 세 값을
+쓰고 한 개면 해당 매듭의 출력값을 사용한다.
+
+dab 생성 이벤트는 활성 곡선을 한 번 검증한 뒤 간격, 산포, dab 속성 계산에 같은
+`BrushDynamicsEvaluator`를 사용한다. 평가마다 P개 매듭의 구간을 O(log P) 이분 탐색으로
+찾고 기존 보간식을 적용한다. `evaluateBrushResponseCurve`와 `resolveBrushDynamics`는 직접
+편집한 입력을 단독 호출로 받을 수 있도록 호출 시 검증한다. 잘못된 매듭은
+`std::invalid_argument`로 보고한다. 여러 입력을 평가할 때는 원본 설정의 수명과 불변성을
+보장하는 범위에서 `BrushDynamicsEvaluator`를 재사용할 수 있다.
+
+`BrushResponseCurveOrdering`은 64개 비균일 매듭과 네 가지 easing에서 선형 기준 구현과
+보간 결과가 비트 단위로 일치하는지 검사한다. 비정렬 프리셋과 직접 편집한 설정을 거부하고, 이벤트
+실패 후 원래 획 상태에서 재시도할 수 있는지도 검증한다.
 
 최대 64개 연결을 사용한다. `pressureInputEnabled`, `velocityInputEnabled`, `tiltInputEnabled`, `randomInputEnabled`는 해당 연결에도 적용된다. 시드와 동일한 입력·설정은 동일한 결과를 낸다. 한 획에서 센서 이벤트의 순서나 시각을 변경하면 속도·시간 반응이 달라질 수 있다.
 
@@ -78,9 +92,9 @@ core 호출자는 단조 증가하는 초 단위 time을 전달한다. 정지 �
 
 ## 저장과 호환성
 
-프리셋 출력 버전은 3이다. `readBrushPreset()`은 버전 1, 2, 3을 읽고 오류 목록을 반환한다. `deserializeBrushPreset()`은 잘못된 입력에 `std::invalid_argument`를 던진다. 미래 버전, 잘못된 enum·숫자·마스크·곡선, 중복 키, 과도한 배열/페이로드를 거부한다. 마스크 전체는 16 MiB, 직렬화 입력은 40 MiB로 제한한다. 문자열의 개행·탭·역슬래시를 보존한다.
+프리셋 출력 버전은 4이다. `readBrushPreset()`은 버전 1, 2, 3, 4를 읽고 오류 목록을 반환한다. `deserializeBrushPreset()`은 잘못된 입력에 `std::invalid_argument`를 던진다. 미래 버전, 잘못된 enum·숫자·마스크·곡선, 중복 키, 과도한 배열/페이로드를 거부한다. 마스크 전체는 16 MiB, 직렬화 입력은 40 MiB로 제한한다. 문자열의 개행·탭·역슬래시를 보존한다.
 
-`snapshotBrushPreset()`/`restoreBrushPreset()`는 모든 설정을 복사한다. 문서 버전 3의 `brushSources`에는 완전한 버전 3 프리셋을 기존 이름인 `presetV2` 필드로 넣고 이전 필드도 함께 기록한다. 필드명은 과거 저장 포맷에서 유지하며 내부의 `formatVersion`으로 프리셋 버전을 구분한다. 이전 버전 엔진은 버전 3 프리셋을 거부하므로 새 옵션을 조용히 누락하여 편집하지 않는다. 새 엔진은 `presetV2`를 우선하고 잘못된 프리셋이면 문서를 incompatible로 반환한다. 기존 문서는 기존 필드로 읽힌다. 이전 엔진은 픽셀과 기존 브러시 필드는 읽을 수 있지만 새 설정을 재저장할 수 없으므로 새 설정이 있는 문서의 편집에는 새 엔진을 사용해야 한다.
+`snapshotBrushPreset()`과 `restoreBrushPreset()`은 모든 설정을 복사한다. 문서 버전 4의 `brushSources`는 완전한 프리셋을 `presetV2` 바이너리 청크에 넣고 이전 필드도 함께 기록한다. 문서 버전 3의 `presetV2`는 16진수로 인코딩되어 있다. 두 형식에서 프리셋 자체의 `formatVersion`이 프리셋 버전을 결정한다. 엔진은 `presetV2`를 우선하고 잘못된 프리셋이면 문서를 호환 불가 상태로 반환한다. `presetV2`가 없는 기존 문서는 이전 필드로 읽는다.
 
 설계 범위는 [Adobe의 브러시 동적 속성](https://helpx.adobe.com/ie/photoshop/using/adding-dynamic-elements-brushes.html)과 [CLIP STUDIO의 다중 팁 설정](https://tips.clip-studio.com/en-us/articles/678)을 참고했다. 두 제품의 완전한 재현이나 ABR/SUT 호환성을 뜻하지 않는다. 기존 습식 혼색은 픽셀 샘플링 모델이며 유체 시뮬레이션이 아니다. 원본 궤적 저장, 종료점 taper, 전체 경로 smoothing, 리본 벡터는 bitmap-only 계약에 포함되지 않는다.
 

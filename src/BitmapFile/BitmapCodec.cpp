@@ -1,12 +1,23 @@
 #include "BitmapCodec.hpp"
 #include <algorithm>
+#include <bit>
+#include <cfenv>
 #include <charconv>
 #include <cmath>
+#include <cstring>
 #include <memory>
 #include <span>
 
 #define STBI_NO_STDIO
+// ARM64EC는 일부 x64 매크로도 정의하므로 stb의 x86 감지에서 제외한다.
+#if defined(_M_ARM64EC) && !defined(STBI_NO_SIMD)
 #define STBI_NO_SIMD
+#endif
+// x86은 stb의 SSE2 선택을 사용한다. ARM은 대상에 NEON이 있는 빌드에서 활성화한다.
+#if !defined(STBI_NO_SIMD) && (defined(__ARM_NEON) || defined(__ARM_NEON__)) \
+    && defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ && __has_include(<arm_neon.h>)
+#define STBI_NEON
+#endif
 #define STBI_MAX_DIMENSIONS 16384
 #define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
@@ -106,6 +117,98 @@ void appendBytes(void *context,void *data,int size)
         output.bytes.insert(output.bytes.end(),begin,begin + size);
     } catch (...) { output.failed = true; }
 }
+
+// 리틀엔디언 RGBA 워드와 ARGB32 사이에서 빨강과 파랑을 교환한다.
+std::uint32_t swapRedBlue(std::uint32_t word) noexcept
+{
+    return (word & 0xff00ff00U) | ((word & 0x000000ffU) << 16) | ((word & 0x00ff0000U) >> 16);
+}
+
+// 같은 바이트 치환으로 RGBA와 리틀엔디언 ARGB32 저장소를 양방향 변환한다.
+void swapRedBluePixels(const unsigned char *source, unsigned char *destination, std::size_t count) noexcept
+{
+    std::size_t i = 0;
+#if defined(STBI_NEON) && defined(__aarch64__)
+    constexpr std::array<unsigned char, 16> channels{2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15};
+    const auto shuffle = vld1q_u8(channels.data());
+    for (; count - i >= 4; i += 4) {
+        const auto group = vld1q_u8(source + i * 4);
+        vst1q_u8(destination + i * 4, vqtbl1q_u8(group, shuffle));
+    }
+#endif
+    for (; i < count; ++i) {
+        std::uint32_t word;
+        std::memcpy(&word, source + i * 4, sizeof(word));
+        const auto converted = swapRedBlue(word);
+        std::memcpy(destination + i * 4, &converted, sizeof(converted));
+    }
+}
+
+// 디코더의 RGBA 바이트를 최종 ARGB32 벡터에 기록한다.
+void unpackRgba(const unsigned char *rgba, std::span<std::uint32_t> pixels) noexcept
+{
+    if constexpr (std::endian::native == std::endian::little) {
+        swapRedBluePixels(rgba, reinterpret_cast<unsigned char *>(pixels.data()), pixels.size());
+    } else {
+        for (std::size_t i = 0; i < pixels.size(); ++i) {
+            const auto *color = rgba + i * 4;
+            pixels[i] = static_cast<std::uint32_t>(color[3]) << 24 | static_cast<std::uint32_t>(color[0]) << 16
+                      | static_cast<std::uint32_t>(color[1]) << 8 | color[2];
+        }
+    }
+}
+
+// 알파 포함 포맷용 연속 RGBA 배열을 기존 ARGB32 픽셀에서 채운다.
+void packRgba(std::span<const std::uint32_t> pixels, unsigned char *rgba) noexcept
+{
+    if constexpr (std::endian::native == std::endian::little) {
+        swapRedBluePixels(reinterpret_cast<const unsigned char *>(pixels.data()), rgba, pixels.size());
+    } else {
+        for (std::size_t i = 0; i < pixels.size(); ++i) {
+            const auto argb = pixels[i];
+            auto *color = rgba + i * 4;
+            color[0] = static_cast<unsigned char>(argb >> 16);
+            color[1] = static_cast<unsigned char>(argb >> 8);
+            color[2] = static_cast<unsigned char>(argb);
+            color[3] = static_cast<unsigned char>(argb >> 24);
+        }
+    }
+}
+
+// 기존 8비트 알파 합성 반올림을 적용한 뒤 대상 포맷의 채널을 바로 기록한다.
+template <typename Channel, typename Convert>
+void packOpaqueRgb(std::span<const std::uint32_t> pixels, std::uint32_t backgroundArgb,
+                   Channel *output, Convert convert) noexcept
+{
+    for (const auto argb : pixels) {
+        const auto alpha = argb >> 24;
+        for (const unsigned shift : {16U, 8U, 0U}) {
+            const auto foreground = (argb >> shift) & 255U;
+            const auto background = (backgroundArgb >> shift) & 255U;
+            const auto color = static_cast<unsigned char>((foreground * alpha + background * (255 - alpha) + 127) / 255);
+            *output++ = convert(color);
+        }
+    }
+}
+}
+
+std::array<float, 256> hdrLinearTable()
+{
+    const auto compute = [] {
+        std::array<float, 256> table;
+        for (std::size_t i = 0; i < table.size(); ++i) {
+            table[i] = static_cast<float>(std::pow(i / 255.0, 2.2));
+        }
+        return table;
+    };
+#ifdef FE_TONEAREST
+    if (std::fegetround() == FE_TONEAREST) {
+        static const auto nearest = compute();
+        return nearest;
+    }
+#endif
+    // 방향 반올림 설정에서는 해당 모드에서 기존 pow와 float 변환을 수행한다.
+    return compute();
 }
 
 std::string normalizeFormat(std::string_view text)
@@ -147,11 +250,7 @@ std::expected<DecodedBitmap,std::string> read(std::span<const unsigned char> byt
         if (!image) return std::unexpected("The bitmap decoder returned no pixels.");
         if (!validDimensions(width,height)) return std::unexpected("Decoded dimensions exceed the configured limits.");
         auto pixels = makeRasterLayer(width,height);
-        for (std::size_t i = 0;i < pixels.pixels.size();++i) {
-            const auto *rgba = image.get() + i * 4;
-            pixels.pixels[i] = static_cast<std::uint32_t>(rgba[3]) << 24 | static_cast<std::uint32_t>(rgba[0]) << 16
-                    | static_cast<std::uint32_t>(rgba[1]) << 8 | rgba[2];
-        }
+        unpackRgba(image.get(), pixels.pixels);
         return DecodedBitmap{std::move(pixels),format};
     } catch (const std::exception &e) { return std::unexpected(std::string(e.what())); }
 }
@@ -166,33 +265,34 @@ std::expected<BitmapFileIO::Bytes,std::string> write(std::string_view requested,
                 || pixels.pixels.size() != static_cast<std::size_t>(pixels.width) * pixels.height)
             return std::unexpected("Invalid bitmap pixels.");
         if (options.quality < -1 || options.quality > 100) return std::unexpected("Quality must be -1 or within [0,100].");
-        const bool opaque = format == "jpeg" || format == "pnm" || format == "hdr";
-        const int channels = opaque ? 3 : 4;
-        Bytes bytes(pixels.pixels.size() * channels);
-        for (std::size_t i = 0;i < pixels.pixels.size();++i) {
-            const auto argb = pixels.pixels[i]; const auto alpha = (argb >> 24) & 255U;
-            for (unsigned c = 0;c < 3;++c) {
-                const auto shift = (2 - c) * 8;
-                const auto foreground = (argb >> shift) & 255U,background = (options.backgroundArgb >> shift) & 255U;
-                bytes[i * channels + c] = static_cast<unsigned char>(opaque
-                        ? (foreground * alpha + background * (255 - alpha) + 127) / 255 : foreground);
-            }
-            if (!opaque) bytes[i * 4 + 3] = static_cast<unsigned char>(alpha);
-        }
         Output output;
         int ok = 0;
-        if (format == "png") ok = stbi_write_png_to_func(appendBytes,&output,pixels.width,pixels.height,channels,bytes.data(),pixels.width*channels);
-        else if (format == "jpeg") ok = stbi_write_jpg_to_func(appendBytes,&output,pixels.width,pixels.height,channels,bytes.data(),options.quality < 0 ? 90 : options.quality);
-        else if (format == "bmp") ok = stbi_write_bmp_to_func(appendBytes,&output,pixels.width,pixels.height,channels,bytes.data());
-        else if (format == "tga") ok = stbi_write_tga_to_func(appendBytes,&output,pixels.width,pixels.height,channels,bytes.data());
-        else if (format == "hdr") {
-            std::vector<float> linear(bytes.size());
-            std::ranges::transform(bytes,linear.begin(),[](unsigned char b) { return static_cast<float>(std::pow(b / 255.0,2.2)); });
-            ok = stbi_write_hdr_to_func(appendBytes,&output,pixels.width,pixels.height,3,linear.data());
+        const auto pixelCount = pixels.pixels.size();
+        const auto unchangedChannel = [](unsigned char channel) noexcept { return channel; };
+        if (format == "hdr") {
+            const auto table = hdrLinearTable();
+            const auto linear = std::make_unique_for_overwrite<float[]>(pixelCount * 3);
+            packOpaqueRgb(pixels.pixels, options.backgroundArgb, linear.get(),
+                          [&table](unsigned char channel) noexcept { return table[channel]; });
+            ok = stbi_write_hdr_to_func(appendBytes, &output, pixels.width, pixels.height, 3, linear.get());
         } else if (format == "pnm") {
             const auto header = "P6\n" + std::to_string(pixels.width) + " " + std::to_string(pixels.height) + "\n255\n";
-            output.bytes.assign(header.begin(),header.end());
-            output.bytes.insert(output.bytes.end(),bytes.begin(),bytes.end()); ok = 1;
+            output.bytes.resize(header.size() + pixelCount * 3);
+            std::copy(header.begin(), header.end(), output.bytes.begin());
+            packOpaqueRgb(pixels.pixels, options.backgroundArgb, output.bytes.data() + header.size(), unchangedChannel);
+            ok = 1;
+        } else if (format == "jpeg") {
+            const auto rgb = std::make_unique_for_overwrite<unsigned char[]>(pixelCount * 3);
+            packOpaqueRgb(pixels.pixels, options.backgroundArgb, rgb.get(), unchangedChannel);
+            ok = stbi_write_jpg_to_func(appendBytes, &output, pixels.width, pixels.height, 3,
+                                       rgb.get(), options.quality < 0 ? 90 : options.quality);
+        } else {
+            const auto rgba = std::make_unique_for_overwrite<unsigned char[]>(pixelCount * 4);
+            packRgba(pixels.pixels, rgba.get());
+            if (format == "png") ok = stbi_write_png_to_func(appendBytes, &output, pixels.width, pixels.height, 4,
+                                                             rgba.get(), pixels.width * 4);
+            else if (format == "bmp") ok = stbi_write_bmp_to_func(appendBytes, &output, pixels.width, pixels.height, 4, rgba.get());
+            else if (format == "tga") ok = stbi_write_tga_to_func(appendBytes, &output, pixels.width, pixels.height, 4, rgba.get());
         }
         if (!ok || output.failed || output.bytes.empty()) return std::unexpected("Bitmap encoding failed.");
         return std::move(output.bytes);

@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/LAYER_COMPOSITING.md",
-    "sha256": "e3b87b8982f507e587852b72e97c2b45a46ca76b5a94dfe2e9dbbf9c44969e6a",
-    "bytes": 2518,
-    "line_count": 11,
+    "sha256": "6b11589e1c80b61ebac95645cd1e6463fdf197263f452929fbe45c277b5063e5",
+    "bytes": 3199,
+    "line_count": 17,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -100,6 +100,50 @@
       "start_line": 11,
       "end_line": 11,
       "raw": "`LayerBlendModesTest` checks all 27 modes over transparent backdrops, reference arithmetic, endpoint ordering, nonseparable results, partial-alpha overlap and deterministic Dissolve. `LayerCompositingContractTest` checks masks, groups and clipping. This is CPU pixel evidence, not GPU shader or Photoshop GUI parity.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "heading",
+      "start_line": 13,
+      "end_line": 13,
+      "raw": "## Layer compositing for full-opacity layers\n",
+      "level": 2,
+      "title": "Layer compositing for full-opacity layers"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 14,
+      "end_line": 14,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "`compositeRasterPixel` uses the source alpha byte directly for Normal (`SourceOver`) at unit layer opacity. A zero-alpha source leaves the backdrop intact and a fully opaque source replaces it. A translucent source over an opaque backdrop uses integer-weighted RGB channels with the same nearest-byte rounding. Two translucent pixels, fractional layer opacity and other blend modes still use the general compositor.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "`LayerCompositingContractTest` checks all 256 source alpha values and all 65,536 source/backdrop channel pairs over an opaque backdrop against an independent reference. The three packed channels use different values.\n"
     }
   ],
   "outline": [
@@ -110,6 +154,14 @@
       "title": "Layer compositing (0.4.1)",
       "anchor": "layer-compositing-041",
       "start_line": 1
+    },
+    {
+      "block_id": "b000013",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Layer compositing for full-opacity layers",
+      "anchor": "layer-compositing-for-full-opacity-layers",
+      "start_line": 13
     }
   ],
   "indexes": {

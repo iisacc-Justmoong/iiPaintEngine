@@ -284,6 +284,23 @@ RasterLayer layerContent(const Layer &layer, Types::Pixel width, Types::Pixel he
 std::uint32_t compositeRasterPixel(std::uint32_t source, std::uint32_t backdrop,
                                   RasterBlendMode mode, double opacity, std::uint32_t noiseKey)
 {
+    // With a full-opacity layer, the coverage is already in the source byte.
+    if (mode == RasterBlendMode::SourceOver && opacity == 1.0) {
+        const std::uint32_t sourceAlpha = alphaByte(source);
+        const std::uint32_t backdropAlpha = alphaByte(backdrop);
+        if (sourceAlpha == 0) return backdropAlpha ? backdrop : 0;
+        if (sourceAlpha == 255 || backdropAlpha == 0) return source;
+        if (backdropAlpha == 255) {
+            // Output alpha is 255. The exact channel fraction has an odd
+            // denominator, so adding 127 rounds to the same byte as lround.
+            const auto channel = [&](unsigned shift) {
+                const auto s = (source >> shift) & 255U;
+                const auto b = (backdrop >> shift) & 255U;
+                return (s * sourceAlpha + b * (255U - sourceAlpha) + 127U) / 255U;
+            };
+            return 0xff000000U | (channel(16) << 16) | (channel(8) << 8) | channel(0);
+        }
+    }
     auto s = straightPixel(source);
     s.alpha *= std::isfinite(opacity) ? std::clamp(opacity, 0.0, 1.0) : 0;
     if (mode == RasterBlendMode::Dissolve) {

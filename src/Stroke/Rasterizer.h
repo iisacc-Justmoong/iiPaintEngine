@@ -143,10 +143,39 @@ struct RasterDabStream {
     std::uint32_t strokeColorArgb = 0xFF000000U;
 };
 
+inline constexpr std::size_t maxRasterDabsPerEvent = 65'536;
+inline constexpr std::size_t maxRasterProjectedPixelsPerEvent = 16'777'216;
+
+// Per-event work for live paint sessions. Each value is capped by the corresponding raster limit.
+struct RasterEventLimits {
+    std::size_t maxDabsPerEvent = 4'096;         // Placement attempts and emitted dabs, including symmetry.
+    std::size_t maxProjectedPixels = 1'048'576; // Candidate pixel visits inside the destination, including overlap.
+};
+
 std::vector<BrushDab> appendRasterDabs(RasterDabStream &stream,
                                        const StrokePoint &point,
                                        const BrushState &brush,
                                        bool finishStroke = false);
+
+// Advances the stream only if the whole event fits. A limit violation throws std::length_error.
+std::vector<BrushDab> appendRasterDabsWithLimit(RasterDabStream &stream,
+                                              const StrokePoint &point,
+                                              const BrushState &brush,
+                                              std::size_t maxDabs,
+                                              bool finishStroke = false);
+
+// Returns the identity-projected pixel bounds intersecting the destination before narrowing coordinates.
+DevicePixelRect clippedDeviceBoundsForBrushDab(const BrushDab &dab, const Rasterizer &rasterizer,
+                                                DevicePixelRect clip);
+
+// Counts all candidate visits inside the destination before raster work. Throws std::length_error at the limit.
+std::size_t checkedProjectedPixelCount(BrushDabSpan dabs, const Rasterizer &rasterizer,
+                                       DevicePixelRect clip, std::size_t maxProjectedPixels);
+
+// Checks the pixel budget before allocating samples, then projects only inside the destination.
+std::vector<RasterSample> projectClippedBrushDabs(BrushDabSpan dabs, const Rasterizer &rasterizer,
+                                               DevicePixelRect clip, std::size_t maxProjectedPixels,
+                                               const RasterSourceSampler &source, const BrushMaterial &material);
 
 void resetRasterDabStream(RasterDabStream &stream);
 

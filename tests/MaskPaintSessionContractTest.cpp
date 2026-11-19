@@ -1,9 +1,16 @@
-#include "Application/MaskPaintSession.h"
-#include "Brush/BrushPreset.h"
+#include <iiPaintEngine>
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <iostream>
 #include <limits>
+#include <utility>
+
+// Seed otherwise untouched storage to detect even redundant writes of the same pixel values.
+struct MaskPaintSessionTestAccess {
+    static PixelMask &pending(MaskPaintSession &session) noexcept { return session.m_pending; }
+    static PixelMask &preview(MaskPaintSession &session) noexcept { return session.m_preview; }
+};
 
 #define CHECK(c) do {if(!(c)){std::cerr<<__LINE__<<": " #c "\n";return 1;}}while(false)
 namespace {
@@ -21,9 +28,166 @@ bool click(MaskPaintSession& session,double x,double y,double time)
     return session.processPointerEvent(event(PointerEventPhase::Press,x,y,time)).accepted
         &&session.processPointerEvent(event(PointerEventPhase::Release,x,y,time)).committed;
 }
+
+// Test membership in the half-open rectangle returned by a mask paint event.
+bool inside(DevicePixelRect bounds, int x, int y)
+{
+    return x >= bounds.origin.x && x < bounds.origin.x + bounds.width
+            && y >= bounds.origin.y && y < bounds.origin.y + bounds.height;
+}
+
+// Compare the full bounds returned for an observed coverage change.
+bool sameBounds(DevicePixelRect actual, DevicePixelRect expected)
+{
+    return actual.origin.x == expected.origin.x && actual.origin.y == expected.origin.y
+            && actual.width == expected.width && actual.height == expected.height;
+}
+
+// Check both sides of the guard, including every interior pixel of the expected write rectangle.
+bool matchesRange(const PixelMask &mask, DevicePixelRect bounds, float insideValue, float outsideValue)
+{
+    for (int y = 0; y < mask.height; ++y) {
+        for (int x = 0; x < mask.width; ++x) {
+            if (at(mask, x, y) != (inside(bounds, x, y) ? insideValue : outsideValue)) return false;
+        }
+    }
+    return true;
+}
+
+// Exercise physical writes through the live cancel, commit, and history paths with guard values.
+int checkResetRanges()
+{
+    constexpr float background = .25F;
+    constexpr float pendingCanary = .125F;
+    constexpr float previewCanary = .75F;
+    MaskPaintSession session;
+    CHECK(session.setBrushOptions(LocalMaskBrushOptions{.sizePixels = 5, .feather = 0}));
+    for (const auto phase : {PointerEventPhase::Cancel, PointerEventPhase::Release}) {
+        CHECK(session.createMask(32, 24, background));
+        const auto press = session.processPointerEvent(event(PointerEventPhase::Press, 7, 8, 1));
+        CHECK(press.accepted && !isEmpty(press.dirtyBounds));
+        auto &pending = MaskPaintSessionTestAccess::pending(session);
+        auto &preview = MaskPaintSessionTestAccess::preview(session);
+        DevicePixelRect pendingBounds{}, previewBounds{};
+        for (int y = 0; y < pending.height; ++y) {
+            for (int x = 0; x < pending.width; ++x) {
+                const DevicePixelRect pixel{{x, y}, 1, 1};
+                if (at(pending, x, y) != 0.F) pendingBounds = uniteDevicePixelRects(pendingBounds, pixel);
+                if (at(preview, x, y) != background) previewBounds = uniteDevicePixelRects(previewBounds, pixel);
+            }
+        }
+        CHECK(sameBounds(press.dirtyBounds, previewBounds));
+        std::ranges::fill(pending.coverage, pendingCanary);
+        std::ranges::fill(preview.coverage, previewCanary);
+
+        const auto result = session.processPointerEvent(event(phase, 7, 8, 2));
+        CHECK(result.accepted && !result.strokeActive);
+        CHECK(matchesRange(pending, pendingBounds, 0.F, pendingCanary));
+        if (phase == PointerEventPhase::Cancel) {
+            CHECK(!result.committed && !session.canUndo());
+            CHECK(matchesRange(preview, previewBounds, background, previewCanary));
+            CHECK(sameBounds(result.dirtyBounds, previewBounds));
+        } else {
+            CHECK(result.committed && matchesRange(session.mask(), previewBounds, previewCanary, background));
+            CHECK(matchesRange(preview, {}, previewCanary, previewCanary));
+
+            // History updates only its patch and writes nothing to idle pending storage.
+            std::ranges::fill(pending.coverage, pendingCanary);
+            CHECK(session.undo());
+            CHECK(matchesRange(preview, previewBounds, background, previewCanary));
+            CHECK(matchesRange(pending, {}, pendingCanary, pendingCanary));
+            constexpr float redoCanary = .875F;
+            std::ranges::fill(preview.coverage, redoCanary);
+            CHECK(session.redo());
+            CHECK(matchesRange(preview, previewBounds, previewCanary, redoCanary));
+            CHECK(matchesRange(pending, {}, pendingCanary, pendingCanary));
+        }
+    }
+    return 0;
+}
+
+// A saturated Add stroke still writes pending coverage even when it has an empty preview dirty rectangle.
+int checkInvisibleAccumulation()
+{
+    for (const auto phase : {PointerEventPhase::Cancel, PointerEventPhase::Release}) {
+        MaskPaintSession session;
+        CHECK(session.createMask(8, 8, .75F));
+        LocalMaskBrushOptions brush{.sizePixels = 1, .feather = 0, .density = .75};
+        CHECK(session.setBrushOptions(brush));
+        const auto press = session.processPointerEvent(event(PointerEventPhase::Press, 4, 4, 1));
+        CHECK(press.accepted && isEmpty(press.dirtyBounds));
+        CHECK(at(MaskPaintSessionTestAccess::pending(session), 4, 4) == 1.F);
+        const auto result = session.processPointerEvent(event(phase, 4, 4, 2));
+        CHECK(result.accepted && !result.committed && !session.canUndo());
+        CHECK(matchesRange(MaskPaintSessionTestAccess::pending(session), {}, 0.F, 0.F));
+
+        brush.mode = MaskBrushMode::Erase;
+        brush.flow = .25;
+        CHECK(session.setBrushOptions(brush) && click(session, 4, 4, 3));
+        CHECK(at(session.mask(), 4, 4) == .5625F);
+    }
+    return 0;
+}
+
+// Compare the entire mask, including bit patterns of untouched floats such as negative zero.
+bool samePixels(const PixelMask &actual, const PixelMask &expected)
+{
+    return actual.width == expected.width && actual.height == expected.height
+            && actual.coverage.size() == expected.coverage.size()
+            && (expected.coverage.empty() || std::memcmp(actual.coverage.data(), expected.coverage.data(),
+                                                        expected.coverage.size() * sizeof(float)) == 0);
+}
+
+// A 1px brush on integer centers deposits only at the center. The resulting coverage is exactly dyadic.
+int checkSmallStrokeGolden()
+{
+    auto golden = makePixelMask(2048, 1536, .5F);
+    golden.coverage[17] = -0.F;
+    MaskPaintSession session;
+    CHECK(session.replaceMask(golden));
+    const auto *const previewStorage = session.previewMask().coverage.data();
+    LocalMaskBrushOptions brush{.sizePixels = 1, .feather = 0, .flow = .25};
+    CHECK(session.setBrushOptions(brush) && click(session, 0, 0, 1));
+    golden.coverage.front() = .625F; // .5 + (1 - .5) * .25
+    CHECK(samePixels(session.mask(), golden) && samePixels(session.previewMask(), golden));
+
+    // A valid replacement press rolls back the previous active region before painting its own region.
+    CHECK(session.processPointerEvent(event(PointerEventPhase::Press, 17, 32, 2)).accepted);
+    CHECK(session.processPointerEvent(event(PointerEventPhase::Press, 64, 56, 3)).accepted);
+    auto active = golden;
+    active.coverage[56 * static_cast<std::size_t>(active.width) + 64] = .625F;
+    CHECK(samePixels(session.previewMask(), active) && samePixels(session.mask(), golden));
+    CHECK(session.processPointerEvent(event(PointerEventPhase::Cancel, 64, 56, 4)).accepted);
+    CHECK(samePixels(session.previewMask(), golden));
+
+    brush.mode = MaskBrushMode::Erase;
+    CHECK(session.setBrushOptions(brush) && click(session, 0, 0, 5));
+    auto erased = golden;
+    erased.coverage.front() = .46875F; // .625 * (1 - .25)
+    CHECK(samePixels(session.mask(), erased) && samePixels(session.previewMask(), erased));
+
+    // Undo discards an unrelated active region and applies only the last committed patch.
+    CHECK(session.processPointerEvent(event(PointerEventPhase::Press, 13, 22, 6)).accepted);
+    CHECK(session.undo() && !session.strokeActive());
+    CHECK(samePixels(session.mask(), golden) && samePixels(session.previewMask(), golden));
+    CHECK(session.redo() && samePixels(session.mask(), erased) && samePixels(session.previewMask(), erased));
+    CHECK(session.previewMask().coverage.data() == previewStorage);
+
+    // Cancelling the moved-from object must leave the destination's active stroke and buffers intact.
+    CHECK(session.processPointerEvent(event(PointerEventPhase::Press, 13, 22, 7)).accepted);
+    MaskPaintSession moved(std::move(session));
+    session.cancelStroke();
+    CHECK(!session.strokeActive() && moved.strokeActive());
+    moved.cancelStroke();
+    CHECK(samePixels(moved.previewMask(), erased));
+    return 0;
+}
 }
 int main()
 {
+    if (const auto failure = checkResetRanges(); failure != 0) return failure;
+    if (const auto failure = checkInvisibleAccumulation(); failure != 0) return failure;
+    if (const auto failure = checkSmallStrokeGolden(); failure != 0) return failure;
     MaskPaintSession session;
     CHECK(!session.hasMask()&&!session.strokeActive());
     CHECK(session.createMask(32,24));

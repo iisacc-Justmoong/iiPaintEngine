@@ -112,7 +112,7 @@ Neither `InputStrokeBuilder` nor `RasterDabStream` owns a point collection. A da
 
 `BrushPreset` is an editable value object for tips, shape, spacing, color, dynamics, pose, texture, secondary masks, and bitmap material effects. `resolveBrushPreset()` validates every setting and creates `BrushState`. Six editable built-in presets demonstrate pressure ink, grain pencil, soft airbrush, flat marker, color spray, and wet flat mixing. [Brush API and units](docs/BRUSHES.md) and [extended option behavior](docs/BRUSH_OPTIONS.md) document the contract.
 
-Preset format 4 preserves extended options and reads formats 1/2/3. Pixel document format 3 stores layer pixels, metadata, masks, brush presets, color metadata, assets, and raster history. It reads compatible format 2 single-surface documents. Unknown or incompatible content is rejected. The Photoshop investigation informed option coverage; renderer formulas remain independent bitmap models and do not establish Adobe pixel parity.
+Preset format 4 preserves extended options and reads formats 1/2/3. Pixel document format 4 stores raster and byte payloads in length-prefixed binary chunks alongside text metadata. It reads format 3 and compatible legacy single-surface archives. `serializeDocumentArchiveTo()` writes to a caller-owned binary stream. The Photoshop investigation informed option coverage; renderer formulas remain independent bitmap models and do not establish Adobe pixel parity.
 
 0.5 adds [bounded ABR tip import, symmetry and stabilization](docs/BRUSH_EXPANSION.md).
 ABR v1/v2 geometry and v6/v7/v9/v10 sampled tips can become editable presets;

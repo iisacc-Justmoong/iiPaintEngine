@@ -15,6 +15,28 @@ std::uint32_t color(DevicePixelPoint p) {
     return 0xff000000U | ((std::uint32_t(p.x)&255U)<<16) |
            ((std::uint32_t(p.y)&255U)<<8) | ((std::uint32_t(p.x)^std::uint32_t(p.y))&255U);
 }
+
+// 한 행의 저장된 구간과 양쪽 누락 타일을 함께 읽는다.
+void row_spans()
+{
+    auto builder = FrozenSourceBuilder::create({{-68, 0}, 73, 16}, 1);
+    check(builder.has_value(), "row source setup");
+    check(bool(builder->add({{-64, 0}, 64, 1}, color)), "row source capture");
+    const auto source = builder->freeze();
+    check(source.has_value(), "row source freeze");
+    FrozenSourceSampler reader(*source, 2);
+    const auto sampler = reader.sampler();
+    std::array<std::uint32_t, 69> pixels;
+    FrozenSourceSampler::readRow(sampler.context, {2, 3}, pixels);
+    for (std::size_t i = 0; i < pixels.size(); ++i) {
+        const auto x = static_cast<int>(i) - 66;
+        check(pixels[i] == (x >= -64 && x < 0 ? color({x, 3}) : 0U), "row did not copy from the correct tile");
+    }
+    const auto missing = reader.missingTiles();
+    check(!reader.complete() && reader.reportComplete() && missing.size() == 2
+          && missing[0].origin.x == -128 && missing[1].origin.x == 0, "row missing tile report");
+}
+
 void sparse() {
     auto made=FrozenSourceBuilder::create({{-128,-128},8448,8448},3);
     check(bool(made),"create");
@@ -318,5 +340,5 @@ void atomic_failure() {
     check(!invalid && invalid.error().code==FrozenSourceErrorCode::InvalidBounds,"invalid bounds accepted");
 }
 }
-int main() {try {sparse();atomic_failure();frozen_render();frozen_preset();mixer_discovery();sparse_8k_render();reentrancy();exception_recovery();independent_lifetime();std::cout<<"FROZEN_SOURCE_OK\n";}
+int main() {try {row_spans();sparse();atomic_failure();frozen_render();frozen_preset();mixer_discovery();sparse_8k_render();reentrancy();exception_recovery();independent_lifetime();std::cout<<"FROZEN_SOURCE_OK\n";}
             catch(const std::exception& e) {std::cerr<<e.what()<<'\n';return 1;}}

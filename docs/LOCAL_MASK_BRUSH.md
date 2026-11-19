@@ -156,7 +156,8 @@ Every accepted event synchronously updates touched pending/preview pixels;
 `mask()` remains committed until release or `commitStroke()`. Release at an
 unchanged position commits exactly the preview. Release at a new position
 first paints the final segment. Empty/unchanged strokes create no history.
-Cancel restores committed pixels to preview.
+Cancel restores committed pixels in the changed preview rectangle and returns
+that rectangle in `MaskPaintUpdate::dirtyBounds`.
 
 Undo/redo exchange dirty-rectangle float pixel patches. Clear is undoable;
 new commits discard redo. Undo/redo/clear discard unfinished input. The input
@@ -164,6 +165,16 @@ builder owns one active flag, and the existing stream owns one preceding point
 plus scalar placement state. Guidance, pending state and history contain
 pixels; there is no point list, pointer event history or replayable stroke.
 Invalid finite/range/timestamp/dab-budget input preserves existing mask pixels.
+
+The session reuses its committed, preview and pending planes for the lifetime
+of a mask. Pending coverage has its own dirty rectangle because deposits can
+accumulate without changing visible coverage, such as on a saturated mask.
+Commit clears only that pending rectangle. Cancel and a replacement press also
+restore the changed preview rectangle. Undo and redo restore any active
+preview before updating both planes inside the history patch. Reset work is
+proportional to the affected rectangles. Clearing the whole mask explicitly
+changes both visible planes across its full dimensions. C++ consumers must be
+rebuilt when linking the updated class layout.
 
 The session owns three mask planes, an optional ARGB guidance plane and
 application-lifetime pixel history. Callers must budget large masks/history;
@@ -177,7 +188,10 @@ thread, clock, external adjustment SDK or user image file.
 `MaskPaintSessionContract` checks actual diameter/feather pixels, low-flow
 float precision, repeated accumulation, independent caps, stroke reentry,
 erasure, preview/commit/cancel, pixel history, option snapshots, pressure and
-failure preservation. `MaskAutoMaskContract` checks contrasting edges, reference
+failure preservation. It also checks actual reset writes with guard values,
+verifies hidden accumulation is cleared, and compares every float bit of a
+2048 × 1536 mask after small strokes and history edits. `MaskAutoMaskContract`
+checks contrasting edges, reference
 freezing/resampling, source-copy lifetime, tolerance, partial/zero alpha and
 missing/invalid guidance. Public umbrella and staged install consumer tests
 compile and execute the new API. Full Release and ASan/UBSan suites run under
@@ -188,3 +202,21 @@ On macOS the shared target explicitly uses `@rpath/libiiPaintEngine.dylib` for
 both build and install IDs. An old cache's absolute install-name directory must
 not bind a newly linked consumer to an earlier installed SDK. The staged
 installation contract verifies this actual ID before compiling the consumer.
+
+## Scanline rasterization
+
+Each event selects its Auto Mask path before visiting any pixels. The unguided
+path uses geometry and coverage alone. The guided path reads colors where the
+geometric coverage is positive. Overlapping dabs are composited in stream order.
+
+The distance pass evaluates normalized squared distances in blocks of up to 32
+pixels from each clipped row. Compilers can vectorize their double-precision
+square roots. The scalar `hypot` formula handles the narrow band around the zero
+coverage cutoff, where rounding can change whether a pixel needs a write.
+
+Each row contributes the first and last changed X coordinates of its preview
+pixels and its newly nonzero pending pixels. This keeps the two dirty rectangles
+independent and bounds their merges by the number of rows processed per dab.
+`MaskDabRaster` compares both float planes within 1 ULP of the original scalar
+calculation and compares the rectangles exactly. Its cases cover clipping,
+rotated ellipses, overlapping dabs, feathering, Add, Erase, and Auto Mask.

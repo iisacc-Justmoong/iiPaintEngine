@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "README.md",
-    "sha256": "fc211ec98712d818e4ea7694876eb30e0876fef3498cfabde4ef10eb2bbe7d0f",
-    "bytes": 12978,
+    "sha256": "499f0f7c7ab45e8fd7404d5dd111c25255c4fb83bd7a152cb346652ad3178f17",
+    "bytes": 13007,
     "line_count": 178,
     "encoding": "utf-8",
     "language": "en"
@@ -432,7 +432,7 @@
       "kind": "paragraph",
       "start_line": 115,
       "end_line": 115,
-      "raw": "Preset format 4 preserves extended options and reads formats 1/2/3. Pixel document format 3 stores layer pixels, metadata, masks, brush presets, color metadata, assets, and raster history. It reads compatible format 2 single-surface documents. Unknown or incompatible content is rejected. The Photoshop investigation informed option coverage; renderer formulas remain independent bitmap models and do not establish Adobe pixel parity.\n"
+      "raw": "Preset format 4 preserves extended options and reads formats 1/2/3. Pixel document format 4 stores raster and byte payloads in length-prefixed binary chunks alongside text metadata. It reads format 3 and compatible legacy single-surface archives. `serializeDocumentArchiveTo()` writes to a caller-owned binary stream. The Photoshop investigation informed option coverage; renderer formulas remain independent bitmap models and do not establish Adobe pixel parity.\n"
     },
     {
       "id": "b000056",
@@ -908,7 +908,7 @@
       {
         "block_id": "b000055",
         "line": 115,
-        "text": "Preset format 4 preserves extended options and reads formats 1/2/3. Pixel document format 3 stores layer pixels, metadata, masks, brush presets, color metadata, assets, and raster history. It reads compatible format 2 single-surface documents. Unknown or incompatible content is rejected. The Photoshop investigation informed option coverage; renderer formulas remain independent bitmap models and do not establish Adobe pixel parity.",
+        "text": "Preset format 4 preserves extended options and reads formats 1/2/3. Pixel document format 4 stores raster and byte payloads in length-prefixed binary chunks alongside text metadata. It reads format 3 and compatible legacy single-surface archives. `serializeDocumentArchiveTo()` writes to a caller-owned binary stream. The Photoshop investigation informed option coverage; renderer formulas remain independent bitmap models and do not establish Adobe pixel parity.",
         "basis": "lexical_match",
         "context": "paragraph"
       },

@@ -22,7 +22,7 @@ BitmapPaintSession은 BitmapFile, 선택 브러시, pending/preview 픽셀, dirt
 
 Application은 BitmapFile/Input/Document/Layer/Brush/Stroke/Render/History 및 기타 작업 모듈을 조합한다. 하위 모듈은 Application을 참조하지 않는다. Core는 표준 타입만 사용한다. Brush는 Stroke를 참조하지 않는다. Input은 현재 StrokePoint 하나를 방출한다. Document의 내용은 Layer/DrawingSurface 픽셀이다. Render cache는 픽셀 tile과 stamp atlas만 가진다. 순환 의존성과 상향 참조를 금한다.
 
-프리셋 버전 3의 확장 옵션과 버전 1/2 읽기를 유지한다. 문서 버전 3은 픽셀·메타데이터·마스크·브러시·asset·raster history를 저장하고 호환 가능한 버전 2 단일 표면을 이관한다. presetV2라는 역사적 필드명 안의 formatVersion이 실제 프리셋 버전을 결정한다. 무효·미래 버전은 거부한다. 옵션 계약은 docs/BRUSH_OPTIONS.md, API 이관 계약은 docs/CXX23_MIGRATION.md에 따른다.
+프리셋 버전 4의 확장 옵션과 버전 1/2/3 읽기를 유지한다. 문서 버전 4는 픽셀과 바이트 배열을 길이 접두 바이너리 청크에 저장하고 버전 3 및 호환 가능한 단일 표면 문서를 읽는다. presetV2라는 역사적 필드명 안의 formatVersion이 실제 프리셋 버전을 결정한다. 무효·미래 버전은 거부한다. 옵션 계약은 docs/BRUSH_OPTIONS.md, API 이관과 바이너리 포맷 계약은 docs/CXX23_MIGRATION.md에 따른다.
 
 ## 변경과 검증
 

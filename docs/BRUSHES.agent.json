@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/BRUSHES.md",
-    "sha256": "76a9ce76b039e0a0d181d26150c2968bc858ad5ea949203c15b81a28df7b2d7a",
-    "bytes": 11360,
-    "line_count": 99,
+    "sha256": "3f4e53ab3db75e812d910db4f2de04584f99918e6dcac4f97629bfa9836734e7",
+    "bytes": 12096,
+    "line_count": 113,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -281,35 +281,63 @@
       "id": "b000029",
       "kind": "paragraph",
       "start_line": 65,
-      "end_line": 65,
-      "raw": "곡선은 최대 64개의 `(input, output)` 매듭을 받으며 input은 `[0,1]`에서 엄격하게 증가해야 한다. 각 구간에 Linear/EaseIn/EaseOut/EaseInOut을 적용한다. 매듭이 비어 있으면 기존 min/center/max 세 점을 사용한다. 입력 궤적을 보존하는 곡선이 아니라 스칼라 파라미터의 전달 함수이다.\n"
+      "end_line": 68,
+      "raw": "프리셋의 각 곡선은 최대 64개의 `(input, output)` 매듭을 받는다. 입력 좌표는 `[0,1]`에서\n엄격하게 증가해야 한다. 프리셋 로드와 해석은 역순·중복·비유한 매듭을 거부한다. 각 구간에는\nLinear, EaseIn, EaseOut, EaseInOut을 적용한다. 매듭이 비어 있으면 `min/center/max` 세 값을\n쓰고 한 개면 해당 매듭의 출력값을 사용한다.\n"
+    },
+    {
+      "id": "b000060",
+      "kind": "blank",
+      "start_line": 69,
+      "end_line": 69,
+      "raw": "\n"
+    },
+    {
+      "id": "b000061",
+      "kind": "paragraph",
+      "start_line": 70,
+      "end_line": 75,
+      "raw": "dab 생성 이벤트는 활성 곡선을 한 번 검증한 뒤 간격, 산포, dab 속성 계산에 같은\n`BrushDynamicsEvaluator`를 사용한다. 평가마다 P개 매듭의 구간을 O(log P) 이분 탐색으로\n찾고 기존 보간식을 적용한다. `evaluateBrushResponseCurve`와 `resolveBrushDynamics`는 직접\n편집한 입력을 단독 호출로 받을 수 있도록 호출 시 검증한다. 잘못된 매듭은\n`std::invalid_argument`로 보고한다. 여러 입력을 평가할 때는 원본 설정의 수명과 불변성을\n보장하는 범위에서 `BrushDynamicsEvaluator`를 재사용할 수 있다.\n"
+    },
+    {
+      "id": "b000062",
+      "kind": "blank",
+      "start_line": 76,
+      "end_line": 76,
+      "raw": "\n"
+    },
+    {
+      "id": "b000063",
+      "kind": "paragraph",
+      "start_line": 77,
+      "end_line": 79,
+      "raw": "`BrushResponseCurveOrdering`은 64개 비균일 매듭과 네 가지 easing에서 선형 기준 구현과\n보간 결과가 비트 단위로 일치하는지 검사한다. 비정렬 프리셋과 직접 편집한 설정을 거부하고, 이벤트\n실패 후 원래 획 상태에서 재시도할 수 있는지도 검증한다.\n"
     },
     {
       "id": "b000030",
       "kind": "blank",
-      "start_line": 66,
-      "end_line": 66,
+      "start_line": 80,
+      "end_line": 80,
       "raw": "\n"
     },
     {
       "id": "b000031",
       "kind": "paragraph",
-      "start_line": 67,
-      "end_line": 67,
+      "start_line": 81,
+      "end_line": 81,
       "raw": "최대 64개 연결을 사용한다. `pressureInputEnabled`, `velocityInputEnabled`, `tiltInputEnabled`, `randomInputEnabled`는 해당 연결에도 적용된다. 시드와 동일한 입력·설정은 동일한 결과를 낸다. 한 획에서 센서 이벤트의 순서나 시각을 변경하면 속도·시간 반응이 달라질 수 있다.\n"
     },
     {
       "id": "b000032",
       "kind": "blank",
-      "start_line": 68,
-      "end_line": 68,
+      "start_line": 82,
+      "end_line": 82,
       "raw": "\n"
     },
     {
       "id": "b000033",
       "kind": "heading",
-      "start_line": 69,
-      "end_line": 69,
+      "start_line": 83,
+      "end_line": 83,
       "raw": "## 시간 분사와 화면 연결\n",
       "level": 2,
       "title": "시간 분사와 화면 연결"
@@ -317,71 +345,71 @@
     {
       "id": "b000034",
       "kind": "blank",
-      "start_line": 70,
-      "end_line": 70,
+      "start_line": 84,
+      "end_line": 84,
       "raw": "\n"
     },
     {
       "id": "b000035",
       "kind": "paragraph",
-      "start_line": 71,
-      "end_line": 71,
+      "start_line": 85,
+      "end_line": 85,
       "raw": "core 호출자는 단조 증가하는 초 단위 time을 전달한다. 정지 분사는 같은 위치와 센서 상태를 새 시각으로 다시 전달한다. 한 이벤트에서 최대 65,536개 스탬프 또는 배치까지 허용한다. 비유한 입력, 역행 시간, 과도한 이벤트는 예외로 거부하고 기존 stream 상태를 보존한다. 생성된 팁의 기본 지름은 4096으로 제한하며 극단적인 크기·고밀도 설정은 픽셀 투영 비용이 크다.\n"
     },
     {
       "id": "b000036",
       "kind": "blank",
-      "start_line": 72,
-      "end_line": 72,
+      "start_line": 86,
+      "end_line": 86,
       "raw": "\n"
     },
     {
       "id": "b000037",
       "kind": "paragraph",
-      "start_line": 73,
-      "end_line": 73,
+      "start_line": 87,
+      "end_line": 87,
       "raw": "`BitmapPaintSession::setBrushPreset()`은 C++ 객체를, `setBrushPresetData(payload)`는 직렬화된 프리셋을 적용한다. 실패하면 false와 `lastError()`를 반환하며 기존 설정을 유지한다. `brushPresetData()`는 전체 프리셋을 직렬화한다. 색상은 `setBrushColor(argb)`로 지정한다.\n"
     },
     {
       "id": "b000038",
       "kind": "blank",
-      "start_line": 74,
-      "end_line": 74,
+      "start_line": 88,
+      "end_line": 88,
       "raw": "\n"
     },
     {
       "id": "b000039",
       "kind": "paragraph",
-      "start_line": 75,
-      "end_line": 75,
+      "start_line": 89,
+      "end_line": 89,
       "raw": "활성 획은 press 시점의 브러시 설정 스냅샷을 사용한다. 도중에 선택한 프리셋은 다음 획에 적용된다. 앱이 단조 증가하는 초를 `advanceTime(seconds)`에 전달하면 같은 위치에 에어브러시를 다시 분사한다. release·cancel·파일 교체·undo는 미완성 픽셀을 정리한다. 엔진에는 타이머·GUI 이벤트 루프·좌표 queue가 없다.\n"
     },
     {
       "id": "b000040",
       "kind": "blank",
-      "start_line": 76,
-      "end_line": 76,
+      "start_line": 90,
+      "end_line": 90,
       "raw": "\n"
     },
     {
       "id": "b000041",
       "kind": "paragraph",
-      "start_line": 77,
-      "end_line": 77,
+      "start_line": 91,
+      "end_line": 91,
       "raw": "`builtInBrushPresets()`는 Pressure Ink, Grain Pencil, Soft Airbrush, Flat Marker, Color Spray, Wet Flat Mixer의 독립적으로 편집 가능한 예제를 반환한다. 목록의 객체를 수정해 다른 브러시를 만들 수 있다.\n"
     },
     {
       "id": "b000042",
       "kind": "blank",
-      "start_line": 78,
-      "end_line": 78,
+      "start_line": 92,
+      "end_line": 92,
       "raw": "\n"
     },
     {
       "id": "b000043",
       "kind": "heading",
-      "start_line": 79,
-      "end_line": 79,
+      "start_line": 93,
+      "end_line": 93,
       "raw": "## 저장과 호환성\n",
       "level": 2,
       "title": "저장과 호환성"
@@ -389,57 +417,57 @@
     {
       "id": "b000044",
       "kind": "blank",
-      "start_line": 80,
-      "end_line": 80,
+      "start_line": 94,
+      "end_line": 94,
       "raw": "\n"
     },
     {
       "id": "b000045",
       "kind": "paragraph",
-      "start_line": 81,
-      "end_line": 81,
-      "raw": "프리셋 출력 버전은 3이다. `readBrushPreset()`은 버전 1, 2, 3을 읽고 오류 목록을 반환한다. `deserializeBrushPreset()`은 잘못된 입력에 `std::invalid_argument`를 던진다. 미래 버전, 잘못된 enum·숫자·마스크·곡선, 중복 키, 과도한 배열/페이로드를 거부한다. 마스크 전체는 16 MiB, 직렬화 입력은 40 MiB로 제한한다. 문자열의 개행·탭·역슬래시를 보존한다.\n"
+      "start_line": 95,
+      "end_line": 95,
+      "raw": "프리셋 출력 버전은 4이다. `readBrushPreset()`은 버전 1, 2, 3, 4를 읽고 오류 목록을 반환한다. `deserializeBrushPreset()`은 잘못된 입력에 `std::invalid_argument`를 던진다. 미래 버전, 잘못된 enum·숫자·마스크·곡선, 중복 키, 과도한 배열/페이로드를 거부한다. 마스크 전체는 16 MiB, 직렬화 입력은 40 MiB로 제한한다. 문자열의 개행·탭·역슬래시를 보존한다.\n"
     },
     {
       "id": "b000046",
       "kind": "blank",
-      "start_line": 82,
-      "end_line": 82,
+      "start_line": 96,
+      "end_line": 96,
       "raw": "\n"
     },
     {
       "id": "b000047",
       "kind": "paragraph",
-      "start_line": 83,
-      "end_line": 83,
-      "raw": "`snapshotBrushPreset()`/`restoreBrushPreset()`는 모든 설정을 복사한다. 문서 버전 3의 `brushSources`에는 완전한 버전 3 프리셋을 기존 이름인 `presetV2` 필드로 넣고 이전 필드도 함께 기록한다. 필드명은 과거 저장 포맷에서 유지하며 내부의 `formatVersion`으로 프리셋 버전을 구분한다. 이전 버전 엔진은 버전 3 프리셋을 거부하므로 새 옵션을 조용히 누락하여 편집하지 않는다. 새 엔진은 `presetV2`를 우선하고 잘못된 프리셋이면 문서를 incompatible로 반환한다. 기존 문서는 기존 필드로 읽힌다. 이전 엔진은 픽셀과 기존 브러시 필드는 읽을 수 있지만 새 설정을 재저장할 수 없으므로 새 설정이 있는 문서의 편집에는 새 엔진을 사용해야 한다.\n"
+      "start_line": 97,
+      "end_line": 97,
+      "raw": "`snapshotBrushPreset()`과 `restoreBrushPreset()`은 모든 설정을 복사한다. 문서 버전 4의 `brushSources`는 완전한 프리셋을 `presetV2` 바이너리 청크에 넣고 이전 필드도 함께 기록한다. 문서 버전 3의 `presetV2`는 16진수로 인코딩되어 있다. 두 형식에서 프리셋 자체의 `formatVersion`이 프리셋 버전을 결정한다. 엔진은 `presetV2`를 우선하고 잘못된 프리셋이면 문서를 호환 불가 상태로 반환한다. `presetV2`가 없는 기존 문서는 이전 필드로 읽는다.\n"
     },
     {
       "id": "b000048",
       "kind": "blank",
-      "start_line": 84,
-      "end_line": 84,
+      "start_line": 98,
+      "end_line": 98,
       "raw": "\n"
     },
     {
       "id": "b000049",
       "kind": "paragraph",
-      "start_line": 85,
-      "end_line": 85,
+      "start_line": 99,
+      "end_line": 99,
       "raw": "설계 범위는 [Adobe의 브러시 동적 속성](https://helpx.adobe.com/ie/photoshop/using/adding-dynamic-elements-brushes.html)과 [CLIP STUDIO의 다중 팁 설정](https://tips.clip-studio.com/en-us/articles/678)을 참고했다. 두 제품의 완전한 재현이나 ABR/SUT 호환성을 뜻하지 않는다. 기존 습식 혼색은 픽셀 샘플링 모델이며 유체 시뮬레이션이 아니다. 원본 궤적 저장, 종료점 taper, 전체 경로 smoothing, 리본 벡터는 bitmap-only 계약에 포함되지 않는다.\n"
     },
     {
       "id": "b000050",
       "kind": "blank",
-      "start_line": 86,
-      "end_line": 86,
+      "start_line": 100,
+      "end_line": 100,
       "raw": "\n"
     },
     {
       "id": "b000051",
       "kind": "heading",
-      "start_line": 87,
-      "end_line": 87,
+      "start_line": 101,
+      "end_line": 101,
       "raw": "## 추가 브러시 옵션\n",
       "level": 2,
       "title": "추가 브러시 옵션"
@@ -447,29 +475,29 @@
     {
       "id": "b000052",
       "kind": "blank",
-      "start_line": 88,
-      "end_line": 88,
+      "start_line": 102,
+      "end_line": 102,
       "raw": "\n"
     },
     {
       "id": "b000053",
       "kind": "paragraph",
-      "start_line": 89,
-      "end_line": 89,
+      "start_line": 103,
+      "end_line": 103,
       "raw": "0.3.0은 명시적인 Jitter/Control/Fade/Minimum, 자세 고정, 텍스처 반전·명암·깊이·혼합, 색상 순도, Noise/Wet Edges, 이중 팁 산포, 마모·분사 팁과 인과적 smoothing 옵션을 추가한다. 단위, 기본값, 계산 순서, Photoshop 자료와의 대응 및 검증 범위는 [브러시 옵션 계약](BRUSH_OPTIONS.md)에 기록하였다. 모든 새 효과는 기본값에서 비활성이며 기존 프리셋의 결과를 유지한다.\n"
     },
     {
       "id": "b000054",
       "kind": "blank",
-      "start_line": 90,
-      "end_line": 90,
+      "start_line": 104,
+      "end_line": 104,
       "raw": "\n"
     },
     {
       "id": "b000055",
       "kind": "heading",
-      "start_line": 91,
-      "end_line": 91,
+      "start_line": 105,
+      "end_line": 105,
       "raw": "## 실행 가능한 견본\n",
       "level": 2,
       "title": "실행 가능한 견본"
@@ -477,29 +505,29 @@
     {
       "id": "b000056",
       "kind": "blank",
-      "start_line": 92,
-      "end_line": 92,
+      "start_line": 106,
+      "end_line": 106,
       "raw": "\n"
     },
     {
       "id": "b000057",
       "kind": "paragraph",
-      "start_line": 93,
-      "end_line": 93,
+      "start_line": 107,
+      "end_line": 107,
       "raw": "`Example/FileProvider/App/BrushGallery.cpp`는 각 입력점을 즉시 픽셀화하며 여섯 프리셋을 한 PNG로 출력한다. 파일 제공자와 엔진을 별도 소비자로 구성해야 한다. 라이브러리·공개 헤더·소비자·예제·테스트 모두 C++23을 요구한다. 공개 타입이 바뀌었으므로 SDK를 교체할 때 소비자도 재빌드해야 한다.\n"
     },
     {
       "id": "b000058",
       "kind": "blank",
-      "start_line": 94,
-      "end_line": 94,
+      "start_line": 108,
+      "end_line": 108,
       "raw": "\n"
     },
     {
       "id": "b000059",
       "kind": "fenced_code",
-      "start_line": 95,
-      "end_line": 99,
+      "start_line": 109,
+      "end_line": 113,
       "raw": "```sh\ncmake -S Example/FileProvider -B build/file-provider-app -DCMAKE_PREFIX_PATH=\"/path/to/iiPaintEngine;/path/to/iiFileProvider\"\ncmake --build build/file-provider-app --parallel\nbuild/file-provider-app/iiPaintEngineBrushGallery Example/FileProvider/resources/brush-gallery.png\n```\n",
       "language": "sh",
       "code": "cmake -S Example/FileProvider -B build/file-provider-app -DCMAKE_PREFIX_PATH=\"/path/to/iiPaintEngine;/path/to/iiFileProvider\"\ncmake --build build/file-provider-app --parallel\nbuild/file-provider-app/iiPaintEngineBrushGallery Example/FileProvider/resources/brush-gallery.png\n",
@@ -537,7 +565,7 @@
       "level": 2,
       "title": "시간 분사와 화면 연결",
       "anchor": "시간-분사와-화면-연결",
-      "start_line": 69
+      "start_line": 83
     },
     {
       "block_id": "b000043",
@@ -545,7 +573,7 @@
       "level": 2,
       "title": "저장과 호환성",
       "anchor": "저장과-호환성",
-      "start_line": 79
+      "start_line": 93
     },
     {
       "block_id": "b000051",
@@ -553,7 +581,7 @@
       "level": 2,
       "title": "추가 브러시 옵션",
       "anchor": "추가-브러시-옵션",
-      "start_line": 87
+      "start_line": 101
     },
     {
       "block_id": "b000055",
@@ -561,7 +589,7 @@
       "level": 2,
       "title": "실행 가능한 견본",
       "anchor": "실행-가능한-견본",
-      "start_line": 91
+      "start_line": 105
     }
   ],
   "indexes": {
@@ -589,28 +617,21 @@
       },
       {
         "block_id": "b000029",
-        "line": 65,
-        "text": "곡선은 최대 64개의 `(input, output)` 매듭을 받으며 input은 `[0,1]`에서 엄격하게 증가해야 한다. 각 구간에 Linear/EaseIn/EaseOut/EaseInOut을 적용한다. 매듭이 비어 있으면 기존 min/center/max 세 점을 사용한다. 입력 궤적을 보존하는 곡선이 아니라 스칼라 파라미터의 전달 함수이다.",
-        "basis": "lexical_match",
-        "context": "paragraph"
-      },
-      {
-        "block_id": "b000047",
-        "line": 83,
-        "text": "`snapshotBrushPreset()`/`restoreBrushPreset()`는 모든 설정을 복사한다. 문서 버전 3의 `brushSources`에는 완전한 버전 3 프리셋을 기존 이름인 `presetV2` 필드로 넣고 이전 필드도 함께 기록한다. 필드명은 과거 저장 포맷에서 유지하며 내부의 `formatVersion`으로 프리셋 버전을 구분한다. 이전 버전 엔진은 버전 3 프리셋을 거부하므로 새 옵션을 조용히 누락하여 편집하지 않는다. 새 엔진은 `presetV2`를 우선하고 잘못된 프리셋이면 문서를 incompatible로 반환한다. 기존 문서는 기존 필드로 읽힌다. 이전 엔진은 픽셀과 기존 브러시 필드는 읽을 수 있지만 새 설정을 재저장할 수 없으므로 새 설정이 있는 문서의 편집에는 새 엔진을 사용해야 한다.",
+        "line": 66,
+        "text": "엄격하게 증가해야 한다. 프리셋 로드와 해석은 역순·중복·비유한 매듭을 거부한다. 각 구간에는",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000049",
-        "line": 85,
+        "line": 99,
         "text": "설계 범위는 [Adobe의 브러시 동적 속성](https://helpx.adobe.com/ie/photoshop/using/adding-dynamic-elements-brushes.html)과 [CLIP STUDIO의 다중 팁 설정](https://tips.clip-studio.com/en-us/articles/678)을 참고했다. 두 제품의 완전한 재현이나 ABR/SUT 호환성을 뜻하지 않는다. 기존 습식 혼색은 픽셀 샘플링 모델이며 유체 시뮬레이션이 아니다. 원본 궤적 저장, 종료점 taper, 전체 경로 smoothing, 리본 벡터는 bitmap-only 계약에 포함되지 않는다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000057",
-        "line": 93,
+        "line": 107,
         "text": "`Example/FileProvider/App/BrushGallery.cpp`는 각 입력점을 즉시 픽셀화하며 여섯 프리셋을 한 PNG로 출력한다. 파일 제공자와 엔진을 별도 소비자로 구성해야 한다. 라이브러리·공개 헤더·소비자·예제·테스트 모두 C++23을 요구한다. 공개 타입이 바뀌었으므로 SDK를 교체할 때 소비자도 재빌드해야 한다.",
         "basis": "lexical_match",
         "context": "paragraph"
@@ -643,21 +664,21 @@
         "label": "Adobe의 브러시 동적 속성",
         "target": "https://helpx.adobe.com/ie/photoshop/using/adding-dynamic-elements-brushes.html",
         "kind": "external",
-        "line": 85
+        "line": 99
       },
       {
         "block_id": "b000049",
         "label": "CLIP STUDIO의 다중 팁 설정",
         "target": "https://tips.clip-studio.com/en-us/articles/678",
         "kind": "external",
-        "line": 85
+        "line": 99
       },
       {
         "block_id": "b000053",
         "label": "브러시 옵션 계약",
         "target": "BRUSH_OPTIONS.md",
         "kind": "relative",
-        "line": 89
+        "line": 103
       }
     ],
     "tables": [

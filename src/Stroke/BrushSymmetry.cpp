@@ -6,7 +6,6 @@
 
 namespace {
 constexpr double tau = 2 * std::numbers::pi;
-constexpr std::size_t maxDabs = 65536;
 
 BrushDab transform(const BrushDab &dab, const BrushSymmetrySettings &s, double rotation, bool reflect)
 {
@@ -36,6 +35,13 @@ BrushDab transform(const BrushDab &dab, const BrushSymmetrySettings &s, double r
 
 std::vector<BrushDab> applyBrushSymmetry(BrushDabSpan dabs, const BrushSymmetrySettings &settings)
 {
+    return applyBrushSymmetryWithLimit(dabs, settings, maxRasterDabsPerEvent);
+}
+
+std::vector<BrushDab> applyBrushSymmetryWithLimit(BrushDabSpan dabs, const BrushSymmetrySettings &settings,
+                                                std::size_t maxDabs)
+{
+    maxDabs = std::min(maxDabs, maxRasterDabsPerEvent);
     const auto mode = static_cast<int>(settings.mode);
     if (mode<0 || mode>static_cast<int>(BrushSymmetryMode::Mandala)
             || !std::isfinite(settings.center.x) || !std::isfinite(settings.center.y)
@@ -63,7 +69,7 @@ std::vector<BrushDab> applyBrushSymmetry(BrushDabSpan dabs, const BrushSymmetryS
             for (auto i=begin;i<out.size();++i)
                 if (std::hypot(out[i].position.x-copy.position.x,out[i].position.y-copy.position.y)<1e-8)
                     return;
-            if (out.size()==maxDabs) throw std::length_error("symmetry exceeds 65536 stamps per event");
+            if (out.size()==maxDabs) throw std::length_error("brush symmetry exceeds the event dab budget");
             out.push_back(copy);
         };
         emit(dab);

@@ -11,7 +11,7 @@ std::expected<RenderedStroke,FrozenRenderError> withFrozenSource(
     const DynamicsContext& dynamics,std::size_t maxMissingTiles,Render&& render) {
     FrozenSourceSampler reader(source,maxMissingTiles);
     const RenderTarget target{clip,reader.sampler(),argb,seed,dynamics};
-    auto rendered=std::forward<Render>(render)(target);
+    auto rendered=std::forward<Render>(render)(target, &FrozenSourceSampler::readRow);
     if (!reader.complete()) {
         if (reader.reportAllocationFailure())
             return std::unexpected(FrozenRenderError{FrozenRenderErrorCode::Allocation,{},{}});
@@ -36,13 +36,17 @@ std::expected<RenderedStroke,FrozenRenderError> renderFrozenGesture(
     std::uint32_t seed,const DynamicsContext& dynamics,const Limits& limits,
     std::size_t maxMissingTiles) {
     return withFrozenSource(clip,source,argb,seed,dynamics,maxMissingTiles,
-        [&](const RenderTarget& target) { return renderGesture(inputs,tool,controls,target,limits); });
+        [&](const RenderTarget& target, RenderTarget::CopySourceRow readRow) {
+            return renderGesture(inputs, tool, controls, target, limits, readRow);
+        });
 }
 std::expected<RenderedStroke,FrozenRenderError> renderFrozenGestureWithPreset(
     std::span<const StrokePoint> inputs,Tool tool,const Controls& controls,const BrushPreset& base,
     DevicePixelRect clip,const FrozenSource& source,std::uint32_t argb,std::uint32_t seed,
     const DynamicsContext& dynamics,const Limits& limits,std::size_t maxMissingTiles) {
     return withFrozenSource(clip,source,argb,seed,dynamics,maxMissingTiles,
-        [&](const RenderTarget& target) { return renderGestureWithPreset(inputs,tool,controls,base,target,limits); });
+        [&](const RenderTarget& target, RenderTarget::CopySourceRow readRow) {
+            return renderGestureWithPreset(inputs, tool, controls, base, target, limits, readRow);
+        });
 }
 } // namespace ii::brush

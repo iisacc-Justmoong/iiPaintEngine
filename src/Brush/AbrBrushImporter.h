@@ -31,6 +31,7 @@ struct AbrBrushImport {
     std::uint16_t version = 0;
     std::uint16_t subversion = 0;
     std::vector<AbrImportedBrush> brushes;
+    // First-seen order, once per diagnostic or distinct skipped section/legacy type.
     std::vector<std::string> warnings;
 };
 

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <vector>
 #include "Brush/AbrBrushImporter.h"
 #include "Brush/BrushResolve.h"
@@ -15,9 +16,14 @@ using Bytes=std::vector<std::byte>;
 void byte(Bytes &b,unsigned v){b.push_back(std::byte(v));}
 void u16(Bytes &b,unsigned v){byte(b,v>>8);byte(b,v);}
 void u32(Bytes &b,std::uint32_t v){u16(b,v>>16);u16(b,v);}
-void text(Bytes &b,const std::string &s){for(unsigned char c:s)byte(b,c);}
+void text(Bytes &b,std::string_view s){for(unsigned char c:s)byte(b,c);}
 void append(Bytes &b,const Bytes &v){b.insert(b.end(),v.begin(),v.end());}
 void record(Bytes &b,unsigned type,const Bytes &body){u16(b,type);u32(b,body.size());append(b,body);}
+// 현대 ABR 섹션은 4바이트 정렬을 위해 페이로드 뒤에 패딩을 둔다.
+void section(Bytes &b,std::string_view key,const Bytes &body={}) {
+    text(b,"8BIM");text(b,key);u32(b,body.size());append(b,body);
+    for(std::size_t i=body.size();i%4!=0;++i) byte(b,0);
+}
 void sample(Bytes &b,unsigned depth,unsigned compression,const Bytes &pixels,unsigned w=2,unsigned h=2){
     u32(b,0);u32(b,0);u32(b,h);u32(b,w);u16(b,depth);byte(b,compression);append(b,pixels);
 }
@@ -38,9 +44,61 @@ Bytes modern(unsigned version,unsigned subversion,unsigned depth,bool rle) {
     if(depth==8){if(rle){u16(pixels,3);byte(pixels,1);byte(pixels,0);byte(pixels,255);}else{byte(pixels,0);byte(pixels,255);}}
     else {if(rle){u16(pixels,5);byte(pixels,3);} byte(pixels,0);byte(pixels,0);byte(pixels,255);byte(pixels,255);}
     sample(entry,depth,rle?1:0,pixels,2,1);
-    Bytes section;u32(section,entry.size());append(section,entry);while(section.size()%4)byte(section,0);
-    Bytes b;u16(b,version);u16(b,subversion);text(b,"8BIMsamp");u32(b,section.size());append(b,section);
+    Bytes body;u32(body,entry.size());append(body,entry);while(body.size()%4)byte(body,0);
+    Bytes b;u16(b,version);u16(b,subversion);section(b,"samp",body);
     return b;
+}
+
+// 섹션 한도까지 같은 종류를 반복하고 두 샘플 팁 모두 16비트로 저장한다.
+int modernWarningContract() {
+    constexpr unsigned sectionLimit=4096;
+    auto file=modern(6,1,16,false);
+    section(file,"patt",{std::byte{17}});
+    const auto packed=modern(6,1,16,true);
+    file.insert(file.end(),packed.begin()+4,packed.end()); // 버전 헤더 뒤의 samp 섹션만 추가한다.
+    for(unsigned i=3;i<sectionLimit;++i) section(file,i%2==0 ? "patt" : "desc");
+
+    const auto imported=importAbrBrushes(file);
+    CHECK(imported && imported->brushes.size()==2);
+    CHECK(imported->brushes[0].preset.tip.mask==imported->brushes[1].preset.tip.mask);
+    const std::vector<std::string> expected{
+        "Modern ABR import extracts sampled tips only; preset descriptors, patterns and folders are not restored.",
+        "16-bit ABR tip coverage was rounded to the engine's 8-bit mask.",
+        "ABR section patt was not imported.",
+        "ABR section desc was not imported.",
+    };
+    CHECK(imported->warnings.size()==expected.size());
+    CHECK(imported->warnings==expected);
+    section(file,"desc");
+    const auto overflow=importAbrBrushes(file);
+    CHECK(!overflow && overflow.error().code==AbrImportErrorCode::ResourceLimit);
+    return 0;
+}
+
+// 레거시 브러시도 타입별 건너뛰기와 공통 진단을 최초 발생 순서로 보고한다.
+int legacyWarningContract() {
+    Bytes file;u16(file,1);u16(file,9);
+    Bytes tip;u32(tip,1);u16(tip,20);byte(tip,0);tip.resize(tip.size()+8);
+    sample(tip,16,0,{std::byte{0},std::byte{0},std::byte{255},std::byte{255}},2,1);
+    byte(tip,0); // 사용되지 않는 마지막 바이트.
+    for(unsigned i=0;i<3;++i) {
+        record(file,7,{});
+        record(file,2,tip);
+        record(file,3,{});
+    }
+    const auto imported=importAbrBrushes(file);
+    CHECK(imported && imported->brushes.size()==3);
+    CHECK(std::ranges::none_of(imported->brushes,[](const auto &brush){return brush.completeSettings;}));
+    const std::vector<std::string> expected{
+        "Unsupported legacy ABR brush type 7 was skipped.",
+        "Nonzero legacy ABR miscellaneous flags were not mapped.",
+        "Legacy ABR anti-alias-off is not represented by the current mask sampler.",
+        "16-bit ABR tip coverage was rounded to the engine's 8-bit mask.",
+        "Unused trailing bytes in legacy ABR brush 2.",
+        "Unsupported legacy ABR brush type 3 was skipped.",
+    };
+    CHECK(imported->warnings==expected);
+    return 0;
 }
 }
 int main()
@@ -94,9 +152,11 @@ int main()
     auto half=modern(6,1,16,false);
     half[half.size()-5]=std::byte{128};half[half.size()-4]=std::byte{0};
     CHECK(importAbrBrushes(half)->brushes.front().preset.tip.mask.back()==std::byte{128});
-    auto sections=modern(6,1,8,false);text(sections,"8BIMdesc");u32(sections,4);u32(sections,16);
+    auto sections=modern(6,1,8,false);section(sections,"desc",{std::byte{0},std::byte{0},std::byte{0},std::byte{16}});
     const auto partial=importAbrBrushes(sections);
     CHECK(partial && !partial->brushes.front().completeSettings && partial->warnings.size()>=2);
+    if(const auto result=modernWarningContract();result!=0) return result;
+    if(const auto result=legacyWarningContract();result!=0) return result;
     limits={};limits.maxFileBytes=1;
     CHECK(!importAbrBrushes(data,limits));
     // Mutation smoke coverage is bounded; accepted data must still resolve as valid brushes.

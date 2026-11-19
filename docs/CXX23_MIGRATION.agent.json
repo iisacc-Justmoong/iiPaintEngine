@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/CXX23_MIGRATION.md",
-    "sha256": "281ed6a86a890f8035a789df1ed03eedca3144dcfd9ab78ea4dbc397def62121",
-    "bytes": 6405,
-    "line_count": 52,
+    "sha256": "62186628cb22b80f5665838b42ed81e6e1ec0f7edd33726481fc1042358ecbe9",
+    "bytes": 12701,
+    "line_count": 131,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -273,24 +273,66 @@
       "raw": "\n"
     },
     {
-      "id": "b000029",
+      "id": "b000074",
       "kind": "paragraph",
       "start_line": 40,
-      "end_line": 40,
+      "end_line": 44,
+      "raw": "HDR encoding indexes a 256-entry table of the original `float(pow(channel / 255.0, 2.2))`\nvalues. It reuses the table in round-to-nearest mode and computes the table in the\ncurrent mode for other rounding settings. Alpha flattening writes directly to the\nlinear float buffer passed to the HDR writer. The PNM writer places flattened RGB\ndirectly after its header in the encoded output buffer.\n"
+    },
+    {
+      "id": "b000075",
+      "kind": "blank",
+      "start_line": 45,
+      "end_line": 45,
+      "raw": "\n"
+    },
+    {
+      "id": "b000076",
+      "kind": "paragraph",
+      "start_line": 46,
+      "end_line": 53,
+      "raw": "The pinned stb decoder returns a temporary RGBA buffer. The codec converts it\ninto the `RasterLayer` ARGB32 vector with a byte shuffle on eligible ARM64 NEON\nbuilds, a vectorizable word loop on other little-endian builds, and explicit byte\nassembly on other targets. Both buffers coexist during conversion. stb selects\nSSE2 on eligible x86 builds. The codec enables NEON\nwhen the target is little-endian ARM and the compiler supplies the NEON flag and\nintrinsic header. Other targets use the stb scalar kernels. A build can select\nthese kernels explicitly by defining `STBI_NO_SIMD` for the codec translation unit.\n"
+    },
+    {
+      "id": "b000077",
+      "kind": "blank",
+      "start_line": 54,
+      "end_line": 54,
+      "raw": "\n"
+    },
+    {
+      "id": "b000078",
+      "kind": "paragraph",
+      "start_line": 55,
+      "end_line": 58,
+      "raw": "`BitmapCodecOptimization` checks all 256 HDR table entries against the original\nfloat conversion, compares RGBE bytes, and counts the HDR RGB staging allocation.\nIt also verifies exact ARGB round trips for PNG, BMP, and TGA and identical JPEG\ndecode pixels against pinned scalar stb for 4:2:0 and 4:4:4 inputs.\n"
+    },
+    {
+      "id": "b000079",
+      "kind": "blank",
+      "start_line": 59,
+      "end_line": 59,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 60,
+      "end_line": 60,
       "raw": "Unrecognized/vector content or decoder-reported failures, excessive dimensions/pixel counts, invalid write quality, and unknown writers fail without replacing the current file object. A complete encoded image is written to an exclusively created sibling before replacement. The standard rename overwrite path is atomic on supported filesystems. Where overwrite is unavailable, the library backs up the old destination, attempts replacement, and restores on failure; this fallback is not atomic. No concurrent-writer locking or metadata retention is claimed.\n"
     },
     {
       "id": "b000030",
       "kind": "blank",
-      "start_line": 41,
-      "end_line": 41,
+      "start_line": 61,
+      "end_line": 61,
       "raw": "\n"
     },
     {
       "id": "b000031",
       "kind": "heading",
-      "start_line": 42,
-      "end_line": 42,
+      "start_line": 62,
+      "end_line": 62,
       "raw": "## Build and installation scope\n",
       "level": 2,
       "title": "Build and installation scope"
@@ -298,57 +340,57 @@
     {
       "id": "b000032",
       "kind": "blank",
-      "start_line": 43,
-      "end_line": 43,
+      "start_line": 63,
+      "end_line": 63,
       "raw": "\n"
     },
     {
       "id": "b000033",
       "kind": "paragraph",
-      "start_line": 44,
-      "end_line": 44,
+      "start_line": 64,
+      "end_line": 64,
       "raw": "Use `cmake -S . -B build`, build and run CTest, then install. Additional verification builds live under `build/` as well. The source supports platform-neutral C++ APIs and no longer distributes Qt/mobile/GUI package machinery. A compiled host installation establishes operation on that host only; Windows, Linux, mobile, and WebAssembly require their own toolchain and runtime validation.\n"
     },
     {
       "id": "b000034",
       "kind": "blank",
-      "start_line": 45,
-      "end_line": 45,
+      "start_line": 65,
+      "end_line": 65,
       "raw": "\n"
     },
     {
       "id": "b000035",
       "kind": "paragraph",
-      "start_line": 46,
-      "end_line": 46,
+      "start_line": 66,
+      "end_line": 66,
       "raw": "The pre-migration source/dirty-state snapshot and old installed package are retained in this checkout's `build/` directory. These historical backups are excluded from active sources and the new installation. Do not reintroduce them as library dependencies.\n"
     },
     {
       "id": "b000036",
       "kind": "blank",
-      "start_line": 47,
-      "end_line": 47,
+      "start_line": 67,
+      "end_line": 67,
       "raw": "\n"
     },
     {
       "id": "b000037",
       "kind": "paragraph",
-      "start_line": 48,
-      "end_line": 48,
+      "start_line": 68,
+      "end_line": 68,
       "raw": "The local macOS package retains a native `platforms/macos` mirror for existing directory references. Its library, headers, and native configuration match the flat native package. Other platform binaries are not implied by this host installation. `BitmapFile` depends only on Core/Layer/Render pixel interfaces; stroke execution is composed in Application rather than imported by file I/O.\n"
     },
     {
       "id": "b000038",
       "kind": "blank",
-      "start_line": 49,
-      "end_line": 49,
+      "start_line": 69,
+      "end_line": 69,
       "raw": "\n"
     },
     {
       "id": "b000039",
       "kind": "heading",
-      "start_line": 50,
-      "end_line": 50,
+      "start_line": 70,
+      "end_line": 70,
       "raw": "## 0.5 brush extension\n",
       "level": 2,
       "title": "0.5 brush extension"
@@ -356,16 +398,284 @@
     {
       "id": "b000040",
       "kind": "blank",
-      "start_line": 51,
-      "end_line": 51,
+      "start_line": 71,
+      "end_line": 71,
       "raw": "\n"
     },
     {
       "id": "b000041",
       "kind": "paragraph",
-      "start_line": 52,
-      "end_line": 52,
-      "raw": "Public brush and stream layouts gained symmetry and pulled-string/catch-up settings; rebuild consumers against iiPaintEngine 0.5. Preset format 4 preserves them and reads formats 1/2/3 with neutral defaults. The document archive stays at format 3. See [Brush expansion](BRUSH_EXPANSION.md) for the bounded ABR reader, model semantics and current compatibility limits.\n"
+      "start_line": 72,
+      "end_line": 72,
+      "raw": "Public brush and stream layouts gained symmetry and pulled-string/catch-up settings; rebuild consumers against iiPaintEngine 0.5. Preset format 4 preserves them and reads formats 1/2/3 with neutral defaults. Preset versions are independent of document archive versions. See [Brush expansion](BRUSH_EXPANSION.md) for the bounded ABR reader, model semantics and current compatibility limits.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 73,
+      "end_line": 73,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "heading",
+      "start_line": 74,
+      "end_line": 74,
+      "raw": "## Document archive read limits\n",
+      "level": 2,
+      "title": "Document archive read limits"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 75,
+      "end_line": 75,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "paragraph",
+      "start_line": 76,
+      "end_line": 76,
+      "raw": "`deserializeDocumentArchive()` applies the default limits to formats 3 and 4 and compatible legacy single-surface archives. `deserializeDocumentArchiveWithLimits()` and `deserializeDocumentArchiveView()` accept `DocumentArchiveReadLimits` through `<iiPaintEngine>`. Callers can lower individual limits, and values above the defaults are capped at those defaults. A layer at the root has depth 1.\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 77,
+      "end_line": 77,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "table",
+      "start_line": 78,
+      "end_line": 87,
+      "raw": "| Limit | Maximum per archive |\n| --- | ---: |\n| `maxLayers` | 10,000 layers including descendants |\n| `maxLayerDepth` | 64 levels |\n| `maxDirtyRects` | 1,000,000 rectangles across document and layer surfaces |\n| `maxHistoryCommands` | 100,000 commands across undo and redo |\n| `maxHistoryPatches` | 1,000,000 patches across undo and redo |\n| `maxBrushSources` | 10,000 brush sources |\n| `maxColorSpaces` | 1,024 color spaces |\n| `maxAssets` | 100,000 assets |\n",
+      "columns": [
+        "Limit",
+        "Maximum per archive"
+      ],
+      "rows": [
+        [
+          "`maxLayers`",
+          "10,000 layers including descendants"
+        ],
+        [
+          "`maxLayerDepth`",
+          "64 levels"
+        ],
+        [
+          "`maxDirtyRects`",
+          "1,000,000 rectangles across document and layer surfaces"
+        ],
+        [
+          "`maxHistoryCommands`",
+          "100,000 commands across undo and redo"
+        ],
+        [
+          "`maxHistoryPatches`",
+          "1,000,000 patches across undo and redo"
+        ],
+        [
+          "`maxBrushSources`",
+          "10,000 brush sources"
+        ],
+        [
+          "`maxColorSpaces`",
+          "1,024 color spaces"
+        ],
+        [
+          "`maxAssets`",
+          "100,000 assets"
+        ]
+      ]
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 88,
+      "end_line": 88,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 89,
+      "end_line": 89,
+      "raw": "Present collection counts must contain only unsigned decimal digits and fit their remaining budget. A missing count denotes an empty collection. Every declared index must have its own field from the archive schema before its collection is reserved. For example, a layer needs its `surface.width` and a history patch needs its `targetId`. Optional fields still use their existing defaults. Legacy text readers accept LF and CRLF line endings.\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 90,
+      "end_line": 90,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "paragraph",
+      "start_line": 91,
+      "end_line": 91,
+      "raw": "Collection traversal and allocation are proportional to the actual records. The hash index references the input buffer and uses O(K) entries for K distinct keys. Binary chunk bodies are skipped by length and the expected lookup work is linear in the sum of key lengths. Pixel, mask and asset storage is sized from the encoded data present in the archive.\n"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 92,
+      "end_line": 92,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "paragraph",
+      "start_line": 93,
+      "end_line": 93,
+      "raw": "Malformed counts, absent records, excessive depth and invalid chunk framing return `compatible = false` with a diagnostic in `compatibilityError`. Length and allocation failures during parsing also return an incompatible archive. Failed reads discard all partially decoded data.\n"
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 94,
+      "end_line": 94,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "paragraph",
+      "start_line": 95,
+      "end_line": 95,
+      "raw": "`iiPaintEngineDocumentSerializerContract` checks that small malformed inputs are rejected in under 50 ms per call. It also checks the depth boundary, shared budgets, legacy migration and byte-identical serialization after reopening a document with layers, brush data, assets and undo/redo history.\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 96,
+      "end_line": 96,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "heading",
+      "start_line": 97,
+      "end_line": 97,
+      "raw": "## 문서 아카이브 버전 4\n",
+      "level": 2,
+      "title": "문서 아카이브 버전 4"
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 98,
+      "end_line": 98,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
+      "kind": "paragraph",
+      "start_line": 99,
+      "end_line": 101,
+      "raw": "파일은 `iiPaintDocumentBinary\\n` 서명으로 시작한다. 텍스트 레코드는 `key\\tvalue\\n`을\n사용한다. 인용 문자열은 인용부호와 역슬래시를 이스케이프하며 줄바꿈과 캐리지 리턴을\n각각 `\\n`과 `\\r`로 저장한다. 마지막의 `formatVersion\\t4\\n`이 버전을 지정한다.\n"
+    },
+    {
+      "id": "b000060",
+      "kind": "blank",
+      "start_line": 102,
+      "end_line": 102,
+      "raw": "\n"
+    },
+    {
+      "id": "b000061",
+      "kind": "paragraph",
+      "start_line": 103,
+      "end_line": 106,
+      "raw": "바이너리 레코드는 `@key\\tbyteCount\\n` 뒤에 정확히 `byteCount` 바이트와 LF 한 바이트를\n둔다. 길이는 부호 없는 10진수이며 0도 허용한다. 본문에 NUL, 탭 또는 LF가 포함돼도\n레코드 경계는 길이로 결정된다. 표면 픽셀과 썸네일은 32비트 ARGB 값을 리틀엔디언으로\n저장한다. 마스크, 프리셋, ICC 프로필, 에셋과 이력의 바이트 배열은 원래 바이트를 보존한다.\n"
+    },
+    {
+      "id": "b000062",
+      "kind": "blank",
+      "start_line": 107,
+      "end_line": 107,
+      "raw": "\n"
+    },
+    {
+      "id": "b000063",
+      "kind": "paragraph",
+      "start_line": 108,
+      "end_line": 111,
+      "raw": "`serializeDocumentArchive()`는 최종 크기를 먼저 계산하고 문자열 버퍼를 한 번 예약한다.\n`serializeDocumentArchiveTo()`는 한 패스로 호출자가 제공한 스트림에 기록한다. 파일\n스트림은 바이너리 모드로 열어야 한다. 기록이 끝나기 전에 실패하면 `false`를 반환하며,\n부분 출력과 원자적 게시 여부는 스트림을 제공한 호출자가 관리한다.\n"
+    },
+    {
+      "id": "b000064",
+      "kind": "blank",
+      "start_line": 112,
+      "end_line": 112,
+      "raw": "\n"
+    },
+    {
+      "id": "b000065",
+      "kind": "paragraph",
+      "start_line": 113,
+      "end_line": 116,
+      "raw": "`deserializeDocumentArchiveView()`는 호출 중 입력을 빌린다. 복원된 문서는 픽셀과 바이트\n배열을 자체 벡터로 소유한다. 기존 문자열 API도 이 경로를 사용한다. 새 SDK는 버전 3의\n16진수 데이터와 호환 가능한 단일 표면 문서를 읽으며, 다시 저장하면 버전 4를 출력한다.\n버전 4 파일은 이를 지원하는 SDK나 애플리케이션에서 연다.\n"
+    },
+    {
+      "id": "b000066",
+      "kind": "blank",
+      "start_line": 117,
+      "end_line": 117,
+      "raw": "\n"
+    },
+    {
+      "id": "b000067",
+      "kind": "heading",
+      "start_line": 118,
+      "end_line": 118,
+      "raw": "## 16진수 필드와 표면 크기 검증\n",
+      "level": 2,
+      "title": "16진수 필드와 표면 크기 검증"
+    },
+    {
+      "id": "b000068",
+      "kind": "blank",
+      "start_line": 119,
+      "end_line": 119,
+      "raw": "\n"
+    },
+    {
+      "id": "b000069",
+      "kind": "paragraph",
+      "start_line": 120,
+      "end_line": 123,
+      "raw": "기존 아카이브의 16진수 배열은 필드 타입에 맞는 바이트 또는 32비트 워드 단위로 끝나야\n한다. `0–9`, `A–F`, `a–f`를 읽으며 잘못된 문자와 잘린 단위를 거부한다. 아카이브에\n명시된 UUID는 버전에 관계없이 정확히 32자리의 16진수여야 한다. 생략한 UUID는 기본값을\n사용한다.\n"
+    },
+    {
+      "id": "b000070",
+      "kind": "blank",
+      "start_line": 124,
+      "end_line": 124,
+      "raw": "\n"
+    },
+    {
+      "id": "b000071",
+      "kind": "paragraph",
+      "start_line": 125,
+      "end_line": 128,
+      "raw": "문서와 레이어 표면의 가로와 세로는 각각 `Types::Pixel` 범위의 부호 없는 10진수로 읽는다.\n생략한 치수의 기본값은 0이다. 두 치수의 곱을 64비트로 계산하고, 16진수 데이터나 바이너리\n청크에서 확인한 픽셀 개수와 비교한 뒤 버퍼를 할당한다. 픽셀 레코드를 생략한 표면은\n면적이 0일 때 유효하다.\n"
+    },
+    {
+      "id": "b000072",
+      "kind": "blank",
+      "start_line": 129,
+      "end_line": 129,
+      "raw": "\n"
+    },
+    {
+      "id": "b000073",
+      "kind": "paragraph",
+      "start_line": 130,
+      "end_line": 131,
+      "raw": "검증에 실패하면 `compatible = false`와 문제 필드 경로를 담은 `compatibilityError`를\n반환한다. 픽셀 수가 다른 경우 진단에 기대 개수와 실제 개수가 포함된다.\n"
     }
   ],
   "outline": [
@@ -407,7 +717,7 @@
       "level": 2,
       "title": "Build and installation scope",
       "anchor": "build-and-installation-scope",
-      "start_line": 42
+      "start_line": 62
     },
     {
       "block_id": "b000039",
@@ -415,7 +725,31 @@
       "level": 2,
       "title": "0.5 brush extension",
       "anchor": "05-brush-extension",
-      "start_line": 50
+      "start_line": 70
+    },
+    {
+      "block_id": "b000043",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Document archive read limits",
+      "anchor": "document-archive-read-limits",
+      "start_line": 74
+    },
+    {
+      "block_id": "b000057",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "문서 아카이브 버전 4",
+      "anchor": "문서-아카이브-버전-4",
+      "start_line": 97
+    },
+    {
+      "block_id": "b000067",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "16진수 필드와 표면 크기 검증",
+      "anchor": "16진수-필드와-표면-크기-검증",
+      "start_line": 118
     }
   ],
   "indexes": {
@@ -443,8 +777,22 @@
       },
       {
         "block_id": "b000035",
-        "line": 46,
+        "line": 66,
         "text": "The pre-migration source/dirty-state snapshot and old installed package are retained in this checkout's `build/` directory. These historical backups are excluded from active sources and the new installation. Do not reintroduce them as library dependencies.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000049",
+        "line": 89,
+        "text": "Present collection counts must contain only unsigned decimal digits and fit their remaining budget. A missing count denotes an empty collection. Every declared index must have its own field from the archive schema before its collection is reserved. For example, a layer needs its `surface.width` and a history patch needs its `targetId`. Optional fields still use their existing defaults. Legacy text readers accept LF and CRLF line endings.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000063",
+        "line": 110,
+        "text": "스트림은 바이너리 모드로 열어야 한다. 기록이 끝나기 전에 실패하면 `false`를 반환하며,",
         "basis": "lexical_match",
         "context": "paragraph"
       }
@@ -463,7 +811,7 @@
         "label": "Brush expansion",
         "target": "BRUSH_EXPANSION.md",
         "kind": "relative",
-        "line": 52
+        "line": 72
       }
     ],
     "tables": [
@@ -513,6 +861,47 @@
           [
             "Qt/QML registration and event policy hooks",
             "Removed; window/input policy belongs to the application"
+          ]
+        ]
+      },
+      {
+        "block_id": "b000047",
+        "columns": [
+          "Limit",
+          "Maximum per archive"
+        ],
+        "rows": [
+          [
+            "`maxLayers`",
+            "10,000 layers including descendants"
+          ],
+          [
+            "`maxLayerDepth`",
+            "64 levels"
+          ],
+          [
+            "`maxDirtyRects`",
+            "1,000,000 rectangles across document and layer surfaces"
+          ],
+          [
+            "`maxHistoryCommands`",
+            "100,000 commands across undo and redo"
+          ],
+          [
+            "`maxHistoryPatches`",
+            "1,000,000 patches across undo and redo"
+          ],
+          [
+            "`maxBrushSources`",
+            "10,000 brush sources"
+          ],
+          [
+            "`maxColorSpaces`",
+            "1,024 color spaces"
+          ],
+          [
+            "`maxAssets`",
+            "100,000 assets"
           ]
         ]
       }

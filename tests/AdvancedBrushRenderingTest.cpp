@@ -203,7 +203,11 @@ int main()
     CHECK(document.compatible && document.brushSources.size()==1);
     CHECK(serializeBrushPreset(restoreBrushPreset(document.brushSources[0]))==payload);
     auto damagedDocument=archivePayload;
-    const auto embedded=damagedDocument.find(".presetV2\t")+10;
+    const auto presetRecord=damagedDocument.find("@brushSources.0.presetV2\t");
+    CHECK(presetRecord!=std::string::npos);
+    const auto presetHeaderEnd=damagedDocument.find('\n',presetRecord);
+    CHECK(presetHeaderEnd!=std::string::npos && presetHeaderEnd+1<damagedDocument.size());
+    const auto embedded=presetHeaderEnd+1;
     damagedDocument[embedded]='Z';
     CHECK(!deserializeDocumentArchive(damagedDocument).compatible);
     const std::string legacy="formatMagic\t\"iiPaintBrushPreset\"\nformatVersion\t1\nsize\t12\nflow\t1\nopacity\t1\nhardness\t1\ndensity\t1\n";

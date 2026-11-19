@@ -113,21 +113,58 @@ std::uint32_t FrozenSourceSampler::read(const void* context,DevicePixelPoint loc
     const DevicePixelPoint p{int(std::int64_t(b.origin.x)+local.x),int(std::int64_t(b.origin.y)+local.y)};
     const auto pixel=self.source_.sample(p);
     if (!pixel) {
-        self.missing_.store(true,std::memory_order_relaxed);
-        try {
-            const auto key=std::pair{tileFor(p.y),tileFor(p.x)};
-            if (!self.missingTiles_.contains(key)) {
-                if (self.missingTiles_.size()>=self.maxMissingTiles_)
-                    self.reportIncomplete_.store(true,std::memory_order_relaxed);
-                else self.missingTiles_.insert(key);
-            }
-        } catch (...) {
-            self.reportAllocationFailure_.store(true,std::memory_order_relaxed);
-        }
+        self.recordMissing({tileFor(p.y), tileFor(p.x)});
         return 0;
     }
     return *pixel;
 }
+
+// 각 타일의 연속 저장 구간을 찾아 해당 구간을 한 번에 복사한다.
+void FrozenSourceSampler::readRow(const void* context, DevicePixelPoint start,
+                                 std::span<std::uint32_t> destination) noexcept
+{
+    const auto& self = *static_cast<const FrozenSourceSampler*>(context);
+    const auto bounds = self.source_.bounds();
+    if (start.x < 0 || start.x >= bounds.width || start.y < 0 || start.y >= bounds.height
+            || destination.size() > static_cast<std::size_t>(bounds.width - start.x)) {
+        std::ranges::fill(destination, 0U);
+        return;
+    }
+
+    const auto y = std::int64_t(bounds.origin.y) + start.y;
+    const auto row = tileFor(y);
+    const auto rowOffset = static_cast<std::size_t>(y - row * FrozenSourceTileSide) * FrozenSourceTileSide;
+    auto x = std::int64_t(bounds.origin.x) + start.x;
+    const auto& tiles = self.source_.data_->tiles;
+    while (!destination.empty()) {
+        const auto column = tileFor(x);
+        const auto offset = static_cast<std::size_t>(x - column * FrozenSourceTileSide);
+        const auto count = std::min(destination.size(), FrozenSourceTileSide - offset);
+        if (const auto tile = tiles.find({row, column}); tile != tiles.end()) {
+            std::copy_n(tile->second->pixels.data() + rowOffset + offset, count, destination.begin());
+        } else {
+            self.recordMissing({row, column});
+            std::fill_n(destination.begin(), count, 0U);
+        }
+        x += static_cast<std::int64_t>(count);
+        destination = destination.subspan(count);
+    }
+}
+
+void FrozenSourceSampler::recordMissing(std::pair<std::int64_t, std::int64_t> key) const noexcept
+{
+    missing_.store(true, std::memory_order_relaxed);
+    try {
+        if (!missingTiles_.contains(key)) {
+            if (missingTiles_.size() >= maxMissingTiles_)
+                reportIncomplete_.store(true, std::memory_order_relaxed);
+            else missingTiles_.insert(key);
+        }
+    } catch (...) {
+        reportAllocationFailure_.store(true, std::memory_order_relaxed);
+    }
+}
+
 std::vector<DevicePixelRect> FrozenSourceSampler::missingTiles() const {
     std::vector<DevicePixelRect> result;
     result.reserve(missingTiles_.size());

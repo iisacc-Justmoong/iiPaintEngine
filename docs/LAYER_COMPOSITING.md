@@ -9,3 +9,9 @@ The alpha and separable/nonseparable definitions follow [W3C Compositing and Ble
 `compositeLayerStack` renders contiguous clipping chains against their base shape, including its pixel mask. Clipped layers cannot pick up opacity from unrelated background layers. Children blend within that shape without increasing its alpha; base opacity and mode are applied to the completed chain. A hidden base suppresses its clipped children, and an orphan clipped layer contributes nothing. Nested pixel groups retain their isolated child composition.
 
 `LayerBlendModesTest` checks all 27 modes over transparent backdrops, reference arithmetic, endpoint ordering, nonseparable results, partial-alpha overlap and deterministic Dissolve. `LayerCompositingContractTest` checks masks, groups and clipping. This is CPU pixel evidence, not GPU shader or Photoshop GUI parity.
+
+## Layer compositing for full-opacity layers
+
+`compositeRasterPixel` uses the source alpha byte directly for Normal (`SourceOver`) at unit layer opacity. A zero-alpha source leaves the backdrop intact and a fully opaque source replaces it. A translucent source over an opaque backdrop uses integer-weighted RGB channels with the same nearest-byte rounding. Two translucent pixels, fractional layer opacity and other blend modes still use the general compositor.
+
+`LayerCompositingContractTest` checks all 256 source alpha values and all 65,536 source/backdrop channel pairs over an opaque backdrop against an independent reference. The three packed channels use different values.

@@ -1,4 +1,5 @@
 #include "BitmapFile.h"
+#include "BitmapPixelDelta.h"
 #include "BitmapCodec.hpp"
 #include "Render/DirtyRegion.h"
 #include <algorithm>
@@ -183,6 +184,14 @@ bool BitmapFile::replacePixelPatch(DevicePixelRect bounds,
     }
     m_modified = true;
     setError({});
+    return true;
+}
+
+bool BitmapFile::applyPixelDelta(const BitmapPixelDelta &delta) noexcept
+{
+    if (!isOpen() || !delta.applyTo(m_pixels)) return false;
+    if (!delta.empty()) m_modified = true;
+    m_lastError.clear();
     return true;
 }
 

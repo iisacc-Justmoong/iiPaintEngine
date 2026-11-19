@@ -162,6 +162,28 @@ void correctionTest()
     check(!same(render(c,Tool::Paint,raw),render(plain(),Tool::Paint,raw)),"post correction has no pixel effect");
     set(c,P::PostCorrection,0); set(c,P::Stabilization,80);
     check(!same(render(c,Tool::Paint,raw),render(plain(),Tool::Paint,raw)),"stabilization has no pixel effect");
+
+    // 유효한 안정화 계수에서는 같은 시각의 내부 점에 앞 점의 위치를 사용한다.
+    auto simultaneous = raw;
+    simultaneous[1].time = simultaneous.front().time;
+    simultaneous[1].position.y = 45;
+    const auto stabilized = prepareGesture(simultaneous, c);
+    check(stabilized && stabilized->points[1].position.x == simultaneous.front().position.x
+          && stabilized->points[1].position.y == simultaneous.front().position.y,
+          "positive stabilization changed equal-timestamp behavior");
+
+    // 시상수가 0으로 언더플로되는 설정은 원래 위치와 거리 정보를 유한하게 유지한다.
+    set(c, P::Stabilization, 1e-200);
+    const auto tiny = prepareGesture(simultaneous, c);
+    check(tiny && tiny->points.size() == simultaneous.size() && std::isfinite(tiny->length)
+          && std::ranges::all_of(tiny->distances, [](double distance) { return std::isfinite(distance); }),
+          "tiny stabilization produced a non-finite gesture length");
+    for (std::size_t index = 0; index < simultaneous.size(); ++index) {
+        const auto position = tiny->points[index].position;
+        check(std::isfinite(position.x) && std::isfinite(position.y)
+              && position.x == simultaneous[index].position.x && position.y == simultaneous[index].position.y,
+              "tiny stabilization failed to preserve a finite input position");
+    }
 }
 std::uint32_t source(const void*, DevicePixelPoint p)
 { return ((p.x/8+p.y/8)%2)==0 ? 0xff2040d0U : 0xff20b080U; }

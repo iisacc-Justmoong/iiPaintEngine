@@ -11,7 +11,10 @@ is finite and nonnegative. The observed calculation starts with `w=1-feather`
 and repeats `w=(w*0.5)*(1+w)` three times. It finds the normalized radius where
 the helper profile reaches 0.3 using exactly sixteen bisections followed by
 linear interpolation, then returns `radius/root` and `w`. The original memoizes
-the root by weight; this small allocation-free function computes it directly.
+the root by weight. The C++ helper retains one normalization per thread, keyed
+by feather and the active floating-point rounding mode. A hit reuses `root`
+and `w` and divides the current radius by `root` in the original arithmetic
+order. A miss or an unavailable rounding mode runs the sixteen-step search.
 
 `localizedBrushProfile(normalizedRadius, centerWeight)` exposes that helper
 profile for finite normalized arguments. It preserves the original arithmetic
@@ -54,3 +57,8 @@ Adobe's module main, external cache factory, native bindings, and GUI are not
 executed. This scoped oracle is distinct from the SDK's float mask renderer.
 Exact arithmetic requires contraction and fast-math disabled for this translation
 unit. Java/Lua investigation tools are not product dependencies.
+
+`LocalizedBrushMemoization` repeats the 21 original-prototype vectors while
+counting calls to the sixteen-step search. It verifies exact bits on cold and
+warm calls, distinguishes adjacent feather values and supported rounding modes,
+and checks validation, overflow, and signed zero on the cached path.

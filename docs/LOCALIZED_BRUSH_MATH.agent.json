@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/LOCALIZED_BRUSH_MATH.md",
-    "sha256": "25fe18b47634b68ca857b9160ab3bc45c0c6af2195af37aff36f06fa9bbccbf7",
-    "bytes": 3670,
-    "line_count": 56,
+    "sha256": "db2c08326002c9c06c560ca50382a14495e62ec962dad10335509c7be9afa3f3",
+    "bytes": 4203,
+    "line_count": 64,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -56,35 +56,35 @@
       "id": "b000005",
       "kind": "paragraph",
       "start_line": 8,
-      "end_line": 14,
-      "raw": "`localizedBrushDabParameters(radius, feather)` returns a radius in the caller's\ninput units and a normalized `centerWeight`. Feather is finite `[0,1]`; radius\nis finite and nonnegative. The observed calculation starts with `w=1-feather`\nand repeats `w=(w*0.5)*(1+w)` three times. It finds the normalized radius where\nthe helper profile reaches 0.3 using exactly sixteen bisections followed by\nlinear interpolation, then returns `radius/root` and `w`. The original memoizes\nthe root by weight; this small allocation-free function computes it directly.\n"
+      "end_line": 17,
+      "raw": "`localizedBrushDabParameters(radius, feather)` returns a radius in the caller's\ninput units and a normalized `centerWeight`. Feather is finite `[0,1]`; radius\nis finite and nonnegative. The observed calculation starts with `w=1-feather`\nand repeats `w=(w*0.5)*(1+w)` three times. It finds the normalized radius where\nthe helper profile reaches 0.3 using exactly sixteen bisections followed by\nlinear interpolation, then returns `radius/root` and `w`. The original memoizes\nthe root by weight. The C++ helper retains one normalization per thread, keyed\nby feather and the active floating-point rounding mode. A hit reuses `root`\nand `w` and divides the current radius by `root` in the original arithmetic\norder. A miss or an unavailable rounding mode runs the sixteen-step search.\n"
     },
     {
       "id": "b000006",
       "kind": "blank",
-      "start_line": 15,
-      "end_line": 15,
+      "start_line": 18,
+      "end_line": 18,
       "raw": "\n"
     },
     {
       "id": "b000007",
       "kind": "paragraph",
-      "start_line": 16,
-      "end_line": 21,
+      "start_line": 19,
+      "end_line": 24,
       "raw": "`localizedBrushProfile(normalizedRadius, centerWeight)` exposes that helper\nprofile for finite normalized arguments. It preserves the original arithmetic\nordering instead of replacing repeated multiplication with `pow`. Both return\n`std::expected` errors for invalid input; a derived radius that overflows is\nalso rejected. These are additional SDK bounds, not bounds present in Adobe's\noriginal helper.\n"
     },
     {
       "id": "b000008",
       "kind": "blank",
-      "start_line": 22,
-      "end_line": 22,
+      "start_line": 25,
+      "end_line": 25,
       "raw": "\n"
     },
     {
       "id": "b000009",
       "kind": "heading",
-      "start_line": 23,
-      "end_line": 23,
+      "start_line": 26,
+      "end_line": 26,
       "raw": "## Source and limits\n",
       "level": 2,
       "title": "Source and limits"
@@ -92,44 +92,58 @@
     {
       "id": "b000010",
       "kind": "blank",
-      "start_line": 24,
-      "end_line": 24,
+      "start_line": 27,
+      "end_line": 27,
       "raw": "\n"
     },
     {
       "id": "b000011",
       "kind": "paragraph",
-      "start_line": 25,
-      "end_line": 32,
+      "start_line": 28,
+      "end_line": 35,
       "raw": "The actual input is\n`AgCameraRawControllerLocalizedCorrectionMethods.lua`, SHA-256\n`2b2bb57cfa8953bd7c4af07da970a723e424bc097fbd53788f46a94f1a77c3bc`.\nThe original Lua bytecode prototypes f66/f67/f68/f70/f71 and their opcode words,\ntyped constants, upvalues, and file positions were checked against the retained\ndisassembly. The corresponding readable\n[helper excerpt](/Volumes/Storage/Workspace/Engineering/Projects/Adobe/Lightroom/recovered/scripts/decompiled/Contents/PlugIns/Develop.lrmodule/Contents/Resources/AgCameraRawControllerLocalizedCorrectionMethods.lua:3878)\nis at 3878..4014, and the native parameter handoff is at 4805..4818.\n"
     },
     {
       "id": "b000012",
       "kind": "blank",
-      "start_line": 33,
-      "end_line": 33,
+      "start_line": 36,
+      "end_line": 36,
       "raw": "\n"
     },
     {
       "id": "b000013",
       "kind": "paragraph",
-      "start_line": 34,
-      "end_line": 40,
+      "start_line": 37,
+      "end_line": 43,
       "raw": "The complete high-level decompiler file fails Lua syntax checks. Its readable\ntext alone therefore is not authority for execution. The investigation's\n[source audit](/Volumes/Storage/Workspace/Engineering/Projects/Adobe/evidence/sdk-local-processing/evidence-audit.json)\npreserves the matching original opcode/constant anchors. `centerWeight` and\nadjusted radius are handed to the native CameraRaw boundary; the native brush\npixel kernel, full brush rendering, and Adobe output parity are not recovered\nby these numeric functions.\n"
     },
     {
       "id": "b000014",
       "kind": "blank",
-      "start_line": 41,
-      "end_line": 41,
+      "start_line": 44,
+      "end_line": 44,
       "raw": "\n"
     },
     {
       "id": "b000015",
       "kind": "paragraph",
-      "start_line": 42,
-      "end_line": 56,
+      "start_line": 45,
+      "end_line": 59,
       "raw": "Tests cover 101 feather values, radial boundedness/monotonicity, the independent\nanalytic weight 1 root, endpoints/units/zero radius, invalid values, and output\noverflow. In addition, 21 original-prototype vectors test the output radius,\ncenter weight, and profile with exact float64 bit comparisons. Their provenance\nis in [localized-brush-math-provenance.json](localized-brush-math-provenance.json).\nThe passive [golden vector record](localized-brush-vectors.json) is documentation;\nthe tests consume only the corresponding standard C++ fixture header.\nThe original byte ranges of six pure numeric prototypes were copied unmodified\ninto a compiler-created Lua 5.1 closure harness and executed with the existing\nofficial Lua 5.1.5 interpreter. Verified upvalues link only these helpers, the\nconstants 0.3/16, and a controlled memoization table. Global opcodes are absent;\nAdobe's module main, external cache factory, native bindings, and GUI are not\nexecuted. This scoped oracle is distinct from the SDK's float mask renderer.\nExact arithmetic requires contraction and fast-math disabled for this translation\nunit. Java/Lua investigation tools are not product dependencies.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "raw": "\n",
+      "start_line": 60,
+      "end_line": 60
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "raw": "`LocalizedBrushMemoization` repeats the 21 original-prototype vectors while\ncounting calls to the sixteen-step search. It verifies exact bits on cold and\nwarm calls, distinguishes adjacent feather values and supported rounding modes,\nand checks validation, overflow, and signed zero on the cached path.\n",
+      "start_line": 61,
+      "end_line": 64
     }
   ],
   "outline": [
@@ -147,7 +161,7 @@
       "level": 2,
       "title": "Source and limits",
       "anchor": "source-and-limits",
-      "start_line": 23
+      "start_line": 26
     }
   ],
   "indexes": {
@@ -167,28 +181,28 @@
         "label": "helper excerpt",
         "target": "/Volumes/Storage/Workspace/Engineering/Projects/Adobe/Lightroom/recovered/scripts/decompiled/Contents/PlugIns/Develop.lrmodule/Contents/Resources/AgCameraRawControllerLocalizedCorrectionMethods.lua:3878",
         "kind": "relative",
-        "line": 31
+        "line": 34
       },
       {
         "block_id": "b000013",
         "label": "source audit",
         "target": "/Volumes/Storage/Workspace/Engineering/Projects/Adobe/evidence/sdk-local-processing/evidence-audit.json",
         "kind": "relative",
-        "line": 36
+        "line": 39
       },
       {
         "block_id": "b000015",
         "label": "localized-brush-math-provenance.json",
         "target": "localized-brush-math-provenance.json",
         "kind": "relative",
-        "line": 46
+        "line": 49
       },
       {
         "block_id": "b000015",
         "label": "golden vector record",
         "target": "localized-brush-vectors.json",
         "kind": "relative",
-        "line": 47
+        "line": 50
       }
     ],
     "tables": []
